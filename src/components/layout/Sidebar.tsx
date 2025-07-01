@@ -1,23 +1,27 @@
 import { Sidebar, Menu, MenuItem, SubMenu } from "react-pro-sidebar";
 import { Link } from "react-router-dom";
-import styled from "styled-components";
 import { theme } from "@/config/theme.config";
 import { sidebarMenuItems } from "@/config/sidebar.config";
+import styled from "styled-components";
 
-const SidebarComponent = ({ isCollapsed, isToggled, setIsToggled }: any) => {
+const SidebarComponent = ({ isMobile, isCollapsed, isToggled, setIsToggled }: any) => {
   return (
     <Sidebar
       breakPoint="md"
       backgroundColor={theme.colors.sidebarBackground}
       width={theme.layout.sidebarWidth}
       style={{ border: 0 }}
-      transitionDuration={0} // Remove animation
-      collapsed={isCollapsed}
-      toggled={isToggled}
-      onBackdropClick={() => setIsToggled((prev: boolean) => !prev)}
+      transitionDuration={0}
+      collapsed={isMobile ? false : isCollapsed} // Never collapse on mobile, use toggled instead
+      toggled={isMobile ? isToggled : false} // Only use toggled for mobile
+      onBackdropClick={() => {
+        if (isMobile) {
+          setIsToggled(false);
+        }
+      }}
     >
-      <LogoContainer $isCollapsed={isCollapsed}>
-        {isCollapsed ? (
+      <LogoContainer $isCollapsed={isMobile ? false : isCollapsed}>
+        {(!isMobile && isCollapsed) ? (
           <LogoTitle $collapsed>DM</LogoTitle>
         ) : (
           <LogoTitle>DentalCare Pro</LogoTitle>
@@ -25,7 +29,7 @@ const SidebarComponent = ({ isCollapsed, isToggled, setIsToggled }: any) => {
       </LogoContainer>
 
       <Menu
-        closeOnClick={false} // Prevent menu from closing on click
+        closeOnClick={isMobile} // Close menu on mobile when item is clicked
         menuItemStyles={{
           button: {
             padding: `${theme.spacing.xs} ${theme.spacing.md}`,
@@ -34,7 +38,7 @@ const SidebarComponent = ({ isCollapsed, isToggled, setIsToggled }: any) => {
             fontSize: theme.typography.sm,
             color: theme.colors.sidebarText,
             fontWeight: theme.typography.fontWeight.medium,
-            transition: "background-color 0.15s ease", // Only animate background
+            transition: "background-color 0.15s ease",
             ":hover": {
               background: theme.colors.sidebarHover,
               color: theme.colors.white,
@@ -49,7 +53,7 @@ const SidebarComponent = ({ isCollapsed, isToggled, setIsToggled }: any) => {
             margin: `0 ${theme.spacing.sm}`,
             borderRadius: theme.borderRadius.md,
             overflow: "hidden",
-            transition: "none", // Remove submenu animation
+            transition: "none",
           },
           icon: {
             marginRight: theme.spacing.sm,
@@ -58,12 +62,21 @@ const SidebarComponent = ({ isCollapsed, isToggled, setIsToggled }: any) => {
       >
         {sidebarMenuItems.map((menu: any) =>
           menu.subMenu ? (
-            <SubMenu key={menu.label} label={menu.label} icon={menu.icon}>
+            <SubMenu 
+              key={menu.label} 
+              label={menu.label} 
+              icon={menu.icon}
+            >
               {menu.subMenu.map((subItem: any) => (
                 <MenuItem
                   key={subItem.label}
                   icon={subItem.icon}
                   component={<Link to={subItem.path} />}
+                  onClick={() => {
+                    if (isMobile) {
+                      setIsToggled(false);
+                    }
+                  }}
                 >
                   {subItem.label}
                 </MenuItem>
@@ -74,6 +87,11 @@ const SidebarComponent = ({ isCollapsed, isToggled, setIsToggled }: any) => {
               key={menu.label}
               icon={menu.icon}
               component={<Link to={menu.path} />}
+              onClick={() => {
+                if (isMobile) {
+                  setIsToggled(false);
+                }
+              }}
             >
               {menu.label}
             </MenuItem>

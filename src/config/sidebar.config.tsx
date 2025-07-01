@@ -23,7 +23,7 @@ export const sidebarMenuItems = [
     path: ROUTES.PRIVATE.DASHBOARD,
   },
   {
-    label: "Appointment Management",
+    label: "Appointment",
     icon: <FiCalendar size="18" />,
     subMenu: [
       {
@@ -54,7 +54,7 @@ export const sidebarMenuItems = [
     ],
   },
   {
-    label: "Patient Management",
+    label: "Patient",
     icon: <FiUsers size="18" />,
     subMenu: [
       {
@@ -136,7 +136,7 @@ export const sidebarMenuItems = [
         // path: ROUTES.PRIVATE.SETTINGS.PRACTICE,
       },
       {
-        label: "User Management",
+        label: "User",
         icon: <FiUser size="16" />,
         // path: ROUTES.PRIVATE.SETTINGS.USERS,
       },

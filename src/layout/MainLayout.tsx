@@ -1,4 +1,4 @@
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import styled from "styled-components";
 import { Header } from "@/components";
 import SidebarComponent from "@/components/layout/Sidebar";
@@ -7,22 +7,35 @@ import { theme } from "@/config/theme.config";
 import Spinner from "@/components/layout/Spinner";
 
 const MainLayout = () => {
-  const [isMobile] = useState(() => window.innerWidth <= 768);
-  const [isCollapsed, setIsCollapsed] = useState<boolean | null>(
-    isMobile ? null : false
-  );
-  const [isToggled, setIsToggled] = useState<boolean | null>(
-    isMobile ? false : null
-  );
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+  const [isToggled, setIsToggled] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      if (!mobile) {
+        setIsToggled(false); // Close mobile sidebar when switching to desktop
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const toggleSidebar = () => {
-    setIsCollapsed(isMobile ? null : (prev) => !prev);
-    setIsToggled(isMobile ? (prev) => !prev : null);
+    if (isMobile) {
+      setIsToggled(prev => !prev);
+    } else {
+      setIsCollapsed(prev => !prev);
+    }
   };
 
   return (
     <MainContainer>
       <SidebarComponent
+        isMobile={isMobile}
         isCollapsed={isCollapsed}
         isToggled={isToggled}
         setIsToggled={setIsToggled}
