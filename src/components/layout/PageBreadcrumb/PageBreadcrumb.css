@@ -1,0 +1,92 @@
+.page-title-box {
+  /* Styles for page title */
+  .page-title {
+    font-size: 18px;
+    margin: 0;
+    line-height: 75px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    /* Replace this with the actual color if needed */
+    /* color: var(--page-title-color); */
+  }
+
+  /* Styles for right-aligned section */
+  .page-title-right {
+    float: right;
+    margin-top: 20px;
+  }
+
+  /* Styles for breadcrumb */
+  .breadcrumb {
+    padding-top: 8px;
+  }
+
+  .breadcrumb-item {
+    margin: 0;
+    padding: 0 5px;
+  }
+
+  .breadcrumb-separator {
+    padding: 0 5px;
+    color: #6c757d;
+  }
+}
+
+.page-title-box-sm {
+  /* Smaller box title */
+  .page-title {
+    line-height: 1 !important;
+    margin-bottom: 25px;
+  }
+
+  /* Smaller right-aligned section */
+  .page-title-right {
+    float: right;
+    margin-top: 0;
+  }
+
+  /* Smaller breadcrumb adjustments */
+  .breadcrumb {
+    padding-top: 0;
+    margin-top: -3px !important;
+  }
+}
+
+/* Text title color and hover effect */
+.text-title {
+  color: var(--secondary-color);
+
+  /* On hover change color */
+  &:hover {
+    color: var(--tertiary-color);
+  }
+}
+
+/* Responsive styles for smaller screens */
+@media (max-width: 768px) {
+  .page-title-box {
+    .page-title {
+      display: block;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      line-height: 70px;
+    }
+
+    .breadcrumb {
+      display: none;
+    }
+
+    .page-title-right {
+      display: none;
+    }
+  }
+}
+
+@media (max-width: 419px) {
+  /* Hide breadcrumb on small screens */
+  .page-title-box .breadcrumb {
+    display: none;
+  }
+}
