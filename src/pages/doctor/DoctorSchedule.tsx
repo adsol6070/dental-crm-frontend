@@ -1,147 +1,47 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-import { 
-  FiClock, 
-  FiCalendar, 
-  FiSettings, 
-  FiSave, 
-  FiRefreshCw, 
-  FiPlus, 
-  FiTrash, 
-  FiEdit, 
-  FiToggleLeft, 
+import {
+  FiClock,
+  FiCalendar,
+  FiSettings,
+  FiSave,
+  FiRefreshCw,
+  FiPlus,
+  FiTrash,
+  FiEdit,
+  FiToggleLeft,
   FiToggleRight,
   FiChevronLeft,
   FiChevronRight,
   FiGrid,
   FiList,
   FiCopy,
-  FiX
+  FiX,
 } from "react-icons/fi";
 import Swal from "sweetalert2";
+import {
+  useAddBreakTime,
+  useDoctorSchedule,
+  useRemoveBreakTime,
+  useUpdateAvailability,
+  useUpdateSchedule,
+} from "@/hooks/useDoctor";
+import { Availability } from "@/api/doctor/doctorTypes";
 
 // Theme configuration
 const theme = {
   colors: {
-    primary: '#6366f1',
-    secondary: '#8b5cf6',
-    success: '#10b981',
-    danger: '#ef4444',
-    warning: '#f59e0b',
-    white: '#ffffff',
-    primaryDark: '#4f46e5',
-    textPrimary: '#1f2937',
-    textSecondary: '#6b7280',
-    lightGray: '#e5e7eb'
-  }
-};
-
-// Mock hooks - Replace with your actual API hooks
-const useDoctorSchedule = () => {
-  const [scheduleData, setScheduleData] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setScheduleData({
-        weeklySchedule: [
-          { day: 'monday', startTime: '09:00', endTime: '17:00', isWorking: true, id: '1' },
-          { day: 'tuesday', startTime: '09:00', endTime: '17:00', isWorking: true, id: '2' },
-          { day: 'wednesday', startTime: '09:00', endTime: '17:00', isWorking: true, id: '3' },
-          { day: 'thursday', startTime: '09:00', endTime: '17:00', isWorking: true, id: '4' },
-          { day: 'friday', startTime: '09:00', endTime: '17:00', isWorking: true, id: '5' },
-          { day: 'saturday', startTime: '10:00', endTime: '14:00', isWorking: true, id: '6' },
-          { day: 'sunday', startTime: '09:00', endTime: '17:00', isWorking: false, id: '7' }
-        ],
-        breakTimes: [
-          { id: '1', day: 'monday', startTime: '13:00', endTime: '14:00', title: 'Lunch Break' },
-          { id: '2', day: 'tuesday', startTime: '13:00', endTime: '14:00', title: 'Lunch Break' },
-          { id: '3', day: 'wednesday', startTime: '13:00', endTime: '14:00', title: 'Lunch Break' },
-          { id: '4', day: 'thursday', startTime: '13:00', endTime: '14:00', title: 'Lunch Break' },
-          { id: '5', day: 'friday', startTime: '13:00', endTime: '14:00', title: 'Lunch Break' },
-          { id: '6', day: 'saturday', startTime: '12:00', endTime: '12:30', title: 'Break' }
-        ],
-        availability: {
-          isAvailable: true,
-          currentStatus: 'Available'
-        }
-      });
-      setIsLoading(false);
-    }, 1000);
-  }, []);
-
-  const updateSchedule = async (newSchedule) => {
-    setIsLoading(true);
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setScheduleData(prev => ({ ...prev, weeklySchedule: newSchedule }));
-      return { success: true };
-    } catch (error) {
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const updateAvailability = async (isAvailable) => {
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setScheduleData(prev => ({ 
-        ...prev, 
-        availability: { 
-          isAvailable, 
-          currentStatus: isAvailable ? 'Available' : 'Unavailable' 
-        } 
-      }));
-      return { success: true };
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  const addBreakTime = async (breakData) => {
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-      const newBreak = { ...breakData, id: Date.now().toString() };
-      setScheduleData(prev => ({ 
-        ...prev, 
-        breakTimes: [...prev.breakTimes, newBreak] 
-      }));
-      return { success: true, data: newBreak };
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  const removeBreakTime = async (breakId) => {
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setScheduleData(prev => ({ 
-        ...prev, 
-        breakTimes: prev.breakTimes.filter(br => br.id !== breakId) 
-      }));
-      return { success: true };
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  return {
-    data: scheduleData,
-    isLoading,
-    error,
-    updateSchedule,
-    updateAvailability,
-    addBreakTime,
-    removeBreakTime,
-    refetch: () => {}
-  };
+    primary: "#6366f1",
+    secondary: "#8b5cf6",
+    success: "#10b981",
+    danger: "#ef4444",
+    warning: "#f59e0b",
+    white: "#ffffff",
+    primaryDark: "#4f46e5",
+    textPrimary: "#1f2937",
+    textSecondary: "#6b7280",
+    lightGray: "#e5e7eb",
+  },
 };
 
 const useMonthlyCalendar = () => {
@@ -152,31 +52,36 @@ const useMonthlyCalendar = () => {
     setIsLoading(true);
     try {
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
       // Generate mock calendar data
       const daysInMonth = new Date(year, month, 0).getDate();
       const firstDay = new Date(year, month - 1, 1).getDay();
       const calendar = [];
-      
+
       for (let i = 1; i <= daysInMonth; i++) {
         calendar.push({
           date: i,
           appointmentCount: Math.floor(Math.random() * 8),
           isAvailable: Math.random() > 0.2,
-          isToday: i === new Date().getDate() && month === new Date().getMonth() + 1 && year === new Date().getFullYear()
+          isToday:
+            i === new Date().getDate() &&
+            month === new Date().getMonth() + 1 &&
+            year === new Date().getFullYear(),
         });
       }
-      
-      setCalendarData({ 
-        calendar, 
-        month, 
-        year, 
+
+      setCalendarData({
+        calendar,
+        month,
+        year,
         firstDay,
-        monthName: new Date(year, month - 1).toLocaleString('default', { month: 'long' })
+        monthName: new Date(year, month - 1).toLocaleString("default", {
+          month: "long",
+        }),
       });
     } catch (error) {
-      console.error('Failed to load calendar:', error);
+      console.error("Failed to load calendar:", error);
     } finally {
       setIsLoading(false);
     }
@@ -186,25 +91,25 @@ const useMonthlyCalendar = () => {
 };
 
 const DoctorSchedule = () => {
-  const { 
-    data: scheduleData, 
-    isLoading, 
-    error, 
-    updateSchedule, 
-    updateAvailability, 
-    addBreakTime, 
-    removeBreakTime,
-    refetch 
-  } = useDoctorSchedule();
-  
-  const { calendarData, isLoading: calendarLoading, loadMonthlyCalendar } = useMonthlyCalendar();
+  const { mutate: addBreakTime, isPending } = useAddBreakTime();
+  const { data: scheduleData, isLoading } = useDoctorSchedule();
+  const { mutate: removeBreakTime, isPending: isRemovingBreakTime } =
+    useRemoveBreakTime();
+  const { mutate: updateAvailability } = useUpdateAvailability();
+  const { mutate: updateSchedule } = useUpdateSchedule();
+
+  const {
+    calendarData,
+    isLoading: calendarLoading,
+    loadMonthlyCalendar,
+  } = useMonthlyCalendar();
 
   // Local state
-  const [activeView, setActiveView] = useState('weekly'); // 'weekly' or 'monthly'
+  const [activeView, setActiveView] = useState("weekly"); // 'weekly' or 'monthly'
   const [editingSchedule, setEditingSchedule] = useState(false);
   const [localSchedule, setLocalSchedule] = useState([]);
   const [showBreakModal, setShowBreakModal] = useState(false);
-  const [selectedDay, setSelectedDay] = useState('');
+  const [selectedDay, setSelectedDay] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
@@ -216,56 +121,51 @@ const DoctorSchedule = () => {
 
   // Initialize local schedule when data loads
   useEffect(() => {
-    if (scheduleData?.weeklySchedule) {
-      setLocalSchedule([...scheduleData.weeklySchedule]);
+    if (scheduleData?.data.schedule?.workingDays) {
+      setLocalSchedule([...scheduleData?.data.schedule?.workingDays]);
     }
   }, [scheduleData]);
 
   const daysOfWeek = [
-    { key: 'monday', label: 'Monday', short: 'Mon' },
-    { key: 'tuesday', label: 'Tuesday', short: 'Tue' },
-    { key: 'wednesday', label: 'Wednesday', short: 'Wed' },
-    { key: 'thursday', label: 'Thursday', short: 'Thu' },
-    { key: 'friday', label: 'Friday', short: 'Fri' },
-    { key: 'saturday', label: 'Saturday', short: 'Sat' },
-    { key: 'sunday', label: 'Sunday', short: 'Sun' }
+    { key: "monday", label: "Monday", short: "Mon" },
+    { key: "tuesday", label: "Tuesday", short: "Tue" },
+    { key: "wednesday", label: "Wednesday", short: "Wed" },
+    { key: "thursday", label: "Thursday", short: "Thu" },
+    { key: "friday", label: "Friday", short: "Fri" },
+    { key: "saturday", label: "Saturday", short: "Sat" },
+    { key: "sunday", label: "Sunday", short: "Sun" },
   ];
 
   const timeSlots = Array.from({ length: 24 }, (_, i) => {
-    const hour = i.toString().padStart(2, '0');
+    const hour = i.toString().padStart(2, "0");
     return `${hour}:00`;
   });
 
   const formatTime = (time24) => {
-    if (!time24) return '';
-    const [hours, minutes] = time24.split(':');
+    if (!time24) return "";
+    const [hours, minutes] = time24.split(":");
     const hour = parseInt(hours);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const ampm = hour >= 12 ? "PM" : "AM";
     const hour12 = hour % 12 || 12;
     return `${hour12}:${minutes} ${ampm}`;
   };
 
   const handleDayToggle = (dayKey) => {
     if (!editingSchedule) return;
-    
-    setLocalSchedule(prev => 
-      prev.map(day => 
-        day.day === dayKey 
-          ? { ...day, isWorking: !day.isWorking }
-          : day
+
+    console.log("Day Toggle Called.");
+    setLocalSchedule((prev) =>
+      prev.map((day) =>
+        day.day === dayKey ? { ...day, isWorking: !day.isWorking } : day
       )
     );
   };
 
   const handleTimeChange = (dayKey, field, value) => {
     if (!editingSchedule) return;
-    
-    setLocalSchedule(prev => 
-      prev.map(day => 
-        day.day === dayKey 
-          ? { ...day, [field]: value }
-          : day
-      )
+
+    setLocalSchedule((prev) =>
+      prev.map((day) => (day.day === dayKey ? { ...day, [field]: value } : day))
     );
   };
 
@@ -275,17 +175,17 @@ const DoctorSchedule = () => {
       await updateSchedule(localSchedule);
       setEditingSchedule(false);
       Swal.fire({
-        title: 'Success!',
-        text: 'Schedule updated successfully.',
-        icon: 'success',
+        title: "Success!",
+        text: "Schedule updated successfully.",
+        icon: "success",
         timer: 2000,
         showConfirmButton: false,
       });
     } catch (error) {
       Swal.fire({
-        title: 'Error!',
-        text: 'Failed to update schedule. Please try again.',
-        icon: 'error',
+        title: "Error!",
+        text: "Failed to update schedule. Please try again.",
+        icon: "error",
       });
     } finally {
       setIsSaving(false);
@@ -293,26 +193,26 @@ const DoctorSchedule = () => {
   };
 
   const handleCancelEdit = () => {
-    setLocalSchedule([...scheduleData.weeklySchedule]);
+    setLocalSchedule([...scheduleData?.data.schedule?.workingDays]);
     setEditingSchedule(false);
   };
 
   const handleAvailabilityToggle = async () => {
-    const newStatus = !scheduleData.availability.isAvailable;
+    const newStatus = !scheduleData?.data.schedule.availability.isAvailable;
     try {
-      await updateAvailability(newStatus);
+      await updateAvailability({ isAvailable: newStatus });
       Swal.fire({
-        title: 'Success!',
-        text: `You are now ${newStatus ? 'Available' : 'Unavailable'}.`,
-        icon: 'success',
+        title: "Success!",
+        text: `You are now ${newStatus ? "Available" : "Unavailable"}.`,
+        icon: "success",
         timer: 2000,
         showConfirmButton: false,
       });
     } catch (error) {
       Swal.fire({
-        title: 'Error!',
-        text: 'Failed to update availability. Please try again.',
-        icon: 'error',
+        title: "Error!",
+        text: "Failed to update availability. Please try again.",
+        icon: "error",
       });
     }
   };
@@ -322,17 +222,17 @@ const DoctorSchedule = () => {
       await addBreakTime(breakData);
       setShowBreakModal(false);
       Swal.fire({
-        title: 'Success!',
-        text: 'Break time added successfully.',
-        icon: 'success',
+        title: "Success!",
+        text: "Break time added successfully.",
+        icon: "success",
         timer: 2000,
         showConfirmButton: false,
       });
     } catch (error) {
       Swal.fire({
-        title: 'Error!',
-        text: 'Failed to add break time. Please try again.',
-        icon: 'error',
+        title: "Error!",
+        text: "Failed to add break time. Please try again.",
+        icon: "error",
       });
     }
   };
@@ -340,46 +240,46 @@ const DoctorSchedule = () => {
   const handleRemoveBreak = async (breakId, breakTitle) => {
     const result = await Swal.fire({
       title: `Remove "${breakTitle}"?`,
-      text: 'This break time will be permanently deleted.',
-      icon: 'warning',
+      text: "This break time will be permanently deleted.",
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, remove it!',
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, remove it!",
     });
 
     if (result.isConfirmed) {
       try {
         await removeBreakTime(breakId);
         Swal.fire({
-          title: 'Removed!',
-          text: 'Break time has been removed.',
-          icon: 'success',
+          title: "Removed!",
+          text: "Break time has been removed.",
+          icon: "success",
           timer: 2000,
           showConfirmButton: false,
         });
       } catch (error) {
         Swal.fire({
-          title: 'Error!',
-          text: 'Failed to remove break time. Please try again.',
-          icon: 'error',
+          title: "Error!",
+          text: "Failed to remove break time. Please try again.",
+          icon: "error",
         });
       }
     }
   };
 
   const handleCopySchedule = async (fromDay, toDay) => {
-    const sourceDay = localSchedule.find(day => day.day === fromDay);
+    const sourceDay = localSchedule.find((day) => day.day === fromDay);
     if (!sourceDay) return;
 
-    setLocalSchedule(prev => 
-      prev.map(day => 
-        day.day === toDay 
-          ? { 
-              ...day, 
+    setLocalSchedule((prev) =>
+      prev.map((day) =>
+        day.day === toDay
+          ? {
+              ...day,
               startTime: sourceDay.startTime,
               endTime: sourceDay.endTime,
-              isWorking: sourceDay.isWorking
+              isWorking: sourceDay.isWorking,
             }
           : day
       )
@@ -387,11 +287,15 @@ const DoctorSchedule = () => {
   };
 
   const getBreaksForDay = (dayKey) => {
-    return scheduleData?.breakTimes?.filter(br => br.day === dayKey) || [];
+    return (
+      scheduleData?.data.schedule?.breakTimes?.filter(
+        (br) => br.day === dayKey
+      ) || []
+    );
   };
 
   const handleMonthNavigation = (direction) => {
-    if (direction === 'prev') {
+    if (direction === "prev") {
       if (currentMonth === 1) {
         setCurrentMonth(12);
         setCurrentYear(currentYear - 1);
@@ -420,9 +324,13 @@ const DoctorSchedule = () => {
     }
 
     // Add days of the month
-    calendar.forEach(day => {
+    calendar.forEach((day) => {
       calendarDays.push(
-        <CalendarDay key={day.date} isToday={day.isToday} isAvailable={day.isAvailable}>
+        <CalendarDay
+          key={day.date}
+          isToday={day.isToday}
+          isAvailable={day.isAvailable}
+        >
           <CalendarDate>{day.date}</CalendarDate>
           <CalendarInfo>
             <AppointmentCount>{day.appointmentCount} apt</AppointmentCount>
@@ -446,21 +354,23 @@ const DoctorSchedule = () => {
     );
   }
 
-  if (error) {
-    return (
-      <Container>
-        <ErrorContainer>
-          <ErrorIcon>⚠️</ErrorIcon>
-          <ErrorTitle>Failed to Load Schedule</ErrorTitle>
-          <ErrorMessage>Unable to load your schedule data. Please try again.</ErrorMessage>
-          <RetryButton onClick={refetch}>
-            <FiRefreshCw size={16} />
-            Try Again
-          </RetryButton>
-        </ErrorContainer>
-      </Container>
-    );
-  }
+  // if (error) {
+  //   return (
+  //     <Container>
+  //       <ErrorContainer>
+  //         <ErrorIcon>⚠️</ErrorIcon>
+  //         <ErrorTitle>Failed to Load Schedule</ErrorTitle>
+  //         <ErrorMessage>
+  //           Unable to load your schedule data. Please try again.
+  //         </ErrorMessage>
+  //         <RetryButton onClick={refetch}>
+  //           <FiRefreshCw size={16} />
+  //           Try Again
+  //         </RetryButton>
+  //       </ErrorContainer>
+  //     </Container>
+  //   );
+  // }
 
   return (
     <Container>
@@ -468,14 +378,20 @@ const DoctorSchedule = () => {
       <Header>
         <HeaderContent>
           <Title>Schedule Management</Title>
-          <Subtitle>Manage your working hours, availability, and break times</Subtitle>
+          <Subtitle>
+            Manage your working hours, availability, and break times
+          </Subtitle>
           <AvailabilityStatus>
-            <StatusIndicator available={scheduleData?.availability?.isAvailable}>
-              <StatusDot available={scheduleData?.availability?.isAvailable} />
+            <StatusIndicator
+              available={scheduleData?.data.schedule.availability.isAvailable}
+            >
+              <StatusDot
+                available={scheduleData?.data.schedule.availability.isAvailable}
+              />
               {scheduleData?.availability?.currentStatus}
             </StatusIndicator>
             <ToggleButton onClick={handleAvailabilityToggle}>
-              {scheduleData?.availability?.isAvailable ? (
+              {scheduleData?.data.schedule.availability.isAvailable ? (
                 <FiToggleRight size={20} />
               ) : (
                 <FiToggleLeft size={20} />
@@ -486,22 +402,22 @@ const DoctorSchedule = () => {
         </HeaderContent>
         <HeaderActions>
           <ViewToggle>
-            <ViewButton 
-              active={activeView === 'weekly'} 
-              onClick={() => setActiveView('weekly')}
+            <ViewButton
+              active={activeView === "weekly"}
+              onClick={() => setActiveView("weekly")}
             >
               <FiList size={16} />
               Weekly
             </ViewButton>
-            <ViewButton 
-              active={activeView === 'monthly'} 
-              onClick={() => setActiveView('monthly')}
+            <ViewButton
+              active={activeView === "monthly"}
+              onClick={() => setActiveView("monthly")}
             >
               <FiGrid size={16} />
               Monthly
             </ViewButton>
           </ViewToggle>
-          <RefreshButton onClick={refetch}>
+          <RefreshButton onClick={() => {}}>
             <FiRefreshCw size={16} />
             Refresh
           </RefreshButton>
@@ -509,23 +425,26 @@ const DoctorSchedule = () => {
       </Header>
 
       <ContentWrapper>
-        {activeView === 'weekly' ? (
+        {activeView === "weekly" ? (
           <WeeklyView>
             {/* Weekly Schedule Controls */}
             <ScheduleControls>
               <ControlsLeft>
-                <EditButton 
+                <EditButton
                   active={editingSchedule}
                   onClick={() => setEditingSchedule(!editingSchedule)}
                 >
                   <FiEdit size={16} />
-                  {editingSchedule ? 'Cancel Edit' : 'Edit Schedule'}
+                  {editingSchedule ? "Cancel Edit" : "Edit Schedule"}
                 </EditButton>
                 {editingSchedule && (
                   <>
-                    <SaveButton onClick={handleSaveSchedule} disabled={isSaving}>
+                    <SaveButton
+                      onClick={handleSaveSchedule}
+                      disabled={isSaving}
+                    >
                       <FiSave size={16} />
-                      {isSaving ? 'Saving...' : 'Save Changes'}
+                      {isSaving ? "Saving..." : "Save Changes"}
                     </SaveButton>
                     <CancelButton onClick={handleCancelEdit}>
                       Cancel
@@ -544,7 +463,7 @@ const DoctorSchedule = () => {
             {/* Weekly Schedule Grid */}
             <ScheduleGrid>
               {daysOfWeek.map(({ key, label, short }) => {
-                const daySchedule = localSchedule.find(d => d.day === key);
+                const daySchedule = localSchedule.find((d) => d.day === key);
                 const dayBreaks = getBreaksForDay(key);
 
                 return (
@@ -552,13 +471,13 @@ const DoctorSchedule = () => {
                     <DayHeader>
                       <DayName>{label}</DayName>
                       <DayToggle>
-                        <ToggleSwitch 
+                        <ToggleSwitch
                           checked={daySchedule?.isWorking}
                           onChange={() => handleDayToggle(key)}
                           disabled={!editingSchedule}
                         />
                         <ToggleLabel>
-                          {daySchedule?.isWorking ? 'Working' : 'Off'}
+                          {daySchedule?.isWorking ? "Working" : "Off"}
                         </ToggleLabel>
                       </DayToggle>
                     </DayHeader>
@@ -571,7 +490,13 @@ const DoctorSchedule = () => {
                             <TimeInput
                               type="time"
                               value={daySchedule.startTime}
-                              onChange={(e) => handleTimeChange(key, 'startTime', e.target.value)}
+                              onChange={(e) =>
+                                handleTimeChange(
+                                  key,
+                                  "startTime",
+                                  e.target.value
+                                )
+                              }
                               disabled={!editingSchedule}
                             />
                           </TimeGroup>
@@ -580,30 +505,39 @@ const DoctorSchedule = () => {
                             <TimeInput
                               type="time"
                               value={daySchedule.endTime}
-                              onChange={(e) => handleTimeChange(key, 'endTime', e.target.value)}
+                              onChange={(e) =>
+                                handleTimeChange(key, "endTime", e.target.value)
+                              }
                               disabled={!editingSchedule}
                             />
                           </TimeGroup>
                         </TimeInputs>
 
                         <WorkingHours>
-                          {formatTime(daySchedule.startTime)} - {formatTime(daySchedule.endTime)}
+                          {formatTime(daySchedule.startTime)} -{" "}
+                          {formatTime(daySchedule.endTime)}
                         </WorkingHours>
 
                         {/* Break Times */}
                         {dayBreaks.length > 0 && (
                           <BreaksSection>
                             <BreakTitle>Breaks</BreakTitle>
-                            {dayBreaks.map(breakTime => (
+                            {dayBreaks.map((breakTime) => (
                               <BreakItem key={breakTime.id}>
                                 <BreakInfo>
                                   <BreakName>{breakTime.title}</BreakName>
                                   <BreakTime>
-                                    {formatTime(breakTime.startTime)} - {formatTime(breakTime.endTime)}
+                                    {formatTime(breakTime.startTime)} -{" "}
+                                    {formatTime(breakTime.endTime)}
                                   </BreakTime>
                                 </BreakInfo>
-                                <RemoveBreakButton 
-                                  onClick={() => handleRemoveBreak(breakTime.id, breakTime.title)}
+                                <RemoveBreakButton
+                                  onClick={() =>
+                                    handleRemoveBreak(
+                                      breakTime.id,
+                                      breakTime.title
+                                    )
+                                  }
                                 >
                                   <FiTrash size={12} />
                                 </RemoveBreakButton>
@@ -636,13 +570,13 @@ const DoctorSchedule = () => {
             {/* Monthly Calendar Controls */}
             <CalendarControls>
               <CalendarNavigation>
-                <NavButton onClick={() => handleMonthNavigation('prev')}>
+                <NavButton onClick={() => handleMonthNavigation("prev")}>
                   <FiChevronLeft size={18} />
                 </NavButton>
                 <MonthTitle>
                   {calendarData?.monthName} {currentYear}
                 </MonthTitle>
-                <NavButton onClick={() => handleMonthNavigation('next')}>
+                <NavButton onClick={() => handleMonthNavigation("next")}>
                   <FiChevronRight size={18} />
                 </NavButton>
               </CalendarNavigation>
@@ -661,9 +595,11 @@ const DoctorSchedule = () => {
             {/* Calendar Grid */}
             <CalendarContainer>
               <CalendarHeader>
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                  <CalendarHeaderDay key={day}>{day}</CalendarHeaderDay>
-                ))}
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                  (day) => (
+                    <CalendarHeaderDay key={day}>{day}</CalendarHeaderDay>
+                  )
+                )}
               </CalendarHeader>
               <CalendarGrid>
                 {calendarLoading ? (
@@ -681,14 +617,17 @@ const DoctorSchedule = () => {
 
       {/* Add Break Modal */}
       {showBreakModal && (
-        <BreakModal onClose={() => setShowBreakModal(false)} onAdd={handleAddBreak} />
+        <BreakModal
+          onClose={() => setShowBreakModal(false)}
+          onAdd={handleAddBreak}
+        />
       )}
 
       {/* Copy Schedule Modal */}
       {selectedDay && (
         <CopyScheduleModal
           sourceDay={selectedDay}
-          onClose={() => setSelectedDay('')}
+          onClose={() => setSelectedDay("")}
           onCopy={handleCopySchedule}
           daysOfWeek={daysOfWeek}
         />
@@ -700,10 +639,10 @@ const DoctorSchedule = () => {
 // Break Modal Component
 const BreakModal = ({ onClose, onAdd }) => {
   const [breakData, setBreakData] = useState({
-    day: 'monday',
-    startTime: '13:00',
-    endTime: '14:00',
-    title: 'Lunch Break'
+    day: "monday",
+    startTime: "13:00",
+    endTime: "14:00",
+    title: "Lunch Break",
   });
 
   const handleSubmit = (e) => {
@@ -725,7 +664,9 @@ const BreakModal = ({ onClose, onAdd }) => {
             <FormLabel>Day</FormLabel>
             <FormSelect
               value={breakData.day}
-              onChange={(e) => setBreakData(prev => ({ ...prev, day: e.target.value }))}
+              onChange={(e) =>
+                setBreakData((prev) => ({ ...prev, day: e.target.value }))
+              }
             >
               <option value="monday">Monday</option>
               <option value="tuesday">Tuesday</option>
@@ -742,7 +683,12 @@ const BreakModal = ({ onClose, onAdd }) => {
               <FormInput
                 type="time"
                 value={breakData.startTime}
-                onChange={(e) => setBreakData(prev => ({ ...prev, startTime: e.target.value }))}
+                onChange={(e) =>
+                  setBreakData((prev) => ({
+                    ...prev,
+                    startTime: e.target.value,
+                  }))
+                }
               />
             </FormGroup>
             <FormGroup>
@@ -750,7 +696,9 @@ const BreakModal = ({ onClose, onAdd }) => {
               <FormInput
                 type="time"
                 value={breakData.endTime}
-                onChange={(e) => setBreakData(prev => ({ ...prev, endTime: e.target.value }))}
+                onChange={(e) =>
+                  setBreakData((prev) => ({ ...prev, endTime: e.target.value }))
+                }
               />
             </FormGroup>
           </FormRow>
@@ -759,7 +707,9 @@ const BreakModal = ({ onClose, onAdd }) => {
             <FormInput
               type="text"
               value={breakData.title}
-              onChange={(e) => setBreakData(prev => ({ ...prev, title: e.target.value }))}
+              onChange={(e) =>
+                setBreakData((prev) => ({ ...prev, title: e.target.value }))
+              }
               placeholder="e.g., Lunch Break, Coffee Break"
             />
           </FormGroup>
@@ -767,9 +717,7 @@ const BreakModal = ({ onClose, onAdd }) => {
             <CancelModalButton type="button" onClick={onClose}>
               Cancel
             </CancelModalButton>
-            <SubmitButton type="submit">
-              Add Break
-            </SubmitButton>
+            <SubmitButton type="submit">Add Break</SubmitButton>
           </ModalActions>
         </ModalForm>
       </ModalContent>
@@ -779,7 +727,7 @@ const BreakModal = ({ onClose, onAdd }) => {
 
 // Copy Schedule Modal Component
 const CopyScheduleModal = ({ sourceDay, onClose, onCopy, daysOfWeek }) => {
-  const [targetDay, setTargetDay] = useState('');
+  const [targetDay, setTargetDay] = useState("");
 
   const handleCopy = () => {
     if (targetDay) {
@@ -788,7 +736,7 @@ const CopyScheduleModal = ({ sourceDay, onClose, onCopy, daysOfWeek }) => {
     }
   };
 
-  const sourceDayLabel = daysOfWeek.find(d => d.key === sourceDay)?.label;
+  const sourceDayLabel = daysOfWeek.find((d) => d.key === sourceDay)?.label;
 
   return (
     <ModalOverlay onClick={onClose}>
@@ -811,20 +759,17 @@ const CopyScheduleModal = ({ sourceDay, onClose, onCopy, daysOfWeek }) => {
             >
               <option value="">Select a day</option>
               {daysOfWeek
-                .filter(d => d.key !== sourceDay)
-                .map(day => (
+                .filter((d) => d.key !== sourceDay)
+                .map((day) => (
                   <option key={day.key} value={day.key}>
                     {day.label}
                   </option>
-                ))
-              }
+                ))}
             </FormSelect>
           </FormGroup>
         </ModalBody>
         <ModalActions>
-          <CancelModalButton onClick={onClose}>
-            Cancel
-          </CancelModalButton>
+          <CancelModalButton onClick={onClose}>Cancel</CancelModalButton>
           <SubmitButton onClick={handleCopy} disabled={!targetDay}>
             Copy Schedule
           </SubmitButton>
@@ -901,7 +846,8 @@ const StatusDot = styled.div`
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: ${props => props.available ? theme.colors.success : theme.colors.danger};
+  background: ${(props) =>
+    props.available ? theme.colors.success : theme.colors.danger};
 `;
 
 const ToggleButton = styled.button`
@@ -946,7 +892,8 @@ const ViewButton = styled.button`
   align-items: center;
   gap: 6px;
   padding: 8px 12px;
-  background: ${props => props.active ? 'rgba(255, 255, 255, 0.2)' : 'transparent'};
+  background: ${(props) =>
+    props.active ? "rgba(255, 255, 255, 0.2)" : "transparent"};
   color: white;
   border: none;
   font-size: 13px;
@@ -1024,8 +971,8 @@ const EditButton = styled.button`
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background: ${props => props.active ? theme.colors.primary : 'white'};
-  color: ${props => props.active ? 'white' : theme.colors.primary};
+  background: ${(props) => (props.active ? theme.colors.primary : "white")};
+  color: ${(props) => (props.active ? "white" : theme.colors.primary)};
   border: 1px solid ${theme.colors.primary};
   border-radius: 6px;
   font-size: 14px;
@@ -1034,7 +981,8 @@ const EditButton = styled.button`
   transition: all 0.2s;
 
   &:hover {
-    background: ${props => props.active ? theme.colors.primaryDark : theme.colors.primary + '10'};
+    background: ${(props) =>
+      props.active ? theme.colors.primaryDark : theme.colors.primary + "10"};
   }
 `;
 
@@ -1108,8 +1056,9 @@ const ScheduleGrid = styled.div`
 `;
 
 const DayCard = styled.div`
-  background: ${props => props.isWorking ? 'white' : '#f9fafb'};
-  border: 1px solid ${props => props.isWorking ? theme.colors.lightGray : '#e5e7eb'};
+  background: ${(props) => (props.isWorking ? "white" : "#f9fafb")};
+  border: 1px solid
+    ${(props) => (props.isWorking ? theme.colors.lightGray : "#e5e7eb")};
   border-radius: 8px;
   overflow: hidden;
   transition: all 0.2s;
@@ -1124,7 +1073,7 @@ const DayHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  background: ${props => props.isWorking ? '#f8fafc' : '#f3f4f6'};
+  background: ${(props) => (props.isWorking ? "#f8fafc" : "#f3f4f6")};
   border-bottom: 1px solid ${theme.colors.lightGray};
 `;
 
@@ -1141,25 +1090,25 @@ const DayToggle = styled.div`
   gap: 8px;
 `;
 
-const ToggleSwitch = styled.input.attrs({ type: 'checkbox' })`
+const ToggleSwitch = styled.input.attrs({ type: "checkbox" })`
   width: 40px;
   height: 20px;
   appearance: none;
-  background: ${props => props.checked ? theme.colors.success : '#d1d5db'};
+  background: ${(props) => (props.checked ? theme.colors.success : "#d1d5db")};
   border-radius: 10px;
   position: relative;
   cursor: pointer;
   transition: all 0.2s;
 
   &:before {
-    content: '';
+    content: "";
     position: absolute;
     width: 16px;
     height: 16px;
     border-radius: 50%;
     background: white;
     top: 2px;
-    left: ${props => props.checked ? '22px' : '2px'};
+    left: ${(props) => (props.checked ? "22px" : "2px")};
     transition: all 0.2s;
   }
 
@@ -1381,7 +1330,8 @@ const AvailabilityDot = styled.div`
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: ${props => props.available ? theme.colors.success : theme.colors.danger};
+  background: ${(props) =>
+    props.available ? theme.colors.success : theme.colors.danger};
 `;
 
 const CalendarContainer = styled.div`
@@ -1424,18 +1374,23 @@ const CalendarDay = styled.div`
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  background: ${props => 
-    props.isEmpty ? 'transparent' :
-    props.isToday ? theme.colors.primary + '10' :
-    props.isAvailable ? 'white' : '#fef2f2'
-  };
+  background: ${(props) =>
+    props.isEmpty
+      ? "transparent"
+      : props.isToday
+      ? theme.colors.primary + "10"
+      : props.isAvailable
+      ? "white"
+      : "#fef2f2"};
   transition: all 0.2s;
 
   &:hover {
-    background: ${props => 
-      props.isEmpty ? 'transparent' : 
-      props.isToday ? theme.colors.primary + '20' : '#f9fafb'
-    };
+    background: ${(props) =>
+      props.isEmpty
+        ? "transparent"
+        : props.isToday
+        ? theme.colors.primary + "20"
+        : "#f9fafb"};
   }
 
   &:nth-child(7n) {
@@ -1445,8 +1400,9 @@ const CalendarDay = styled.div`
 
 const CalendarDate = styled.div`
   font-size: 14px;
-  font-weight: ${props => props.isToday ? '600' : '500'};
-  color: ${props => props.isToday ? theme.colors.primary : theme.colors.textPrimary};
+  font-weight: ${(props) => (props.isToday ? "600" : "500")};
+  color: ${(props) =>
+    props.isToday ? theme.colors.primary : theme.colors.textPrimary};
 `;
 
 const CalendarInfo = styled.div`
@@ -1653,8 +1609,12 @@ const LoadingSpinner = styled.div`
   animation: spin 1s linear infinite;
 
   @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
   }
 `;
 

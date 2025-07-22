@@ -112,6 +112,7 @@ export const adminApi = {
         },
       }
     );
+    console.log("Response:", response);
     return response.data.data.doctors;
   },
 

@@ -1,7 +1,14 @@
 // hooks/useDoctors.ts
 
 import { doctorApi } from "@/api/doctor/doctorApi";
-import { Doctor, DoctorPayload, DoctorProfileResponse } from "@/api/doctor/doctorTypes";
+import {
+  AddBreakPayload,
+  Availability,
+  Doctor,
+  DoctorPayload,
+  DoctorProfileResponse,
+  Schedule,
+} from "@/api/doctor/doctorTypes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { toast } from "react-hot-toast";
@@ -43,7 +50,8 @@ const useCustomMutation = <T, V>(
             message = serverMessage || "Conflict. Duplicate record detected.";
             break;
           case 422:
-            message = serverMessage || "Validation failed. Please correct the form.";
+            message =
+              serverMessage || "Validation failed. Please correct the form.";
             break;
           case 429:
             message = "Too many requests. Please slow down.";
@@ -90,4 +98,41 @@ export const useUpdateDoctor = () =>
       doctorApi.updateDoctor(id, doctorData),
     ["doctors"],
     "Doctor updated successfully!"
+  );
+
+export const useAddBreakTime = () =>
+  useCustomMutation(
+    (breakData: AddBreakPayload) => doctorApi.addBreakTime(breakData),
+    ["doctorSchedule"],
+    "Break time added successfully!"
+  );
+
+export const useRemoveBreakTime = () =>
+  useCustomMutation(
+    (breakId: string) => doctorApi.removeBreakTime(breakId),
+    ["doctorSchedule"],
+    "Break time removed successfully!"
+  );
+
+export const useDoctorSchedule = () =>
+  useQuery({
+    queryKey: ["doctorSchedule"],
+    queryFn: () => doctorApi.getSchedule(),
+    enabled: true,
+    select: (data) => data,
+  });
+
+export const useUpdateAvailability = () =>
+  useCustomMutation(
+    (availabilityData: Availability) =>
+      doctorApi.updateAvailability(availabilityData),
+    ["doctorSchedule"],
+    "Availability updated successfully!"
+  );
+
+export const useUpdateSchedule = () =>
+  useCustomMutation(
+    (scheduleData: Schedule) => doctorApi.updateDoctorSchedule(scheduleData),
+    ["doctorSchedule"],
+    "Schedule updated successfully!"
   );

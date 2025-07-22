@@ -27,18 +27,26 @@ export interface ProfessionalInfo {
 export interface WorkingDay {
   day: DayOfWeek;
   startTime: string; // "HH:MM"
-  endTime: string;   // "HH:MM"
+  endTime: string; // "HH:MM"
   isWorking: boolean;
   _id: string;
   id: string;
 }
 
 export interface BreakTime {
+  day: DayOfWeek;
   startTime: string;
   endTime: string;
   description?: string;
   _id: string;
   id: string;
+}
+
+export interface AddBreakPayload {
+  day: DayOfWeek;
+  startTime: string;
+  endTime: string;
+  description?: string;
 }
 
 export interface Schedule {
@@ -67,7 +75,7 @@ export interface Statistics {
   reviewCount: number;
 }
 export interface Authentication {
-  password:string;
+  password: string;
 }
 export interface Doctor {
   _id: string;
@@ -117,6 +125,10 @@ export interface DoctorResponseData {
 export interface DoctorProfileResponse {
   success: boolean;
   data: DoctorResponseData;
+}
+
+export interface Availability {
+  isAvailable: boolean;
 }
 
 export interface ApiResponse<T> {
