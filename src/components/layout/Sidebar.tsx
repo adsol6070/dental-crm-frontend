@@ -1,10 +1,11 @@
 import { Sidebar, Menu, MenuItem, SubMenu } from "react-pro-sidebar";
 import { Link } from "react-router-dom";
 import { theme } from "@/config/theme.config";
-import { sidebarMenuItems } from "@/config/sidebar.config";
 import styled from "styled-components";
+import { useSidebarMenuItems } from "@/config/sidebar.config";
 
 const SidebarComponent = ({ isMobile, isCollapsed, isToggled, setIsToggled }: any) => {
+   const menuItems = useSidebarMenuItems();
   return (
     <Sidebar
       breakPoint="md"
@@ -60,7 +61,7 @@ const SidebarComponent = ({ isMobile, isCollapsed, isToggled, setIsToggled }: an
           },
         }}
       >
-        {sidebarMenuItems.map((menu: any) =>
+        {menuItems.map((menu: any) =>
           menu.subMenu ? (
             <SubMenu 
               key={menu.label} 

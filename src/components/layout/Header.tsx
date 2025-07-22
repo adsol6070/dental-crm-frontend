@@ -5,13 +5,10 @@ import { theme } from "@/config/theme.config";
 import { useAuth } from "@/context/AuthContext";
 import { capitalizeFirstLetter } from "@/utils/capitalizeFirstLetter";
 import { useNavigate } from "react-router-dom";
-import { ROUTES } from "@/config/route-paths.config";
-import { useMe } from "@/hooks/useUser";
-import { resolveRoute } from "@/utils/resolveRoute";
+import { resolveProfileRoute } from "@/utils/resolveProfileRoute";
 
 const Header = ({ onToggleSidebar }: any) => {
-  const { logout } = useAuth();
-  const { data: user } = useMe();
+  const { logout, state } = useAuth();
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -21,13 +18,13 @@ const Header = ({ onToggleSidebar }: any) => {
   });
 
   useEffect(() => {
-    if (user) {
+    if (state.user) {
       setUserData({
-        name: capitalizeFirstLetter(user.name ?? "John"),
-        email: user.email || "johndoe@gmail.com",
+        name: capitalizeFirstLetter(state.user?.firstName ?? "John"),
+        email: state.user?.email || "johndoe@gmail.com",
       });
     }
-  }, [user]);
+  }, [state.user]);
 
   const handleDropdownToggle = () => {
     setIsDropdownOpen(!isDropdownOpen);
@@ -76,7 +73,9 @@ const Header = ({ onToggleSidebar }: any) => {
             <DropdownMenu>
               <DropdownItem
                 onClick={() => {
-                  navigate(resolveRoute(ROUTES.PRIVATE.PROFILE));
+                  if(state.user?.type){
+                    navigate(resolveProfileRoute(state.user?.type));
+                  }
                   setIsDropdownOpen(false);
                 }}
               >
