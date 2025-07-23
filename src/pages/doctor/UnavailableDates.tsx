@@ -1,22 +1,69 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import styled from "styled-components";
-import { 
-  FiCalendar, 
+import {  
   FiPlus, 
   FiTrash, 
   FiRefreshCw, 
-  FiEdit, 
   FiDownload,
-  FiUpload,
   FiX,
-  FiClock,
   FiChevronLeft,
   FiChevronRight,
-  FiFilter,
-  FiSearch,
-  FiMoreHorizontal
 } from "react-icons/fi";
 import Swal from "sweetalert2";
+
+// Import backend hooks
+import {
+  useUnavailableDates,
+  useUnavailableDatesSummary,
+  useCreateUnavailableDateRange,
+  useDeleteUnavailableDates,
+  useBulkDeleteUnavailableDate,
+} from "@/hooks/useDoctor";
+
+// Types
+interface UnavailableDate {
+  id: string;
+  date: string;
+  reason: string;
+  type: 'full-day' | 'half-day' | 'morning' | 'afternoon';
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+interface AddUnavailableDateRangePayload {
+  startDate: string;
+  endDate: string;
+  reason: string;
+  type: 'full-day' | 'half-day' | 'morning' | 'afternoon';
+  notes?: string;
+}
+
+interface LeaveType {
+  value: string;
+  label: string;
+}
+
+interface DayType {
+  value: 'full-day' | 'half-day' | 'morning' | 'afternoon';
+  label: string;
+}
+
+interface AddLeaveModalProps {
+  selectedDate: Date | null;
+  onClose: () => void;
+  onAdd: (data: AddUnavailableDateRangePayload) => Promise<void>;
+  isSubmitting: boolean;
+  leaveTypes: LeaveType[];
+  dayTypes: DayType[];
+}
+
+interface UnavailableDatesSummary {
+  total: number;
+  upcoming: number;
+  past: number;
+  thisMonth: number;
+}
 
 // Theme configuration
 const theme = {
@@ -34,121 +81,48 @@ const theme = {
   }
 };
 
-// Mock hooks - Replace with your actual API hooks
-const useUnavailableDates = () => {
-  const [unavailableDates, setUnavailableDates] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setUnavailableDates([
-        {
-          id: '1',
-          date: '2025-08-15',
-          reason: 'Personal Leave',
-          type: 'full-day',
-          notes: 'Family vacation',
-          createdAt: '2025-07-20T10:00:00Z'
-        },
-        {
-          id: '2',
-          date: '2025-08-16',
-          reason: 'Personal Leave',
-          type: 'full-day',
-          notes: 'Family vacation',
-          createdAt: '2025-07-20T10:00:00Z'
-        },
-        {
-          id: '3',
-          date: '2025-08-20',
-          reason: 'Medical Conference',
-          type: 'full-day',
-          notes: 'Attending cardiology conference',
-          createdAt: '2025-07-18T14:30:00Z'
-        },
-        {
-          id: '4',
-          date: '2025-07-25',
-          reason: 'Sick Leave',
-          type: 'half-day',
-          notes: 'Medical appointment',
-          createdAt: '2025-07-24T09:15:00Z'
-        },
-        {
-          id: '5',
-          date: '2025-09-05',
-          reason: 'Emergency Leave',
-          type: 'full-day',
-          notes: 'Family emergency',
-          createdAt: '2025-07-22T16:45:00Z'
-        }
-      ]);
-      setIsLoading(false);
-    }, 1000);
-  }, []);
-
-  const addUnavailableDate = async (dateData) => {
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-      const newDate = {
-        ...dateData,
-        id: Date.now().toString(),
-        createdAt: new Date().toISOString()
-      };
-      setUnavailableDates(prev => [...prev, newDate]);
-      return { success: true, data: newDate };
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  const removeUnavailableDate = async (dateId) => {
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setUnavailableDates(prev => prev.filter(d => d.id !== dateId));
-      return { success: true };
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  return {
-    data: unavailableDates,
-    isLoading,
-    error,
-    addUnavailableDate,
-    removeUnavailableDate,
-    refetch: () => {}
-  };
+// Helper functions for date handling
+const formatDateToLocal = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
-const DoctorUnavailableDays = () => {
+const createLocalDate = (dateString: string): Date => {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+const DoctorUnavailableDays: React.FC = () => {
+  // Backend hooks
   const { 
-    data: unavailableDates, 
+    data: unavailableDates = [], 
     isLoading, 
-    error, 
-    addUnavailableDate, 
-    removeUnavailableDate,
+    error,
     refetch 
   } = useUnavailableDates();
 
+  const { 
+    data: summary = { total: 0, upcoming: 0, past: 0, thisMonth: 0 } as UnavailableDatesSummary
+  } = useUnavailableDatesSummary();
+
+  const createUnavailableDateRange = useCreateUnavailableDateRange();
+  const deleteUnavailableDates = useDeleteUnavailableDates();
+  const deleteBulkUnavailableDates = useBulkDeleteUnavailableDate();
+
   // Local state
-  const [selectedDates, setSelectedDates] = useState([]);
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all'); // all, upcoming, past
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [filterType, setFilterType] = useState<'all' | 'full-day' | 'half-day' | 'morning' | 'afternoon'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'upcoming' | 'past'>('all');
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [quickAddMode, setQuickAddMode] = useState(false);
 
-  const leaveTypes = [
+  const leaveTypes: LeaveType[] = [
     { value: 'personal', label: 'Personal Leave' },
     { value: 'sick', label: 'Sick Leave' },
     { value: 'vacation', label: 'Vacation' },
@@ -157,7 +131,7 @@ const DoctorUnavailableDays = () => {
     { value: 'other', label: 'Other' }
   ];
 
-  const dayTypes = [
+  const dayTypes: DayType[] = [
     { value: 'full-day', label: 'Full Day' },
     { value: 'half-day', label: 'Half Day' },
     { value: 'morning', label: 'Morning Only' },
@@ -165,16 +139,18 @@ const DoctorUnavailableDays = () => {
   ];
 
   // Helper functions
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
+  const formatDate = (dateInput: string | Date): string => {
+    const date = typeof dateInput === 'string' ? createLocalDate(dateInput) : dateInput;
+    return date.toLocaleDateString('en-IN', {
       day: '2-digit',
       month: 'short',
       year: 'numeric'
     });
   };
 
-  const formatDateLong = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
+  const formatDateLong = (dateInput: string | Date): string => {
+    const date = typeof dateInput === 'string' ? createLocalDate(dateInput) : dateInput;
+    return date.toLocaleDateString('en-IN', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -182,34 +158,40 @@ const DoctorUnavailableDays = () => {
     });
   };
 
-  const isDateUnavailable = (date) => {
-    const dateStr = date.toISOString().split('T')[0];
+  const isDateUnavailable = (date: Date): boolean => {
+    const dateStr = formatDateToLocal(date);
     return unavailableDates.some(d => d.date === dateStr);
   };
 
-  const getUnavailableDateInfo = (date) => {
-    const dateStr = date.toISOString().split('T')[0];
+  const getUnavailableDateInfo = (date: Date): UnavailableDate | undefined => {
+    const dateStr = formatDateToLocal(date);
     return unavailableDates.find(d => d.date === dateStr);
   };
 
-  const isToday = (date) => {
+  const isToday = (date: Date): boolean => {
     const today = new Date();
     return date.toDateString() === today.toDateString();
   };
 
-  const isPastDate = (dateString) => {
-    return new Date(dateString) < new Date();
+  const isPastDate = (dateString: string): boolean => {
+    const inputDate = createLocalDate(dateString);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day
+    return inputDate < today;
   };
 
-  const isUpcomingDate = (dateString) => {
-    return new Date(dateString) >= new Date();
+  const isUpcomingDate = (dateString: string): boolean => {
+    const inputDate = createLocalDate(dateString);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day
+    return inputDate >= today;
   };
 
   // Filter unavailable dates
   const filteredUnavailableDates = unavailableDates.filter(leave => {
     const matchesSearch = 
       leave.reason.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      leave.notes.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (leave.notes?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
       formatDate(leave.date).toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesType = filterType === 'all' || leave.type === filterType;
@@ -220,16 +202,15 @@ const DoctorUnavailableDays = () => {
       (filterStatus === 'past' && isPastDate(leave.date));
 
     return matchesSearch && matchesType && matchesStatus;
-  }).sort((a, b) => new Date(b.date) - new Date(a.date));
+  }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   // Generate calendar days
-  const generateCalendarDays = () => {
+  const generateCalendarDays = (): Date[] => {
     const firstDay = new Date(currentYear, currentMonth, 1);
-    const lastDay = new Date(currentYear, currentMonth + 1, 0);
     const startDate = new Date(firstDay);
     startDate.setDate(startDate.getDate() - firstDay.getDay());
     
-    const days = [];
+    const days: Date[] = [];
     const current = new Date(startDate);
     
     for (let i = 0; i < 42; i++) {
@@ -247,7 +228,7 @@ const DoctorUnavailableDays = () => {
   ];
 
   // Event handlers
-  const handleCalendarClick = (clickedDate) => {
+  const handleCalendarClick = (clickedDate: Date): void => {
     if (clickedDate.getMonth() !== currentMonth) return;
 
     const unavailableInfo = getUnavailableDateInfo(clickedDate);
@@ -264,10 +245,13 @@ const DoctorUnavailableDays = () => {
     }
   };
 
-  const handleQuickAdd = async (date) => {
+  const handleQuickAdd = async (date: Date): Promise<void> => {
     try {
-      await addUnavailableDate({
-        date: date.toISOString().split('T')[0],
+      const dateStr = formatDateToLocal(date);
+      
+      await createUnavailableDateRange.mutateAsync({
+        startDate: dateStr,
+        endDate: dateStr,
         reason: 'Personal Leave',
         type: 'full-day',
         notes: 'Quick add'
@@ -281,6 +265,7 @@ const DoctorUnavailableDays = () => {
         showConfirmButton: false,
       });
     } catch (error) {
+      console.error('Quick add error:', error);
       Swal.fire({
         title: 'Error!',
         text: 'Failed to mark date as unavailable.',
@@ -289,50 +274,35 @@ const DoctorUnavailableDays = () => {
     }
   };
 
-  const handleAddLeave = async (leaveData) => {
-    setIsSubmitting(true);
+  const handleAddLeave = async (leaveData: AddUnavailableDateRangePayload): Promise<void> => {
     try {
-      // Handle date range
-      const startDate = new Date(leaveData.startDate);
-      const endDate = new Date(leaveData.endDate);
-      const dates = [];
-      
-      const current = new Date(startDate);
-      while (current <= endDate) {
-        dates.push({
-          date: current.toISOString().split('T')[0],
-          reason: leaveData.reason,
-          type: leaveData.type,
-          notes: leaveData.notes
-        });
-        current.setDate(current.getDate() + 1);
-      }
+      await createUnavailableDateRange.mutateAsync(leaveData);
 
-      // Add all dates
-      for (const dateData of dates) {
-        await addUnavailableDate(dateData);
-      }
+      const startDate = createLocalDate(leaveData.startDate);
+      const endDate = createLocalDate(leaveData.endDate);
+      const dayCount = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
       setShowAddModal(false);
+      setSelectedDate(null);
+      
       Swal.fire({
         title: 'Success!',
-        text: `${dates.length} date(s) marked as unavailable.`,
+        text: `${dayCount} date(s) marked as unavailable.`,
         icon: 'success',
         timer: 2000,
         showConfirmButton: false,
       });
     } catch (error) {
+      console.error('Add leave error:', error);
       Swal.fire({
         title: 'Error!',
         text: 'Failed to add unavailable dates.',
         icon: 'error',
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
-  const handleRemoveDate = async (dateId, reason) => {
+  const handleRemoveDate = async (dateId: string, reason: string): Promise<void> => {
     const result = await Swal.fire({
       title: 'Remove Unavailable Date?',
       text: `Remove "${reason}" from your unavailable dates?`,
@@ -345,7 +315,8 @@ const DoctorUnavailableDays = () => {
 
     if (result.isConfirmed) {
       try {
-        await removeUnavailableDate(dateId);
+        await deleteUnavailableDates.mutateAsync(dateId);
+        
         Swal.fire({
           title: 'Removed!',
           text: 'Date has been removed from unavailable list.',
@@ -354,6 +325,7 @@ const DoctorUnavailableDays = () => {
           showConfirmButton: false,
         });
       } catch (error) {
+        console.error('Remove date error:', error);
         Swal.fire({
           title: 'Error!',
           text: 'Failed to remove unavailable date.',
@@ -363,7 +335,7 @@ const DoctorUnavailableDays = () => {
     }
   };
 
-  const handleBulkRemove = async () => {
+  const handleBulkRemove = async (): Promise<void> => {
     if (selectedDates.length === 0) return;
 
     const result = await Swal.fire({
@@ -378,9 +350,8 @@ const DoctorUnavailableDays = () => {
 
     if (result.isConfirmed) {
       try {
-        for (const dateId of selectedDates) {
-          await removeUnavailableDate(dateId);
-        }
+        await deleteBulkUnavailableDates.mutateAsync({dateIds: selectedDates});
+
         setSelectedDates([]);
         Swal.fire({
           title: 'Success!',
@@ -390,6 +361,7 @@ const DoctorUnavailableDays = () => {
           showConfirmButton: false,
         });
       } catch (error) {
+        console.error('Bulk remove error:', error);
         Swal.fire({
           title: 'Error!',
           text: 'Some dates could not be removed.',
@@ -399,7 +371,7 @@ const DoctorUnavailableDays = () => {
     }
   };
 
-  const handleMonthNavigation = (direction) => {
+  const handleMonthNavigation = (direction: 'prev' | 'next'): void => {
     if (direction === 'prev') {
       if (currentMonth === 0) {
         setCurrentMonth(11);
@@ -417,14 +389,14 @@ const DoctorUnavailableDays = () => {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = (): void => {
     const csvContent = [
       ['Date', 'Reason', 'Type', 'Notes', 'Created At'],
       ...unavailableDates.map(leave => [
         leave.date,
         leave.reason,
         leave.type,
-        leave.notes,
+        leave.notes || '',
         new Date(leave.createdAt).toLocaleDateString()
       ])
     ].map(row => row.join(',')).join('\n');
@@ -439,20 +411,6 @@ const DoctorUnavailableDays = () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
-
-  const getStats = () => {
-    const total = unavailableDates.length;
-    const upcoming = unavailableDates.filter(d => isUpcomingDate(d.date)).length;
-    const past = unavailableDates.filter(d => isPastDate(d.date)).length;
-    const thisMonth = unavailableDates.filter(d => {
-      const date = new Date(d.date);
-      return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
-    }).length;
-
-    return { total, upcoming, past, thisMonth };
-  };
-
-  const stats = getStats();
 
   if (isLoading) {
     return (
@@ -472,7 +430,7 @@ const DoctorUnavailableDays = () => {
           <ErrorIcon>⚠️</ErrorIcon>
           <ErrorTitle>Failed to Load Data</ErrorTitle>
           <ErrorMessage>Unable to load unavailable dates. Please try again.</ErrorMessage>
-          <RetryButton onClick={refetch}>
+          <RetryButton onClick={() => refetch()}>
             <FiRefreshCw size={16} />
             Try Again
           </RetryButton>
@@ -490,15 +448,15 @@ const DoctorUnavailableDays = () => {
           <Subtitle>Manage your unavailable dates and leave schedule</Subtitle>
           <StatsRow>
             <StatItem>
-              <StatNumber>{stats.total}</StatNumber>
+              <StatNumber>{summary.total}</StatNumber>
               <StatLabel>Total Leaves</StatLabel>
             </StatItem>
             <StatItem>
-              <StatNumber>{stats.upcoming}</StatNumber>
+              <StatNumber>{summary.upcoming}</StatNumber>
               <StatLabel>Upcoming</StatLabel>
             </StatItem>
             <StatItem>
-              <StatNumber>{stats.thisMonth}</StatNumber>
+              <StatNumber>{summary.thisMonth}</StatNumber>
               <StatLabel>This Month</StatLabel>
             </StatItem>
           </StatsRow>
@@ -512,7 +470,7 @@ const DoctorUnavailableDays = () => {
             />
             <QuickModeLabel>Quick Add</QuickModeLabel>
           </QuickModeToggle>
-          <RefreshButton onClick={refetch}>
+          <RefreshButton onClick={() => refetch()}>
             <FiRefreshCw size={16} />
             Refresh
           </RefreshButton>
@@ -544,11 +502,11 @@ const DoctorUnavailableDays = () => {
             </CalendarNavigation>
             <CalendarLegend>
               <LegendItem>
-                <LegendDot color={theme.colors.danger} />
+                <LegendDot $color={theme.colors.danger} />
                 Unavailable
               </LegendItem>
               <LegendItem>
-                <LegendDot color={theme.colors.primary} />
+                <LegendDot $color={theme.colors.primary} />
                 Today
               </LegendItem>
             </CalendarLegend>
@@ -571,12 +529,14 @@ const DoctorUnavailableDays = () => {
                 return (
                   <CalendarDay
                     key={index}
-                    isCurrentMonth={isCurrentMonth}
-                    isUnavailable={isUnavailable}
-                    isToday={isTodayDate}
+                    $isCurrentMonth={isCurrentMonth}
+                    $isUnavailable={isUnavailable}
+                    $isToday={isTodayDate}
                     onClick={() => handleCalendarClick(day)}
                   >
-                    <DayNumber>{day.getDate()}</DayNumber>
+                    <DayNumber $isCurrentMonth={isCurrentMonth} $isToday={isTodayDate}>
+                      {day.getDate()}
+                    </DayNumber>
                     {isUnavailable && (
                       <UnavailableIndicator title={unavailableInfo?.reason}>
                         {unavailableInfo?.type === 'half-day' ? '½' : '●'}
@@ -602,7 +562,7 @@ const DoctorUnavailableDays = () => {
               />
               <FilterSelect
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
+                onChange={(e) => setFilterStatus(e.target.value as 'all' | 'upcoming' | 'past')}
               >
                 <option value="all">All Leaves</option>
                 <option value="upcoming">Upcoming</option>
@@ -610,7 +570,7 @@ const DoctorUnavailableDays = () => {
               </FilterSelect>
               <FilterSelect
                 value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
+                onChange={(e) => setFilterType(e.target.value as typeof filterType)}
               >
                 <option value="all">All Types</option>
                 {dayTypes.map(type => (
@@ -625,9 +585,12 @@ const DoctorUnavailableDays = () => {
           {selectedDates.length > 0 && (
             <BulkActions>
               <BulkInfo>{selectedDates.length} selected</BulkInfo>
-              <BulkButton onClick={handleBulkRemove}>
+              <BulkButton 
+                onClick={handleBulkRemove}
+                disabled={deleteUnavailableDates.isPending}
+              >
                 <FiTrash size={14} />
-                Remove Selected
+                {deleteUnavailableDates.isPending ? 'Removing...' : 'Remove Selected'}
               </BulkButton>
               <BulkButton onClick={() => setSelectedDates([])}>
                 Clear Selection
@@ -648,7 +611,7 @@ const DoctorUnavailableDays = () => {
               </EmptyState>
             ) : (
               filteredUnavailableDates.map(leave => (
-                <LeaveItem key={leave.id} isPast={isPastDate(leave.date)}>
+                <LeaveItem key={leave.id} $isPast={isPastDate(leave.date)}>
                   <LeaveCheckbox
                     type="checkbox"
                     checked={selectedDates.includes(leave.id)}
@@ -678,9 +641,10 @@ const DoctorUnavailableDays = () => {
 
                   <LeaveActions>
                     <ActionButton
-                      variant="danger"
+                      $variant="danger"
                       onClick={() => handleRemoveDate(leave.id, leave.reason)}
                       title="Remove leave"
+                      disabled={deleteUnavailableDates.isPending}
                     >
                       <FiTrash size={14} />
                     </ActionButton>
@@ -701,7 +665,7 @@ const DoctorUnavailableDays = () => {
             setSelectedDate(null);
           }}
           onAdd={handleAddLeave}
-          isSubmitting={isSubmitting}
+          isSubmitting={createUnavailableDateRange.isPending}
           leaveTypes={leaveTypes}
           dayTypes={dayTypes}
         />
@@ -711,21 +675,28 @@ const DoctorUnavailableDays = () => {
 };
 
 // Add Leave Modal Component
-const AddLeaveModal = ({ selectedDate, onClose, onAdd, isSubmitting, leaveTypes, dayTypes }) => {
-  const [formData, setFormData] = useState({
-    startDate: selectedDate ? selectedDate.toISOString().split('T')[0] : '',
-    endDate: selectedDate ? selectedDate.toISOString().split('T')[0] : '',
+const AddLeaveModal: React.FC<AddLeaveModalProps> = ({ 
+  selectedDate, 
+  onClose, 
+  onAdd, 
+  isSubmitting, 
+  leaveTypes, 
+  dayTypes 
+}) => {
+  const [formData, setFormData] = useState<AddUnavailableDateRangePayload>({
+    startDate: selectedDate ? formatDateToLocal(selectedDate) : '',
+    endDate: selectedDate ? formatDateToLocal(selectedDate) : '',
     reason: 'Personal Leave',
     type: 'full-day',
     notes: ''
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
     onAdd(formData);
   };
 
-  const handleInputChange = (field, value) => {
+  const handleInputChange = (field: keyof AddUnavailableDateRangePayload, value: string): void => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -781,7 +752,7 @@ const AddLeaveModal = ({ selectedDate, onClose, onAdd, isSubmitting, leaveTypes,
               <FormLabel>Duration</FormLabel>
               <FormSelect
                 value={formData.type}
-                onChange={(e) => handleInputChange('type', e.target.value)}
+                onChange={(e) => handleInputChange('type', e.target.value as AddUnavailableDateRangePayload['type'])}
                 required
               >
                 {dayTypes.map(type => (
@@ -796,7 +767,7 @@ const AddLeaveModal = ({ selectedDate, onClose, onAdd, isSubmitting, leaveTypes,
           <FormGroup>
             <FormLabel>Notes (Optional)</FormLabel>
             <FormTextarea
-              value={formData.notes}
+              value={formData.notes || ''}
               onChange={(e) => handleInputChange('notes', e.target.value)}
               placeholder="Additional details about this leave..."
               rows={3}
@@ -804,7 +775,7 @@ const AddLeaveModal = ({ selectedDate, onClose, onAdd, isSubmitting, leaveTypes,
           </FormGroup>
 
           <ModalActions>
-            <CancelButton type="button" onClick={onClose}>
+            <CancelButton type="button" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </CancelButton>
             <SubmitButton type="submit" disabled={isSubmitting}>
@@ -1063,11 +1034,11 @@ const LegendItem = styled.div`
   color: ${theme.colors.textSecondary};
 `;
 
-const LegendDot = styled.div`
+const LegendDot = styled.div<{ $color: string }>`
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: ${props => props.color};
+  background: ${props => props.$color};
 `;
 
 const CalendarGrid = styled.div`
@@ -1098,11 +1069,15 @@ const CalendarDays = styled.div`
   overflow: hidden;
 `;
 
-const CalendarDay = styled.div`
+const CalendarDay = styled.div<{
+  $isCurrentMonth: boolean;
+  $isUnavailable: boolean;
+  $isToday: boolean;
+}>`
   aspect-ratio: 1;
   background: ${props => 
-    !props.isCurrentMonth ? '#f3f4f6' :
-    props.isToday ? theme.colors.primary + '20' :
+    !props.$isCurrentMonth ? '#f3f4f6' :
+    props.$isToday ? theme.colors.primary + '20' :
     'white'
   };
   display: flex;
@@ -1110,23 +1085,26 @@ const CalendarDay = styled.div`
   align-items: center;
   justify-content: center;
   position: relative;
-  cursor: ${props => props.isCurrentMonth ? 'pointer' : 'default'};
+  cursor: ${props => props.$isCurrentMonth ? 'pointer' : 'default'};
   transition: all 0.2s;
-  border: ${props => props.isToday ? `2px solid ${theme.colors.primary}` : 'none'};
+  border: ${props => props.$isToday ? `2px solid ${theme.colors.primary}` : 'none'};
 
   &:hover {
     background: ${props => 
-      props.isCurrentMonth ? (props.isToday ? theme.colors.primary + '30' : '#f9fafb') : '#f3f4f6'
+      props.$isCurrentMonth ? (props.$isToday ? theme.colors.primary + '30' : '#f9fafb') : '#f3f4f6'
     };
   }
 `;
 
-const DayNumber = styled.div`
+const DayNumber = styled.div<{
+  $isCurrentMonth: boolean;
+  $isToday: boolean;
+}>`
   font-size: 14px;
-  font-weight: ${props => props.isToday ? '600' : '500'};
+  font-weight: ${props => props.$isToday ? '600' : '500'};
   color: ${props => 
-    !props.isCurrentMonth ? '#9ca3af' :
-    props.isToday ? theme.colors.primary :
+    !props.$isCurrentMonth ? '#9ca3af' :
+    props.$isToday ? theme.colors.primary :
     theme.colors.textPrimary
   };
 `;
@@ -1250,9 +1228,14 @@ const BulkButton = styled.button`
   cursor: pointer;
   transition: all 0.2s;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: #f9fafb;
     color: ${theme.colors.textPrimary};
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 `;
 
@@ -1262,14 +1245,14 @@ const LeaveList = styled.div`
   max-height: 500px;
 `;
 
-const LeaveItem = styled.div`
+const LeaveItem = styled.div<{ $isPast: boolean }>`
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 16px 20px;
   border-bottom: 1px solid ${theme.colors.lightGray};
   transition: all 0.2s;
-  opacity: ${props => props.isPast ? 0.7 : 1};
+  opacity: ${props => props.$isPast ? 0.7 : 1};
 
   &:hover {
     background: #f9fafb;
@@ -1347,7 +1330,7 @@ const LeaveActions = styled.div`
   align-items: center;
 `;
 
-const ActionButton = styled.button`
+const ActionButton = styled.button<{ $variant: string }>`
   padding: 6px 8px;
   border: none;
   border-radius: 4px;
@@ -1355,10 +1338,10 @@ const ActionButton = styled.button`
   cursor: pointer;
   transition: all 0.2s;
   background: ${props => 
-    props.variant === 'danger' ? '#fee2e2' : '#e0f2fe'
+    props.$variant === 'danger' ? '#fee2e2' : '#e0f2fe'
   };
   color: ${props => 
-    props.variant === 'danger' ? theme.colors.danger : '#0369a1'
+    props.$variant === 'danger' ? theme.colors.danger : '#0369a1'
   };
 
   &:hover:not(:disabled) {
@@ -1494,6 +1477,7 @@ const FormInput = styled.input`
   border-radius: 6px;
   font-size: 14px;
   transition: all 0.2s;
+  box-sizing: border-box;
 
   &:focus {
     outline: none;
@@ -1511,6 +1495,7 @@ const FormSelect = styled.select`
   background: white;
   cursor: pointer;
   transition: all 0.2s;
+  box-sizing: border-box;
 
   &:focus {
     outline: none;
@@ -1528,6 +1513,7 @@ const FormTextarea = styled.textarea`
   font-family: inherit;
   resize: vertical;
   transition: all 0.2s;
+  box-sizing: border-box;
 
   &:focus {
     outline: none;
@@ -1555,8 +1541,13 @@ const CancelButton = styled.button`
   cursor: pointer;
   transition: all 0.2s;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: #f9fafb;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 `;
 

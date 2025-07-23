@@ -124,3 +124,81 @@ export interface ApiResponse<T> {
   message: string;
   data: T;
 }
+
+export type UnavailableDateType = "full-day" | "half-day" | "morning" | "afternoon";
+
+export interface UnavailableDate {
+  id: string;
+  date: string; // "YYYY-MM-DD"
+  reason: string;
+  type: UnavailableDateType;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AddUnavailableDatePayload {
+  date: string;
+  reason: string;
+  type: UnavailableDateType;
+  notes?: string;
+}
+
+export interface AddUnavailableDateRangePayload {
+  startDate: string; // YYYY-MM-DD
+  endDate: string;   // YYYY-MM-DD
+  reason: string;
+  type: UnavailableDateType;
+  notes?: string;
+}
+
+export interface BulkUnavailableDatePayload {
+  dates: string[]; // Array of YYYY-MM-DD
+  reason: string;
+  type: UnavailableDateType;
+  notes?: string;
+}
+
+export interface RemoveUnavailableDatePayload {
+  dateIds: string[];
+}
+export interface UnavailableDateSummary {
+  total: number;
+  upcoming: number;
+  past: number;
+  thisMonth: number;
+  byType: {
+    [key in UnavailableDateType]?: number;
+  };
+  byReason: {
+    [reason: string]: number;
+  };
+}
+
+export interface UnavailableDateSummaryApiResponse {
+  success: boolean;
+  data: {
+    summary: UnavailableDateSummary;
+  };
+}
+export interface UnavailableDateApiResponse {
+  success: boolean;
+  message: string;
+  data: {
+    unavailableDates: UnavailableDate[];
+  };
+}
+
+export interface UpdateFeesBody {
+  consultationFee: number;
+  followUpFee?: number;
+  emergencyFee?: number;
+}
+
+export interface UpdateFeesApiResponse {
+  success: boolean;
+  message: string;
+  data: {
+    fees: Fees;
+  };
+}

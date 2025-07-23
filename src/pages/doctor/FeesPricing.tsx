@@ -1,22 +1,18 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
+import { useForm, Controller } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
 import { 
   FiSave, 
   FiRefreshCw, 
   FiEdit, 
-  FiDollarSign,
-  FiTrendingUp,
-  FiEye,
-  FiPercent,
-  FiCopy,
   FiRotateCcw,
-  FiCalendar,
-  FiBarChart,
-  FiDownload,
   FiAlertTriangle,
   FiCheck
 } from "react-icons/fi";
 import Swal from "sweetalert2";
+import { useDoctorFees, useUpdateDoctorFees } from "@/hooks/useDoctor";
 
 // Theme configuration
 const theme = {
@@ -34,253 +30,134 @@ const theme = {
   }
 };
 
-// Mock hooks - Replace with your actual API hooks
-const useDoctorFees = () => {
-  const [feesData, setFeesData] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setFeesData({
-        consultationFees: {
-          regular: 500,
-          followUp: 300,
-          emergency: 800,
-          online: 400
-        },
-        specialServices: [
-          { id: '1', name: 'Health Checkup', fee: 1200 },
-          { id: '2', name: 'ECG Reading', fee: 300 },
-          { id: '3', name: 'Blood Pressure Monitoring', fee: 150 }
-        ],
-        discounts: {
-          senior: 10,
-          student: 15,
-          family: 20
-        },
-        paymentMethods: ['cash', 'card', 'insurance', 'upi'],
-        currency: '₹',
-        lastUpdated: '2025-07-20T10:30:00Z',
-        effectiveDate: '2025-07-21T00:00:00Z'
-      });
-      setIsLoading(false);
-    }, 1000);
-  }, []);
-
-  const updateFees = async (updatedFeesData) => {
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setFeesData(updatedFeesData);
-      return { success: true, data: updatedFeesData };
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  return {
-    data: feesData,
-    isLoading,
-    error,
-    updateFees,
-    refetch: () => {}
-  };
-};
+// Yup validation schema
+const feeSchema = yup.object({
+  consultationFee: yup
+    .number()
+    .typeError('Consultation fee must be a number')
+    .min(1, 'Consultation fee must be at least ₹1')
+    .max(50000, 'Consultation fee cannot exceed ₹50,000')
+    .required('Consultation fee is required'),
+  followUpFee: yup
+    .number()
+    .typeError('Follow-up fee must be a number')
+    .min(0, 'Follow-up fee cannot be negative')
+    .max(50000, 'Follow-up fee cannot exceed ₹50,000')
+    .nullable()
+    .transform((value, originalValue) => originalValue === "" ? null : value)
+    .test('follow-up-validation', 'Follow-up fee should not be higher than consultation fee', function(value) {
+      const { consultationFee } = this.parent;
+      if (value && consultationFee && value > consultationFee) {
+        return false;
+      }
+      return true;
+    }),
+  emergencyFee: yup
+    .number()
+    .typeError('Emergency fee must be a number')
+    .min(0, 'Emergency fee cannot be negative')
+    .max(100000, 'Emergency fee cannot exceed ₹1,00,000')
+    .nullable()
+    .transform((value, originalValue) => originalValue === "" ? null : value)
+    .test('emergency-validation', 'Emergency fee should be higher than consultation fee', function(value) {
+      const { consultationFee } = this.parent;
+      if (value && consultationFee && value < consultationFee) {
+        return false;
+      }
+      return true;
+    })
+});
 
 const DoctorFees = () => {
-  const { data: currentFees, isLoading, error, updateFees, refetch } = useDoctorFees();
+  const { data: feesResponse, isLoading, error, refetch } = useDoctorFees();
+  const { mutate: updateFees, isPending: isSaving } = useUpdateDoctorFees();
+  
+  // Extract fees data from response
+  const currentFees = feesResponse?.data?.fees;
 
   // Local state
-  const [formData, setFormData] = useState({});
   const [isEditing, setIsEditing] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [showBulkUpdate, setShowBulkUpdate] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
-  const [validationErrors, setValidationErrors] = useState({});
+
+  // React Hook Form setup
+  const {
+    control,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors, isDirty, isValid }
+  } = useForm({
+    resolver: yupResolver(feeSchema),
+    defaultValues: {
+      consultationFee: 0,
+      followUpFee: null,
+      emergencyFee: null
+    },
+    mode: 'onChange' // Validate on change for better UX
+  });
+
+  // Watch form values for display
+  const formValues = watch();
 
   // Initialize form data when current fees load
   useEffect(() => {
     if (currentFees) {
-      setFormData({ ...currentFees });
+      reset({
+        consultationFee: currentFees.consultationFee || 0,
+        followUpFee: currentFees.followUpFee || null,
+        emergencyFee: currentFees.emergencyFee || null
+      });
     }
-  }, [currentFees]);
-
-  // Fee templates
-  const feeTemplates = [
-    {
-      id: 'budget',
-      name: 'Budget-Friendly',
-      description: 'Accessible pricing for all patients',
-      fees: {
-        regular: 300,
-        followUp: 200,
-        emergency: 500,
-        online: 250
-      }
-    },
-    {
-      id: 'standard',
-      name: 'Standard Market Rate',
-      description: 'Competitive market pricing',
-      fees: {
-        regular: 500,
-        followUp: 300,
-        emergency: 800,
-        online: 400
-      }
-    },
-    {
-      id: 'premium',
-      name: 'Premium Service',
-      description: 'Higher-end pricing model',
-      fees: {
-        regular: 800,
-        followUp: 500,
-        emergency: 1200,
-        online: 600
-      }
-    }
-  ];
+  }, [currentFees, reset]);
 
   // Helper functions
-  const formatCurrency = (amount) => {
+  const formatCurrency = (amount: number) => {
+    if (!amount || amount === 0) return '₹0';
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR'
     }).format(amount);
   };
 
-  const validateFeeStructure = (fees) => {
-    const errors = {};
-    
-    // Validate consultation fees
-    Object.entries(fees.consultationFees || {}).forEach(([type, amount]) => {
-      if (!amount || amount < 0) {
-        errors[`consultationFees.${type}`] = 'Amount must be greater than 0';
-      }
-      if (amount > 10000) {
-        errors[`consultationFees.${type}`] = 'Amount seems too high';
-      }
-    });
-
-    // Validate discounts
-    Object.entries(fees.discounts || {}).forEach(([type, percentage]) => {
-      if (percentage < 0 || percentage > 50) {
-        errors[`discounts.${type}`] = 'Discount must be between 0-50%';
-      }
-    });
-
-    return {
-      isValid: Object.keys(errors).length === 0,
-      errors,
-      fieldErrors: errors
-    };
-  };
-
-  const calculateRevenueProjection = (fees) => {
-    // Mock calculation based on average appointments
-    const averageAppointments = {
-      regular: 20,
-      followUp: 15,
-      emergency: 3,
-      online: 10
+  // Form submission handler
+  const onSubmit = (data: any) => {
+    // Prepare data for API - remove null values for optional fields
+    const apiData = {
+      consultationFee: data.consultationFee,
+      ...(data.followUpFee && { followUpFee: data.followUpFee }),
+      ...(data.emergencyFee && { emergencyFee: data.emergencyFee })
     };
 
-    // const monthlyRevenue = Object.entries(averageAppointments).reduce((total, [type, count]) => {
-    //   return total + (fees.consultationFees[type] * count);
-    // }, 0);
-
-    // return monthlyRevenue;
-  };
-
-  const calculateChanges = (oldFees, newFees) => {
-    if (!oldFees || !newFees) return {};
-    
-    const changes = {};
-    Object.entries(newFees.consultationFees || {}).forEach(([type, newAmount]) => {
-      const oldAmount = oldFees.consultationFees[type] || 0;
-      const change = newAmount - oldAmount;
-      if (change !== 0) {
-        changes[type] = change;
+    updateFees(apiData, {
+      onSuccess: () => {
+        setIsEditing(false);
+        refetch(); // Refresh data after successful update
+        
+        Swal.fire({
+          title: 'Success!',
+          text: 'Fee structure updated successfully.',
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      },
+      onError: (error) => {
+        console.error('Update failed:', error);
+        Swal.fire({
+          title: 'Error!',
+          text: error?.response?.data?.message || 'Failed to update fee structure.',
+          icon: 'error',
+        });
       }
     });
-    
-    return changes;
-  };
-
-  // Event handlers
-  const handleFieldChange = (field, value) => {
-    const keys = field.split('.');
-    const updatedData = { ...formData };
-    
-    let current = updatedData;
-    for (let i = 0; i < keys.length - 1; i++) {
-      if (!current[keys[i]]) current[keys[i]] = {};
-      current = current[keys[i]];
-    }
-    current[keys[keys.length - 1]] = value;
-    
-    setFormData(updatedData);
-    setHasUnsavedChanges(true);
-    
-    // Clear validation error for this field
-    if (validationErrors[field]) {
-      const newErrors = { ...validationErrors };
-      delete newErrors[field];
-      setValidationErrors(newErrors);
-    }
-  };
-
-  const handleSave = async () => {
-    // Validate before saving
-    const validation = validateFeeStructure(formData);
-    if (!validation.isValid) {
-      setValidationErrors(validation.fieldErrors);
-      Swal.fire({
-        title: 'Validation Error',
-        text: 'Please fix the errors before saving.',
-        icon: 'error',
-      });
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      await updateFees({
-        ...formData,
-        lastUpdated: new Date().toISOString()
-      });
-      
-      setIsEditing(false);
-      setHasUnsavedChanges(false);
-      setValidationErrors({});
-      
-      Swal.fire({
-        title: 'Success!',
-        text: 'Fee structure updated successfully.',
-        icon: 'success',
-        timer: 2000,
-        showConfirmButton: false,
-      });
-    } catch (error) {
-      Swal.fire({
-        title: 'Error!',
-        text: 'Failed to update fee structure.',
-        icon: 'error',
-      });
-    } finally {
-      setIsSaving(false);
-    }
   };
 
   const handleReset = () => {
-    setFormData({ ...currentFees });
-    setHasUnsavedChanges(false);
-    setValidationErrors({});
+    reset({
+      consultationFee: currentFees?.consultationFee || 0,
+      followUpFee: currentFees?.followUpFee || null,
+      emergencyFee: currentFees?.emergencyFee || null
+    });
+    
     Swal.fire({
       title: 'Reset Complete',
       text: 'Changes have been reset to saved values.',
@@ -290,52 +167,10 @@ const DoctorFees = () => {
     });
   };
 
-  const handleApplyTemplate = async (template) => {
-    const result = await Swal.fire({
-      title: `Apply ${template.name}?`,
-      text: 'This will overwrite your current consultation fees.',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: theme.colors.primary,
-      cancelButtonColor: theme.colors.textSecondary,
-      confirmButtonText: 'Yes, apply template'
-    });
-
-    if (result.isConfirmed) {
-      setFormData(prev => ({
-        ...prev,
-        consultationFees: { ...template.fees }
-      }));
-      setHasUnsavedChanges(true);
-      setShowTemplates(false);
-    }
-  };
-
-  const handleBulkUpdate = (updateType, updateValue, selectedCategories) => {
-    const updatedFees = { ...formData };
-    
-    selectedCategories.forEach(category => {
-      if (updatedFees.consultationFees[category]) {
-        if (updateType === 'percentage') {
-          updatedFees.consultationFees[category] = Math.round(
-            updatedFees.consultationFees[category] * (1 + updateValue / 100)
-          );
-        } else {
-          updatedFees.consultationFees[category] = 
-            Math.max(0, updatedFees.consultationFees[category] + updateValue);
-        }
-      }
-    });
-    
-    setFormData(updatedFees);
-    setHasUnsavedChanges(true);
-    setShowBulkUpdate(false);
-  };
-
   // Warn about unsaved changes
   useEffect(() => {
-    const handleBeforeUnload = (e) => {
-      if (hasUnsavedChanges) {
+    const handleBeforeUnload = (e: any) => {
+      if (isDirty) {
         e.preventDefault();
         e.returnValue = '';
       }
@@ -343,7 +178,7 @@ const DoctorFees = () => {
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [hasUnsavedChanges]);
+  }, [isDirty]);
 
   if (isLoading) {
     return (
@@ -363,7 +198,7 @@ const DoctorFees = () => {
           <ErrorIcon>⚠️</ErrorIcon>
           <ErrorTitle>Failed to Load Fee Structure</ErrorTitle>
           <ErrorMessage>Unable to load your fee information. Please try again.</ErrorMessage>
-          <RetryButton onClick={refetch}>
+          <RetryButton onClick={() => refetch()}>
             <FiRefreshCw size={16} />
             Try Again
           </RetryButton>
@@ -372,9 +207,6 @@ const DoctorFees = () => {
     );
   }
 
-  const projectedChanges = calculateChanges(currentFees, formData);
-  const hasChanges = Object.keys(projectedChanges).length > 0;
-
   return (
     <Container>
       {/* Header */}
@@ -382,18 +214,9 @@ const DoctorFees = () => {
         <HeaderContent>
           <Title>Fee Management</Title>
           <Subtitle>Manage your consultation fees and pricing structure</Subtitle>
-          <LastUpdated>
-            Last updated: {new Date(currentFees?.lastUpdated).toLocaleDateString('en-IN', {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
-          </LastUpdated>
         </HeaderContent>
         <HeaderActions>
-          {hasUnsavedChanges && (
+          {isDirty && (
             <UnsavedIndicator>
               <FiAlertTriangle size={14} />
               Unsaved changes
@@ -401,18 +224,28 @@ const DoctorFees = () => {
           )}
           {isEditing ? (
             <>
-              <ActionButton variant="secondary" onClick={handleReset} disabled={!hasUnsavedChanges}>
+              <ActionButton 
+                type="button"
+                variant="secondary" 
+                onClick={handleReset} 
+                disabled={!isDirty}
+              >
                 <FiRotateCcw size={16} />
                 Reset
               </ActionButton>
-              <ActionButton variant="primary" onClick={handleSave} disabled={!hasUnsavedChanges || isSaving}>
+              <ActionButton 
+                type="button"
+                variant="primary" 
+                onClick={handleSubmit(onSubmit)} 
+                disabled={!isDirty || !isValid || isSaving}
+              >
                 <FiSave size={16} />
                 {isSaving ? 'Saving...' : 'Save Changes'}
               </ActionButton>
             </>
           ) : (
             <>
-              <ActionButton variant="secondary" onClick={refetch}>
+              <ActionButton variant="secondary" onClick={() => refetch()}>
                 <FiRefreshCw size={16} />
                 Refresh
               </ActionButton>
@@ -425,256 +258,157 @@ const DoctorFees = () => {
         </HeaderActions>
       </Header>
 
-      <ContentGrid>
-        {/* Fee Form Panel */}
+      <ContentContainer>
+        {/* Fee Form */}
         <FeeFormPanel>
           <PanelHeader>
             <PanelTitle>Fee Structure</PanelTitle>
-            {isEditing && (
-              <PanelActions>
-                <QuickAction onClick={() => setShowTemplates(true)}>
-                  <FiCopy size={14} />
-                  Templates
-                </QuickAction>
-                <QuickAction onClick={() => setShowBulkUpdate(true)}>
-                  <FiPercent size={14} />
-                  Bulk Update
-                </QuickAction>
-              </PanelActions>
+            {isDirty && (
+              <ChangesBadge>
+                <FiCheck size={12} />
+                Changes pending
+              </ChangesBadge>
             )}
           </PanelHeader>
 
-          {/* Consultation Fees */}
           <FeeSection>
-            <SectionTitle>Consultation Fees</SectionTitle>
-            <FeeGrid>
-              <FeeInputGroup>
-                <FeeInput
-                  label="Regular Consultation"
-                  value={formData.consultationFees?.regular || 0}
-                  onChange={(value) => handleFieldChange('consultationFees.regular', value)}
-                  currency={formData.currency}
-                  disabled={!isEditing}
-                  error={validationErrors['consultationFees.regular']}
-                  helpText="Standard consultation fee"
-                />
-              </FeeInputGroup>
-              
-              <FeeInputGroup>
-                <FeeInput
-                  label="Follow-up Visit"
-                  value={formData.consultationFees?.followUp || 0}
-                  onChange={(value) => handleFieldChange('consultationFees.followUp', value)}
-                  currency={formData.currency}
-                  disabled={!isEditing}
-                  error={validationErrors['consultationFees.followUp']}
-                  helpText="Return visit fee"
-                />
-              </FeeInputGroup>
-              
-              <FeeInputGroup>
-                <FeeInput
-                  label="Emergency Consultation"
-                  value={formData.consultationFees?.emergency || 0}
-                  onChange={(value) => handleFieldChange('consultationFees.emergency', value)}
-                  currency={formData.currency}
-                  disabled={!isEditing}
-                  error={validationErrors['consultationFees.emergency']}
-                  helpText="Urgent care fee"
-                />
-              </FeeInputGroup>
-              
-              <FeeInputGroup>
-                <FeeInput
-                  label="Online Consultation"
-                  value={formData.consultationFees?.online || 0}
-                  onChange={(value) => handleFieldChange('consultationFees.online', value)}
-                  currency={formData.currency}
-                  disabled={!isEditing}
-                  error={validationErrors['consultationFees.online']}
-                  helpText="Telemedicine fee"
-                />
-              </FeeInputGroup>
-            </FeeGrid>
-          </FeeSection>
-
-          {/* Special Services */}
-          <FeeSection>
-            <SectionTitle>Special Services</SectionTitle>
-            <ServicesList>
-              {formData.specialServices?.map((service, index) => (
-                <ServiceItem key={service.id}>
-                  <ServiceName>{service.name}</ServiceName>
-                  <ServiceFee>
-                    {isEditing ? (
+            <form onSubmit={handleSubmit(onSubmit)}>
+              <FeeGrid>
+                <FeeInputGroup>
+                  <Controller
+                    name="consultationFee"
+                    control={control}
+                    render={({ field }) => (
                       <FeeInput
-                        value={service.fee}
-                        onChange={(value) => {
-                          const updatedServices = [...formData.specialServices];
-                          updatedServices[index].fee = value;
-                          setFormData(prev => ({ ...prev, specialServices: updatedServices }));
-                          setHasUnsavedChanges(true);
-                        }}
-                        currency={formData.currency}
-                        showLabel={false}
+                        label="Consultation Fee *"
+                        value={field.value}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        disabled={!isEditing}
+                        error={errors.consultationFee?.message}
+                        helpText="Standard consultation fee"
+                        required
                       />
-                    ) : (
-                      <span>{formatCurrency(service.fee)}</span>
                     )}
-                  </ServiceFee>
-                </ServiceItem>
-              ))}
-            </ServicesList>
-          </FeeSection>
-
-          {/* Discounts */}
-          <FeeSection>
-            <SectionTitle>Discount Rates</SectionTitle>
-            <DiscountGrid>
-              <DiscountItem>
-                <DiscountLabel>Senior Citizens</DiscountLabel>
-                <PercentageInput
-                  type="number"
-                  value={formData.discounts?.senior || 0}
-                  onChange={(e) => handleFieldChange('discounts.senior', parseFloat(e.target.value) || 0)}
-                  disabled={!isEditing}
-                  min="0"
-                  max="50"
-                />
-                <PercentageSymbol>%</PercentageSymbol>
-              </DiscountItem>
-              
-              <DiscountItem>
-                <DiscountLabel>Students</DiscountLabel>
-                <PercentageInput
-                  type="number"
-                  value={formData.discounts?.student || 0}
-                  onChange={(e) => handleFieldChange('discounts.student', parseFloat(e.target.value) || 0)}
-                  disabled={!isEditing}
-                  min="0"
-                  max="50"
-                />
-                <PercentageSymbol>%</PercentageSymbol>
-              </DiscountItem>
-              
-              <DiscountItem>
-                <DiscountLabel>Family Package</DiscountLabel>
-                <PercentageInput
-                  type="number"
-                  value={formData.discounts?.family || 0}
-                  onChange={(e) => handleFieldChange('discounts.family', parseFloat(e.target.value) || 0)}
-                  disabled={!isEditing}
-                  min="0"
-                  max="50"
-                />
-                <PercentageSymbol>%</PercentageSymbol>
-              </DiscountItem>
-            </DiscountGrid>
+                  />
+                </FeeInputGroup>
+                
+                <FeeInputGroup>
+                  <Controller
+                    name="followUpFee"
+                    control={control}
+                    render={({ field }) => (
+                      <FeeInput
+                        label="Follow-up Fee"
+                        value={field.value || ''}
+                        onChange={(value) => field.onChange(value || null)}
+                        onBlur={field.onBlur}
+                        disabled={!isEditing}
+                        error={errors.followUpFee?.message}
+                        helpText="Return visit fee (optional)"
+                      />
+                    )}
+                  />
+                </FeeInputGroup>
+                
+                <FeeInputGroup>
+                  <Controller
+                    name="emergencyFee"
+                    control={control}
+                    render={({ field }) => (
+                      <FeeInput
+                        label="Emergency Fee"
+                        value={field.value || ''}
+                        onChange={(value) => field.onChange(value || null)}
+                        onBlur={field.onBlur}
+                        disabled={!isEditing}
+                        error={errors.emergencyFee?.message}
+                        helpText="Urgent care fee (optional)"
+                      />
+                    )}
+                  />
+                </FeeInputGroup>
+              </FeeGrid>
+            </form>
           </FeeSection>
         </FeeFormPanel>
 
         {/* Summary Panel */}
         <SummaryPanel>
           <PanelHeader>
-            <PanelTitle>Fee Summary & Insights</PanelTitle>
-            <PanelActions>
-              <QuickAction onClick={() => setShowPreview(true)}>
-                <FiEye size={14} />
-                Preview
-              </QuickAction>
-            </PanelActions>
+            <PanelTitle>Current Fees</PanelTitle>
           </PanelHeader>
 
-          {/* Current Fees Overview */}
           <SummarySection>
-            <SummaryTitle>Current Fee Structure</SummaryTitle>
             <CurrentFeesGrid>
-              {Object.entries(formData.consultationFees || {}).map(([type, amount]) => (
-                <FeeOverviewItem key={type}>
-                  <FeeType>{type.charAt(0).toUpperCase() + type.slice(1)}</FeeType>
-                  <FeeAmount>{formatCurrency(amount)}</FeeAmount>
+              <FeeOverviewItem>
+                <FeeType>Consultation</FeeType>
+                <FeeAmount>{formatCurrency(formValues.consultationFee)}</FeeAmount>
+              </FeeOverviewItem>
+              {formValues.followUpFee > 0 && (
+                <FeeOverviewItem>
+                  <FeeType>Follow-up</FeeType>
+                  <FeeAmount>{formatCurrency(formValues.followUpFee)}</FeeAmount>
                 </FeeOverviewItem>
-              ))}
+              )}
+              {formValues.emergencyFee > 0 && (
+                <FeeOverviewItem>
+                  <FeeType>Emergency</FeeType>
+                  <FeeAmount>{formatCurrency(formValues.emergencyFee)}</FeeAmount>
+                </FeeOverviewItem>
+              )}
             </CurrentFeesGrid>
           </SummarySection>
 
-          {/* Projected Changes */}
-          {hasChanges && (
+          {isDirty && (
             <SummarySection>
-              <SummaryTitle>Projected Changes</SummaryTitle>
-              <ChangesGrid>
-                {Object.entries(projectedChanges).map(([type, change]) => (
-                  <ChangeItem key={type} isIncrease={change > 0}>
-                    <ChangeType>{type.charAt(0).toUpperCase() + type.slice(1)}</ChangeType>
-                    <ChangeAmount isIncrease={change > 0}>
-                      {change > 0 ? '+' : ''}{formatCurrency(change)}
-                    </ChangeAmount>
-                  </ChangeItem>
-                ))}
-              </ChangesGrid>
+              <ChangeNotice>
+                <FiAlertTriangle size={16} />
+                <div>
+                  <strong>Unsaved Changes</strong>
+                  <div>Remember to save your changes to apply the new fee structure</div>
+                </div>
+              </ChangeNotice>
             </SummarySection>
           )}
 
-          {/* Revenue Projection */}
-          <SummarySection>
-            <SummaryTitle>Monthly Revenue Projection</SummaryTitle>
-            <RevenueProjection>
-              <RevenueAmount>
-                {formatCurrency(calculateRevenueProjection(formData))}
-              </RevenueAmount>
-              <RevenueNote>Based on average appointment volume</RevenueNote>
-            </RevenueProjection>
-          </SummarySection>
+          {/* Validation Status */}
+          {isEditing && (
+            <SummarySection>
+              <ValidationStatus isValid={isValid}>
+                {isValid ? (
+                  <>
+                    <FiCheck size={16} />
+                    <div>
+                      <strong>Form Valid</strong>
+                      <div>All fields are correctly filled</div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <FiAlertTriangle size={16} />
+                    <div>
+                      <strong>Validation Errors</strong>
+                      <div>Please fix the errors above</div>
+                    </div>
+                  </>
+                )}
+              </ValidationStatus>
+            </SummarySection>
+          )}
 
-          {/* Fee History */}
+          {/* Fee Guidelines */}
           <SummarySection>
-            <SummaryTitle>Recent Updates</SummaryTitle>
-            <HistoryList>
-              <HistoryItem>
-                <HistoryDate>July 20, 2025</HistoryDate>
-                <HistoryAction>Updated consultation fees</HistoryAction>
-              </HistoryItem>
-              <HistoryItem>
-                <HistoryDate>July 15, 2025</HistoryDate>
-                <HistoryAction>Added emergency fee structure</HistoryAction>
-              </HistoryItem>
-              <HistoryItem>
-                <HistoryDate>July 10, 2025</HistoryDate>
-                <HistoryAction>Modified discount rates</HistoryAction>
-              </HistoryItem>
-            </HistoryList>
+            <GuidelinesTitle>Fee Guidelines</GuidelinesTitle>
+            <GuidelinesList>
+              <GuidelineItem>• Consultation fee is required</GuidelineItem>
+              <GuidelineItem>• Follow-up fee should be less than or equal to consultation fee</GuidelineItem>
+              <GuidelineItem>• Emergency fee should be higher than consultation fee</GuidelineItem>
+              <GuidelineItem>• All fees are in Indian Rupees (₹)</GuidelineItem>
+            </GuidelinesList>
           </SummarySection>
         </SummaryPanel>
-      </ContentGrid>
-
-      {/* Fee Templates Modal */}
-      {showTemplates && (
-        <TemplatesModal onClose={() => setShowTemplates(false)}>
-          {feeTemplates.map(template => (
-            <TemplateCard key={template.id} onClick={() => handleApplyTemplate(template)}>
-              <TemplateName>{template.name}</TemplateName>
-              <TemplateDescription>{template.description}</TemplateDescription>
-              <TemplatePreview>
-                {Object.entries(template.fees).map(([type, amount]) => (
-                  <PreviewItem key={type}>
-                    <span>{type}</span>
-                    <span>{formatCurrency(amount)}</span>
-                  </PreviewItem>
-                ))}
-              </TemplatePreview>
-            </TemplateCard>
-          ))}
-        </TemplatesModal>
-      )}
-
-      {/* Bulk Update Modal */}
-      {showBulkUpdate && (
-        <BulkUpdateModal
-          onClose={() => setShowBulkUpdate(false)}
-          onApply={handleBulkUpdate}
-          currentFees={formData.consultationFees}
-        />
-      )}
+      </ContentContainer>
     </Container>
   );
 };
@@ -684,37 +418,36 @@ const FeeInput = ({
   label, 
   value, 
   onChange, 
-  currency = '₹', 
+  onBlur,
   disabled = false, 
   error, 
   helpText,
-  showLabel = true 
+  required = false
 }) => {
-  const [localValue, setLocalValue] = useState(value);
-
-  useEffect(() => {
-    setLocalValue(value);
-  }, [value]);
-
   const handleChange = (e) => {
-    const newValue = parseFloat(e.target.value) || 0;
-    setLocalValue(newValue);
-    onChange(newValue);
+    const newValue = e.target.value;
+    // Convert to number or null for empty string
+    onChange(newValue === '' ? null : parseFloat(newValue) || 0);
   };
 
   return (
     <FeeInputContainer>
-      {showLabel && <FeeLabel>{label}</FeeLabel>}
+      <FeeLabel>
+        {label}
+        {required && <RequiredMark>*</RequiredMark>}
+      </FeeLabel>
       <InputWrapper hasError={!!error}>
-        <CurrencySymbol>{currency}</CurrencySymbol>
+        <CurrencySymbol>₹</CurrencySymbol>
         <NumberInput
           type="number"
-          value={localValue}
+          value={value || ''}
           onChange={handleChange}
+          onBlur={onBlur}
           disabled={disabled}
           min="0"
-          max="10000"
-          step="1"
+          max="100000"
+          step="10"
+          placeholder="0"
         />
       </InputWrapper>
       {error && <ErrorText>{error}</ErrorText>}
@@ -722,118 +455,6 @@ const FeeInput = ({
     </FeeInputContainer>
   );
 };
-
-// Bulk Update Modal Component
-const BulkUpdateModal = ({ onClose, onApply, currentFees }) => {
-  const [updateType, setUpdateType] = useState('percentage');
-  const [updateValue, setUpdateValue] = useState(0);
-  const [selectedCategories, setSelectedCategories] = useState([]);
-
-  const categories = Object.keys(currentFees || {});
-
-  const handleApply = () => {
-    if (selectedCategories.length === 0) {
-      Swal.fire({
-        title: 'No Categories Selected',
-        text: 'Please select at least one fee category to update.',
-        icon: 'warning',
-      });
-      return;
-    }
-
-    onApply(updateType, updateValue, selectedCategories);
-  };
-
-  return (
-    <ModalOverlay onClick={onClose}>
-      <ModalContent onClick={(e) => e.stopPropagation()}>
-        <ModalHeader>
-          <ModalTitle>Bulk Fee Update</ModalTitle>
-          <CloseButton onClick={onClose}>×</CloseButton>
-        </ModalHeader>
-        
-        <ModalBody>
-          <UpdateTypeSection>
-            <RadioGroup>
-              <RadioOption>
-                <input
-                  type="radio"
-                  value="percentage"
-                  checked={updateType === 'percentage'}
-                  onChange={(e) => setUpdateType(e.target.value)}
-                />
-                <label>Percentage Increase/Decrease</label>
-              </RadioOption>
-              <RadioOption>
-                <input
-                  type="radio"
-                  value="amount"
-                  checked={updateType === 'amount'}
-                  onChange={(e) => setUpdateType(e.target.value)}
-                />
-                <label>Fixed Amount Increase/Decrease</label>
-              </RadioOption>
-            </RadioGroup>
-          </UpdateTypeSection>
-
-          <ValueInputSection>
-            <ValueInput
-              type="number"
-              value={updateValue}
-              onChange={(e) => setUpdateValue(parseFloat(e.target.value) || 0)}
-              placeholder={updateType === 'percentage' ? '10' : '50'}
-            />
-            <span>{updateType === 'percentage' ? '%' : '₹'}</span>
-          </ValueInputSection>
-
-          <CategorySection>
-            <SectionLabel>Select Categories:</SectionLabel>
-            {categories.map(category => (
-              <CategoryOption key={category}>
-                <input
-                  type="checkbox"
-                  checked={selectedCategories.includes(category)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedCategories(prev => [...prev, category]);
-                    } else {
-                      setSelectedCategories(prev => prev.filter(c => c !== category));
-                    }
-                  }}
-                />
-                <label>{category.charAt(0).toUpperCase() + category.slice(1)}</label>
-              </CategoryOption>
-            ))}
-          </CategorySection>
-        </ModalBody>
-
-        <ModalActions>
-          <ModalButton variant="secondary" onClick={onClose}>
-            Cancel
-          </ModalButton>
-          <ModalButton variant="primary" onClick={handleApply}>
-            Apply Update
-          </ModalButton>
-        </ModalActions>
-      </ModalContent>
-    </ModalOverlay>
-  );
-};
-
-// Templates Modal Component
-const TemplatesModal = ({ onClose, children }) => (
-  <ModalOverlay onClick={onClose}>
-    <TemplatesModalContent onClick={(e) => e.stopPropagation()}>
-      <ModalHeader>
-        <ModalTitle>Fee Templates</ModalTitle>
-        <CloseButton onClick={onClose}>×</CloseButton>
-      </ModalHeader>
-      <TemplatesGrid>
-        {children}
-      </TemplatesGrid>
-    </TemplatesModalContent>
-  </ModalOverlay>
-);
 
 // Styled Components
 const Container = styled.div`
@@ -875,17 +496,12 @@ const Title = styled.h1`
 
 const Subtitle = styled.p`
   font-size: 14px;
-  margin: 0 0 8px 0;
+  margin: 0;
   opacity: 0.9;
 
   @media (max-width: 768px) {
     font-size: 13px;
   }
-`;
-
-const LastUpdated = styled.div`
-  font-size: 12px;
-  opacity: 0.8;
 `;
 
 const HeaderActions = styled.div`
@@ -959,9 +575,9 @@ const ActionButton = styled.button`
   }
 `;
 
-const ContentGrid = styled.div`
+const ContentContainer = styled.div`
   display: grid;
-  grid-template-columns: 1fr 400px;
+  grid-template-columns: 1fr 350px;
   gap: 24px;
   padding: 24px;
 
@@ -1006,55 +622,29 @@ const PanelTitle = styled.h3`
   margin: 0;
 `;
 
-const PanelActions = styled.div`
-  display: flex;
-  gap: 8px;
-`;
-
-const QuickAction = styled.button`
+const ChangesBadge = styled.div`
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  background: white;
-  color: ${theme.colors.textSecondary};
-  border: 1px solid ${theme.colors.lightGray};
-  border-radius: 6px;
+  padding: 4px 10px;
+  background: ${theme.colors.success}15;
+  color: ${theme.colors.success};
+  border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    background: #f9fafb;
-    color: ${theme.colors.textPrimary};
-    border-color: ${theme.colors.primary};
-  }
+  border: 1px solid ${theme.colors.success}30;
 `;
 
 const FeeSection = styled.div`
-  padding: 20px;
-  border-bottom: 1px solid ${theme.colors.lightGray};
-
-  &:last-child {
-    border-bottom: none;
-  }
-`;
-
-const SectionTitle = styled.h4`
-  font-size: 16px;
-  font-weight: 600;
-  color: ${theme.colors.textPrimary};
-  margin: 0 0 16px 0;
+  padding: 24px;
 `;
 
 const FeeGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 16px;
+  gap: 24px;
 
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   }
 `;
 
@@ -1063,137 +653,75 @@ const FeeInputGroup = styled.div``;
 const FeeInputContainer = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 `;
 
 const FeeLabel = styled.label`
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   color: ${theme.colors.textPrimary};
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+const RequiredMark = styled.span`
+  color: ${theme.colors.danger};
+  font-weight: 700;
 `;
 
 const InputWrapper = styled.div`
   position: relative;
   display: flex;
   align-items: center;
-  border: 1px solid ${props => props.hasError ? theme.colors.danger : theme.colors.lightGray};
-  border-radius: 6px;
+  border: 2px solid ${props => props.hasError ? theme.colors.danger : theme.colors.lightGray};
+  border-radius: 8px;
   background: white;
   transition: all 0.2s;
 
   &:focus-within {
     border-color: ${theme.colors.primary};
-    box-shadow: 0 0 0 3px ${theme.colors.primary}20;
+    box-shadow: 0 0 0 3px ${theme.colors.primary}15;
   }
 `;
 
 const CurrencySymbol = styled.span`
-  padding: 0 12px;
+  padding: 0 14px;
   color: ${theme.colors.textSecondary};
-  font-weight: 500;
-  border-right: 1px solid ${theme.colors.lightGray};
+  font-weight: 600;
+  border-right: 2px solid ${theme.colors.lightGray};
   background: #f9fafb;
+  font-size: 14px;
 `;
 
 const NumberInput = styled.input`
   flex: 1;
-  padding: 10px 12px;
+  padding: 14px 16px;
   border: none;
   outline: none;
-  font-size: 14px;
+  font-size: 16px;
   background: transparent;
+  font-weight: 500;
 
   &:disabled {
     background: #f9fafb;
     color: ${theme.colors.textSecondary};
+  }
+
+  &::placeholder {
+    color: ${theme.colors.textSecondary};
+    opacity: 0.6;
   }
 `;
 
 const ErrorText = styled.span`
   font-size: 12px;
   color: ${theme.colors.danger};
+  font-weight: 500;
 `;
 
 const HelpText = styled.span`
   font-size: 12px;
-  color: ${theme.colors.textSecondary};
-`;
-
-const ServicesList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-`;
-
-const ServiceItem = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px;
-  background: white;
-  border: 1px solid ${theme.colors.lightGray};
-  border-radius: 6px;
-`;
-
-const ServiceName = styled.span`
-  font-size: 14px;
-  font-weight: 500;
-  color: ${theme.colors.textPrimary};
-`;
-
-const ServiceFee = styled.div`
-  min-width: 120px;
-  text-align: right;
-`;
-
-const DiscountGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const DiscountItem = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px;
-  background: white;
-  border: 1px solid ${theme.colors.lightGray};
-  border-radius: 6px;
-`;
-
-const DiscountLabel = styled.span`
-  flex: 1;
-  font-size: 14px;
-  color: ${theme.colors.textPrimary};
-`;
-
-const PercentageInput = styled.input`
-  width: 60px;
-  padding: 6px 8px;
-  border: 1px solid ${theme.colors.lightGray};
-  border-radius: 4px;
-  text-align: center;
-  font-size: 14px;
-
-  &:focus {
-    outline: none;
-    border-color: ${theme.colors.primary};
-    box-shadow: 0 0 0 2px ${theme.colors.primary}20;
-  }
-
-  &:disabled {
-    background: #f9fafb;
-    color: ${theme.colors.textSecondary};
-  }
-`;
-
-const PercentageSymbol = styled.span`
-  font-size: 14px;
   color: ${theme.colors.textSecondary};
 `;
 
@@ -1206,348 +734,106 @@ const SummarySection = styled.div`
   }
 `;
 
-const SummaryTitle = styled.h4`
-  font-size: 16px;
-  font-weight: 600;
-  color: ${theme.colors.textPrimary};
-  margin: 0 0 12px 0;
-`;
-
 const CurrentFeesGrid = styled.div`
   display: grid;
-  gap: 8px;
+  gap: 12px;
 `;
 
 const FeeOverviewItem = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
+  padding: 14px 16px;
   background: #f8fafc;
-  border-radius: 4px;
+  border-radius: 8px;
+  border: 1px solid ${theme.colors.lightGray};
 `;
 
 const FeeType = styled.span`
-  font-size: 13px;
+  font-size: 14px;
   color: ${theme.colors.textSecondary};
+  font-weight: 500;
 `;
 
 const FeeAmount = styled.span`
-  font-size: 14px;
-  font-weight: 600;
-  color: ${theme.colors.textPrimary};
-`;
-
-const ChangesGrid = styled.div`
-  display: grid;
-  gap: 8px;
-`;
-
-const ChangeItem = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  background: ${props => props.isIncrease ? '#f0fdf4' : '#fef2f2'};
-  border-radius: 4px;
-  border: 1px solid ${props => props.isIncrease ? '#bbf7d0' : '#fecaca'};
-`;
-
-const ChangeType = styled.span`
-  font-size: 13px;
-  color: ${theme.colors.textSecondary};
-`;
-
-const ChangeAmount = styled.span`
-  font-size: 14px;
-  font-weight: 600;
-  color: ${props => props.isIncrease ? theme.colors.success : theme.colors.danger};
-`;
-
-const RevenueProjection = styled.div`
-  text-align: center;
-  padding: 16px;
-  background: linear-gradient(135deg, ${theme.colors.primary}10, ${theme.colors.secondary}10);
-  border-radius: 8px;
-  border: 1px solid ${theme.colors.primary}20;
-`;
-
-const RevenueAmount = styled.div`
-  font-size: 24px;
-  font-weight: 700;
-  color: ${theme.colors.primary};
-  margin-bottom: 4px;
-`;
-
-const RevenueNote = styled.div`
-  font-size: 12px;
-  color: ${theme.colors.textSecondary};
-`;
-
-const HistoryList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-const HistoryItem = styled.div`
-  padding: 8px 12px;
-  background: #f8fafc;
-  border-radius: 4px;
-  border-left: 3px solid ${theme.colors.primary};
-`;
-
-const HistoryDate = styled.div`
-  font-size: 12px;
-  color: ${theme.colors.textSecondary};
-  margin-bottom: 2px;
-`;
-
-const HistoryAction = styled.div`
-  font-size: 13px;
-  color: ${theme.colors.textPrimary};
-`;
-
-// Modal Components
-const ModalOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-`;
-
-const ModalContent = styled.div`
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-  max-width: 500px;
-  width: 90%;
-  max-height: 90vh;
-  overflow-y: auto;
-`;
-
-const TemplatesModalContent = styled.div`
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-  max-width: 800px;
-  width: 90%;
-  max-height: 90vh;
-  overflow-y: auto;
-`;
-
-const ModalHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid ${theme.colors.lightGray};
-`;
-
-const ModalTitle = styled.h3`
-  font-size: 18px;
-  font-weight: 600;
-  color: ${theme.colors.textPrimary};
-  margin: 0;
-`;
-
-const CloseButton = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  background: transparent;
-  color: ${theme.colors.textSecondary};
-  border: none;
-  border-radius: 6px;
-  font-size: 20px;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    background: #f3f4f6;
-    color: ${theme.colors.textPrimary};
-  }
-`;
-
-const ModalBody = styled.div`
-  padding: 24px;
-`;
-
-const ModalActions = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 16px 24px;
-  border-top: 1px solid ${theme.colors.lightGray};
-`;
-
-const ModalButton = styled.button`
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  ${props => {
-    switch (props.variant) {
-      case 'primary':
-        return `
-          background: ${theme.colors.primary};
-          color: white;
-          border: none;
-          
-          &:hover {
-            background: ${theme.colors.primaryDark};
-          }
-        `;
-      case 'secondary':
-        return `
-          background: white;
-          color: ${theme.colors.textSecondary};
-          border: 1px solid ${theme.colors.lightGray};
-          
-          &:hover {
-            background: #f9fafb;
-          }
-        `;
-      default:
-        return '';
-    }
-  }}
-`;
-
-const UpdateTypeSection = styled.div`
-  margin-bottom: 20px;
-`;
-
-const RadioGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-`;
-
-const RadioOption = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  input[type="radio"] {
-    margin: 0;
-  }
-
-  label {
-    font-size: 14px;
-    color: ${theme.colors.textPrimary};
-    cursor: pointer;
-  }
-`;
-
-const ValueInputSection = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 20px;
-`;
-
-const ValueInput = styled.input`
-  padding: 10px 12px;
-  border: 1px solid ${theme.colors.lightGray};
-  border-radius: 6px;
-  font-size: 14px;
-  width: 120px;
-
-  &:focus {
-    outline: none;
-    border-color: ${theme.colors.primary};
-    box-shadow: 0 0 0 3px ${theme.colors.primary}20;
-  }
-`;
-
-const CategorySection = styled.div``;
-
-const SectionLabel = styled.div`
-  font-size: 14px;
-  font-weight: 500;
-  color: ${theme.colors.textPrimary};
-  margin-bottom: 12px;
-`;
-
-const CategoryOption = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-
-  input[type="checkbox"] {
-    margin: 0;
-  }
-
-  label {
-    font-size: 14px;
-    color: ${theme.colors.textPrimary};
-    cursor: pointer;
-  }
-`;
-
-const TemplatesGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 16px;
-  padding: 24px;
-`;
-
-const TemplateCard = styled.div`
-  padding: 20px;
-  border: 1px solid ${theme.colors.lightGray};
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    border-color: ${theme.colors.primary};
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-    transform: translateY(-2px);
-  }
-`;
-
-const TemplateName = styled.h4`
   font-size: 16px;
+  font-weight: 700;
+  color: ${theme.colors.textPrimary};
+`;
+
+const ChangeNotice = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  color: ${theme.colors.warning};
+
+  div {
+    flex: 1;
+    
+    strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+    
+    div {
+      font-size: 12px;
+      color: ${theme.colors.textSecondary};
+      line-height: 1.4;
+    }
+  }
+`;
+
+const ValidationStatus = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: ${props => props.isValid ? '#f0fdf4' : '#fef2f2'};
+  border: 1px solid ${props => props.isValid ? '#bbf7d0' : '#fecaca'};
+  border-radius: 8px;
+  color: ${props => props.isValid ? theme.colors.success : theme.colors.danger};
+
+  div {
+    flex: 1;
+    
+    strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+    
+    div {
+      font-size: 12px;
+      color: ${theme.colors.textSecondary};
+      line-height: 1.4;
+    }
+  }
+`;
+
+const GuidelinesTitle = styled.h4`
+  font-size: 14px;
   font-weight: 600;
   color: ${theme.colors.textPrimary};
-  margin: 0 0 8px 0;
-`;
-
-const TemplateDescription = styled.p`
-  font-size: 13px;
-  color: ${theme.colors.textSecondary};
   margin: 0 0 12px 0;
-  line-height: 1.4;
 `;
 
-const TemplatePreview = styled.div`
-  display: grid;
-  gap: 4px;
-`;
-
-const PreviewItem = styled.div`
+const GuidelinesList = styled.div`
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const GuidelineItem = styled.div`
   font-size: 12px;
   color: ${theme.colors.textSecondary};
-
-  span:last-child {
-    font-weight: 500;
-    color: ${theme.colors.textPrimary};
-  }
+  line-height: 1.4;
 `;
 
 // Loading and Error Components
@@ -1556,14 +842,14 @@ const LoadingContainer = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 20px;
+  padding: 80px 20px;
 `;
 
 const LoadingSpinner = styled.div`
-  width: 32px;
-  height: 32px;
-  border: 3px solid ${theme.colors.lightGray};
-  border-top: 3px solid ${theme.colors.primary};
+  width: 40px;
+  height: 40px;
+  border: 4px solid ${theme.colors.lightGray};
+  border-top: 4px solid ${theme.colors.primary};
   border-radius: 50%;
   animation: spin 1s linear infinite;
 
@@ -1574,9 +860,10 @@ const LoadingSpinner = styled.div`
 `;
 
 const LoadingText = styled.div`
-  margin-top: 12px;
+  margin-top: 16px;
   color: ${theme.colors.textSecondary};
-  font-size: 14px;
+  font-size: 16px;
+  font-weight: 500;
 `;
 
 const ErrorContainer = styled.div`
@@ -1584,26 +871,26 @@ const ErrorContainer = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 20px;
+  padding: 80px 20px;
   text-align: center;
 `;
 
 const ErrorIcon = styled.div`
-  font-size: 48px;
-  margin-bottom: 16px;
+  font-size: 64px;
+  margin-bottom: 20px;
 `;
 
 const ErrorTitle = styled.h3`
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
   color: ${theme.colors.danger};
-  margin: 0 0 8px 0;
+  margin: 0 0 12px 0;
 `;
 
 const ErrorMessage = styled.p`
-  font-size: 14px;
+  font-size: 16px;
   color: ${theme.colors.textSecondary};
-  margin: 0 0 16px 0;
+  margin: 0 0 24px 0;
   max-width: 400px;
   line-height: 1.5;
 `;
@@ -1612,12 +899,12 @@ const RetryButton = styled.button`
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 20px;
+  padding: 12px 24px;
   background: ${theme.colors.primary};
   color: white;
   border: none;
-  border-radius: 6px;
-  font-size: 14px;
+  border-radius: 8px;
+  font-size: 16px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -1625,6 +912,7 @@ const RetryButton = styled.button`
   &:hover {
     background: ${theme.colors.primaryDark};
     transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
   }
 `;
 

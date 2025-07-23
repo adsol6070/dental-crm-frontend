@@ -6,6 +6,6 @@ export const DoctorProfile = lazy(() => import("./DoctorProfile"));
 export const UnavailableDates = lazy(() => import("./UnavailableDates"));
 export const FeesPricing = lazy(() => import("./FeesPricing"));
 export const Appointments = lazy(() => import("./Appointments"));
-export const Analytics = lazy(() => import("./analytics"));
+export const Analytics = lazy(() => import("./Analytics"));
 export const MyPatients = lazy(() => import("./myPatients"));
 export const Reviews = lazy(() => import("./Reviews"));

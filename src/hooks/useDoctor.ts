@@ -1,7 +1,18 @@
 // hooks/useDoctors.ts
 
 import { doctorApi } from "@/api/doctor/doctorApi";
-import { Doctor, DoctorPayload, DoctorProfileResponse } from "@/api/doctor/doctorTypes";
+import {
+  Doctor,
+  DoctorPayload,
+  DoctorProfileResponse,
+  UnavailableDate,
+  AddUnavailableDatePayload,
+  AddUnavailableDateRangePayload,
+  RemoveUnavailableDatePayload,
+  UnavailableDateSummaryApiResponse,
+  UpdateFeesBody,
+  UpdateFeesApiResponse,
+} from "@/api/doctor/doctorTypes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { toast } from "react-hot-toast";
@@ -43,7 +54,8 @@ const useCustomMutation = <T, V>(
             message = serverMessage || "Conflict. Duplicate record detected.";
             break;
           case 422:
-            message = serverMessage || "Validation failed. Please correct the form.";
+            message =
+              serverMessage || "Validation failed. Please correct the form.";
             break;
           case 429:
             message = "Too many requests. Please slow down.";
@@ -91,3 +103,83 @@ export const useUpdateDoctor = () =>
     ["doctors"],
     "Doctor updated successfully!"
   );
+
+export const useUnavailableDates = () =>
+  useQuery<UnavailableDate[], Error>({
+    queryKey: ["unavailable-dates"],
+    queryFn: () => doctorApi.getUnavailableDates(),
+  });
+
+export const useUnavailableDatesSummary = () =>
+  useQuery<UnavailableDateSummaryApiResponse, Error>({
+    queryKey: ["unavailable-dates-summary"],
+    queryFn: () => doctorApi.getUnavailableDatesSummary(),
+  });
+
+export const useCreateUnavailableDate = () =>
+  useCustomMutation(
+    (data: AddUnavailableDatePayload) => doctorApi.createUnavailableDate(data),
+    ["unavailable-dates"],
+    "Unavailable date added successfully!"
+  );
+
+export const useCreateUnavailableDateRange = () =>
+  useCustomMutation(
+    (data: AddUnavailableDateRangePayload) =>
+      doctorApi.createUnavailableDateRange(data),
+    ["unavailable-dates"],
+    "Unavailable date range added!"
+  );
+
+export const useBulkDeleteUnavailableDate = () =>
+  useCustomMutation(
+    (data: RemoveUnavailableDatePayload) =>
+      doctorApi.bulkDeleteUnavailableDate(data),
+    ["unavailable-dates"],
+    "Unavailable dates updated successfully!"
+  );
+
+export const useDeleteUnavailableDates = () =>
+  useCustomMutation(
+    (dateId: string) =>
+      doctorApi.deleteUnavailableDates(dateId),
+    ["unavailable-dates"],
+    "Unavailable dates removed successfully!"
+  );
+
+  export const useDoctorFees = () =>
+  useQuery<UpdateFeesApiResponse, Error>({
+    queryKey: ["doctor"],
+    queryFn: () => doctorApi.getDoctorFees(),
+    select: (response) => response,
+  });
+
+  export const useUpdateDoctorFees = () =>
+  useCustomMutation(
+    (data: UpdateFeesBody) => doctorApi.updateDoctorFees(data),
+    ["doctor"],
+    "Doctor fees updated successfully!"
+  );
+
+    export const useUpdateDoctorProfile = () =>
+  useCustomMutation(
+    (data: UpdateFeesBody) => doctorApi.updateDoctorFees(data),
+    ["doctor"],
+    "Doctor fees updated successfully!"
+  );
+        export const useUpdateDoctorProfessionalInfo = () =>
+  useCustomMutation(
+    (data: UpdateFeesBody) => doctorApi.updateDoctorFees(data),
+    ["doctor"],
+    "Doctor fees updated successfully!"
+  );
+  
+          export const useUpdateDoctorContactInfo = () =>
+  useCustomMutation(
+    (data: UpdateFeesBody) => doctorApi.updateDoctorFees(data),
+    ["doctor"],
+    "Doctor fees updated successfully!"
+  );
+  
+
+   
