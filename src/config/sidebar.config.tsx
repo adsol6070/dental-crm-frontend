@@ -180,11 +180,11 @@ const adminMenuItems = [
         icon: <FiClock size="16" />,
         path: ROUTES.ADMIN.CREATE_APPOINTMENT,
       },
-      {
-        label: "Appointment Calendar",
-        icon: <FiTrello size="16" />,
-        path: ROUTES.ADMIN.APPOINTMENT_VIEW,
-      },
+      // {
+      //   label: "Appointment Calendar",
+      //   icon: <FiTrello size="16" />,
+      //   path: ROUTES.ADMIN.APPOINTMENT_VIEW,
+      // },
     ],
   },
   {

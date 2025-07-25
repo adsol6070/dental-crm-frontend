@@ -2,12 +2,11 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { 
   useDoctorProfile, 
-  useUpdateDoctorProfile,
   useUpdateDoctorProfessionalInfo,
   useUpdateDoctorContactInfo 
 } from '@/hooks/useDoctor';
 
-// Types
+// Types - Aligned with your doctor model
 interface PersonalInfo {
   firstName: string;
   lastName: string;
@@ -17,14 +16,13 @@ interface PersonalInfo {
 
 interface ProfessionalInfo {
   specialization: string;
-  department: string;
+  department?: string;
   experience: number;
   qualifications: string[];
   licenseNumber: string;
 }
 
 interface WorkingDay {
-  id: string;
   day: string;
   isWorking: boolean;
   startTime: string;
@@ -32,10 +30,10 @@ interface WorkingDay {
 }
 
 interface BreakTime {
-  id: string;
-  description: string;
+  day: string;
   startTime: string;
   endTime: string;
+  title?: string;
 }
 
 interface Schedule {
@@ -44,29 +42,38 @@ interface Schedule {
   breakTimes: BreakTime[];
 }
 
+interface UnavailableDate {
+  id?: string;
+  date: string;
+  reason: string;
+  type: "full-day" | "half-day" | "morning" | "afternoon";
+  notes?: string;
+}
+
 interface Availability {
   isAvailable: boolean;
   maxAppointmentsPerDay: number;
+  unavailableDates: UnavailableDate[];
 }
 
 interface Fees {
   consultationFee: number;
-  followUpFee: number;
-  emergencyFee: number;
+  followUpFee?: number;
+  emergencyFee?: number;
 }
 
 interface Statistics {
   totalAppointments: number;
   completedAppointments: number;
-  cancelledAppointments: number;
+  cancelledAppointments?: number;
   rating: number;
   reviewCount: number;
 }
 
 interface Authentication {
-  isVerified: boolean;
-  lastPasswordChange: string;
-  twoFactorEnabled: boolean;
+  isVerified?: boolean;
+  lastPasswordChange?: Date;
+  twoFactorEnabled?: boolean;
 }
 
 interface Doctor {
@@ -80,9 +87,11 @@ interface Doctor {
   statistics: Statistics;
   authentication: Authentication;
   isActive: boolean;
-  isVerifiedByAdmin: boolean;
-  registrationDate: string;
-  updatedAt: string;
+  isVerifiedByAdmin?: boolean;
+  registrationDate?: Date;
+  approvalDate?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 interface ApiResponse {
@@ -93,6 +102,7 @@ interface ApiResponse {
 }
 
 type TabType = 'profile' | 'schedule' | 'fees' | 'statistics';
+type EditSectionType = 'personal' | 'professional' | 'none';
 
 const theme = {
   colors: {
@@ -111,14 +121,13 @@ const theme = {
 
 const DoctorProfile: React.FC = () => {
   const { data, isLoading, error, refetch } = useDoctorProfile();
-  const updateProfile = useUpdateDoctorProfile();
   const updateProfessionalInfo = useUpdateDoctorProfessionalInfo();
   const updateContactInfo = useUpdateDoctorContactInfo();
   
-  const [editing, setEditing] = useState(false);
+  const [editingSection, setEditingSection] = useState<EditSectionType>('none');
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   
-  // Form states
+  // Form states - Only required fields
   const [personalFormData, setPersonalFormData] = useState<PersonalInfo>({
     firstName: '',
     lastName: '',
@@ -172,7 +181,7 @@ const DoctorProfile: React.FC = () => {
   const doctor = data.data.doctor;
 
   // Helper functions
-  const formatTimestamp = (timestamp: string): string => {
+  const formatTimestamp = (timestamp: string | Date): string => {
     const date = new Date(timestamp);
     return date.toLocaleDateString('en-IN', {
       day: 'numeric',
@@ -245,41 +254,47 @@ const DoctorProfile: React.FC = () => {
     }));
   };
 
-  const handleEdit = (): void => {
-    if (editing) {
-      handleSave();
+  const handleEditSection = (section: EditSectionType): void => {
+    if (editingSection === section) {
+      setEditingSection('none');
     } else {
-      setEditing(true);
+      setEditingSection(section);
     }
   };
 
-  const handleSave = async (): Promise<void> => {
+  const handleSavePersonal = async (): Promise<void> => {
     try {
-      // Update personal info (contact info)
+      // Use the contact info API - only send required fields
       await updateContactInfo.mutateAsync({
+        firstName: personalFormData.firstName,
+        lastName: personalFormData.lastName,
         email: personalFormData.email,
         phone: personalFormData.phone
       });
 
-      // Update professional info
-      await updateProfessionalInfo.mutateAsync({
-        specialization: professionalFormData.specialization,
-        department: professionalFormData.department,
-        experience: professionalFormData.experience,
-        qualifications: professionalFormData.qualifications,
-        licenseNumber: professionalFormData.licenseNumber
-      });
-
-      // Update basic profile (name)
-      await updateProfile.mutateAsync({
-        firstName: personalFormData.firstName,
-        lastName: personalFormData.lastName
-      });
-
-      setEditing(false);
+      setEditingSection('none');
       refetch(); // Refresh data
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.error('Error updating personal info:', error);
+    }
+  };
+
+  const handleSaveProfessional = async (): Promise<void> => {
+    try {
+      // Use the professional info API - only send required fields
+      const data = {
+        specialization: professionalFormData.specialization,
+        qualifications: professionalFormData.qualifications,
+        experience: professionalFormData.experience,
+        licenseNumber: professionalFormData.licenseNumber, 
+        department: professionalFormData.department 
+      }
+      await updateProfessionalInfo.mutateAsync(data);
+
+      setEditingSection('none');
+      refetch(); // Refresh data
+    } catch (error) {
+      console.error('Error updating professional info:', error);
     }
   };
 
@@ -290,10 +305,10 @@ const DoctorProfile: React.FC = () => {
       setPersonalFormData(doctor.personalInfo);
       setProfessionalFormData(doctor.professionalInfo);
     }
-    setEditing(false);
+    setEditingSection('none');
   };
 
-  const isSubmitting = updateProfile.isPending || updateProfessionalInfo.isPending || updateContactInfo.isPending;
+  const isSubmitting = updateProfessionalInfo.isPending || updateContactInfo.isPending;
 
   return (
     <PageContainer>
@@ -303,26 +318,6 @@ const DoctorProfile: React.FC = () => {
           <Title>Doctor Profile</Title>
           <Subtitle>Manage your professional information and settings</Subtitle>
         </HeaderContent>
-        <HeaderActions>
-          {!editing ? (
-            <ActionButton $variant="secondary" onClick={handleEdit}>
-              ✏️ Edit Profile
-            </ActionButton>
-          ) : (
-            <>
-              <ActionButton $variant="secondary" onClick={handleCancel} disabled={isSubmitting}>
-                Cancel
-              </ActionButton>
-              <ActionButton 
-                $variant="primary" 
-                onClick={handleSave}
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? 'Saving...' : '💾 Save Changes'}
-              </ActionButton>
-            </>
-          )}
-        </HeaderActions>
       </PageHeader>
 
       {/* Profile Content */}
@@ -341,7 +336,9 @@ const DoctorProfile: React.FC = () => {
             <UserInfo>
               <UserName>{doctor.fullName}</UserName>
               <UserRole>{doctor.professionalInfo.specialization} Specialist</UserRole>
-              <UserDepartment>{doctor.professionalInfo.department}</UserDepartment>
+              {doctor.professionalInfo.department && (
+                <UserDepartment>{doctor.professionalInfo.department}</UserDepartment>
+              )}
               <StatusBadge $status={doctor.isActive ? 'active' : 'inactive'}>
                 {doctor.isActive ? 'Active' : 'Inactive'}
               </StatusBadge>
@@ -415,206 +412,281 @@ const DoctorProfile: React.FC = () => {
           <TabContent>
             {activeTab === 'profile' && (
               <ProfileTab>
-                <SectionTitle>Personal Information</SectionTitle>
+                {/* Personal Information Section */}
+                <SectionContainer>
+                  <SectionHeader>
+                    <SectionTitle>Personal Information</SectionTitle>
+                    <SectionActions>
+                      {editingSection !== 'personal' ? (
+                        <ActionButton 
+                          $variant="secondary" 
+                          onClick={() => handleEditSection('personal')}
+                          disabled={isSubmitting || editingSection !== 'none'}
+                        >
+                          ✏️ Edit Personal
+                        </ActionButton>
+                      ) : (
+                        <>
+                          <ActionButton 
+                            $variant="secondary" 
+                            onClick={handleCancel} 
+                            disabled={isSubmitting}
+                          >
+                            Cancel
+                          </ActionButton>
+                          <ActionButton 
+                            $variant="primary" 
+                            onClick={handleSavePersonal}
+                            disabled={isSubmitting}
+                          >
+                            {updateContactInfo.isPending ? 'Saving...' : '💾 Save'}
+                          </ActionButton>
+                        </>
+                      )}
+                    </SectionActions>
+                  </SectionHeader>
                 
-                <FormGrid>
-                  <FormGroup>
-                    <Label>First Name</Label>
-                    {editing ? (
-                      <Input
-                        type="text"
-                        value={personalFormData.firstName}
-                        onChange={(e) => handlePersonalInputChange('firstName', e.target.value)}
-                        placeholder="Enter first name"
-                      />
-                    ) : (
-                      <DisplayValue>{capitalizeFirstLetter(doctor.personalInfo.firstName)}</DisplayValue>
-                    )}
-                  </FormGroup>
+                  <FormGrid>
+                    <FormGroup>
+                      <Label>First Name</Label>
+                      {editingSection === 'personal' ? (
+                        <Input
+                          type="text"
+                          value={personalFormData.firstName}
+                          onChange={(e) => handlePersonalInputChange('firstName', e.target.value)}
+                          placeholder="Enter first name"
+                        />
+                      ) : (
+                        <DisplayValue>{capitalizeFirstLetter(doctor.personalInfo.firstName)}</DisplayValue>
+                      )}
+                    </FormGroup>
 
-                  <FormGroup>
-                    <Label>Last Name</Label>
-                    {editing ? (
-                      <Input
-                        type="text"
-                        value={personalFormData.lastName}
-                        onChange={(e) => handlePersonalInputChange('lastName', e.target.value)}
-                        placeholder="Enter last name"
-                      />
-                    ) : (
-                      <DisplayValue>{capitalizeFirstLetter(doctor.personalInfo.lastName)}</DisplayValue>
-                    )}
-                  </FormGroup>
+                    <FormGroup>
+                      <Label>Last Name</Label>
+                      {editingSection === 'personal' ? (
+                        <Input
+                          type="text"
+                          value={personalFormData.lastName}
+                          onChange={(e) => handlePersonalInputChange('lastName', e.target.value)}
+                          placeholder="Enter last name"
+                        />
+                      ) : (
+                        <DisplayValue>{capitalizeFirstLetter(doctor.personalInfo.lastName)}</DisplayValue>
+                      )}
+                    </FormGroup>
 
-                  <FormGroup>
-                    <Label>Email Address</Label>
-                    {editing ? (
-                      <Input
-                        type="email"
-                        value={personalFormData.email}
-                        onChange={(e) => handlePersonalInputChange('email', e.target.value)}
-                        placeholder="Enter email address"
-                      />
-                    ) : (
-                      <DisplayValue>{doctor.personalInfo.email}</DisplayValue>
-                    )}
-                  </FormGroup>
+                    <FormGroup>
+                      <Label>Email Address</Label>
+                      {editingSection === 'personal' ? (
+                        <Input
+                          type="email"
+                          value={personalFormData.email}
+                          onChange={(e) => handlePersonalInputChange('email', e.target.value)}
+                          placeholder="Enter email address"
+                        />
+                      ) : (
+                        <DisplayValue>{doctor.personalInfo.email}</DisplayValue>
+                      )}
+                    </FormGroup>
 
-                  <FormGroup>
-                    <Label>Phone Number</Label>
-                    {editing ? (
-                      <Input
-                        type="tel"
-                        value={personalFormData.phone}
-                        onChange={(e) => handlePersonalInputChange('phone', e.target.value)}
-                        placeholder="Enter phone number"
-                      />
-                    ) : (
-                      <DisplayValue>+91 {doctor.personalInfo.phone}</DisplayValue>
-                    )}
-                  </FormGroup>
+                    <FormGroup>
+                      <Label>Phone Number</Label>
+                      {editingSection === 'personal' ? (
+                        <Input
+                          type="tel"
+                          value={personalFormData.phone}
+                          onChange={(e) => handlePersonalInputChange('phone', e.target.value)}
+                          placeholder="Enter phone number"
+                        />
+                      ) : (
+                        <DisplayValue>+91 {doctor.personalInfo.phone}</DisplayValue>
+                      )}
+                    </FormGroup>
 
-                  <FormGroup>
-                    <Label>Doctor ID</Label>
-                    <DisplayValue>{doctor.doctorId}</DisplayValue>
-                  </FormGroup>
+                    <FormGroup>
+                      <Label>Doctor ID</Label>
+                      <DisplayValue>{doctor.doctorId}</DisplayValue>
+                    </FormGroup>
+                  </FormGrid>
+                </SectionContainer>
 
-                  <FormGroup>
-                    <Label>License Number</Label>
-                    {editing ? (
-                      <Input
-                        type="text"
-                        value={professionalFormData.licenseNumber}
-                        onChange={(e) => handleProfessionalInputChange('licenseNumber', e.target.value)}
-                        placeholder="Enter license number"
-                      />
-                    ) : (
-                      <DisplayValue>{doctor.professionalInfo.licenseNumber}</DisplayValue>
-                    )}
-                  </FormGroup>
-                </FormGrid>
-
-                <SectionTitle style={{ marginTop: '32px' }}>Professional Information</SectionTitle>
+                {/* Professional Information Section */}
+                <SectionContainer>
+                  <SectionHeader>
+                    <SectionTitle>Professional Information</SectionTitle>
+                    <SectionActions>
+                      {editingSection !== 'professional' ? (
+                        <ActionButton 
+                          $variant="secondary" 
+                          onClick={() => handleEditSection('professional')}
+                          disabled={isSubmitting || editingSection !== 'none'}
+                        >
+                          ✏️ Edit Professional
+                        </ActionButton>
+                      ) : (
+                        <>
+                          <ActionButton 
+                            $variant="secondary" 
+                            onClick={handleCancel} 
+                            disabled={isSubmitting}
+                          >
+                            Cancel
+                          </ActionButton>
+                          <ActionButton 
+                            $variant="primary" 
+                            onClick={handleSaveProfessional}
+                            disabled={isSubmitting}
+                          >
+                            {updateProfessionalInfo.isPending ? 'Saving...' : '💾 Save'}
+                          </ActionButton>
+                        </>
+                      )}
+                    </SectionActions>
+                  </SectionHeader>
                 
-                <FormGrid>
-                  <FormGroup>
-                    <Label>Specialization</Label>
-                    {editing ? (
-                      <Input
-                        type="text"
-                        value={professionalFormData.specialization}
-                        onChange={(e) => handleProfessionalInputChange('specialization', e.target.value)}
-                        placeholder="Enter specialization"
-                      />
-                    ) : (
-                      <DisplayValue>{doctor.professionalInfo.specialization}</DisplayValue>
-                    )}
-                  </FormGroup>
+                  <FormGrid>
+                    <FormGroup>
+                      <Label>Specialization</Label>
+                      {editingSection === 'professional' ? (
+                        <Input
+                          type="text"
+                          value={professionalFormData.specialization}
+                          onChange={(e) => handleProfessionalInputChange('specialization', e.target.value)}
+                          placeholder="Enter specialization"
+                        />
+                      ) : (
+                        <DisplayValue>{doctor.professionalInfo.specialization}</DisplayValue>
+                      )}
+                    </FormGroup>
 
-                  <FormGroup>
-                    <Label>Department</Label>
-                    {editing ? (
-                      <Input
-                        type="text"
-                        value={professionalFormData.department}
-                        onChange={(e) => handleProfessionalInputChange('department', e.target.value)}
-                        placeholder="Enter department"
-                      />
-                    ) : (
-                      <DisplayValue>{doctor.professionalInfo.department}</DisplayValue>
-                    )}
-                  </FormGroup>
-
-                  <FormGroup>
-                    <Label>Experience (Years)</Label>
-                    {editing ? (
-                      <Input
-                        type="number"
-                        value={professionalFormData.experience.toString()}
-                        onChange={(e) => handleProfessionalInputChange('experience', parseInt(e.target.value) || 0)}
-                        placeholder="Enter years of experience"
-                        min="0"
-                        max="50"
-                      />
-                    ) : (
-                      <DisplayValue>{doctor.professionalInfo.experience} Years</DisplayValue>
-                    )}
-                  </FormGroup>
-
-                  <FormGroup>
-                    <Label>Qualifications</Label>
-                    {editing ? (
-                      <QualificationsEditor>
-                        <QualificationInputContainer>
+                    {doctor.professionalInfo.department && (
+                      <FormGroup>
+                        <Label>Department</Label>
+                        {editingSection === 'professional' ? (
                           <Input
                             type="text"
-                            value={qualificationInput}
-                            onChange={(e) => setQualificationInput(e.target.value)}
-                            placeholder="Add qualification"
-                            onKeyPress={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleAddQualification();
-                              }
-                            }}
+                            value={professionalFormData.department || ''}
+                            onChange={(e) => handleProfessionalInputChange('department', e.target.value)}
+                            placeholder="Enter department"
                           />
-                          <AddButton type="button" onClick={handleAddQualification}>
-                            Add
-                          </AddButton>
-                        </QualificationInputContainer>
-                        <QualificationsList>
-                          {professionalFormData.qualifications.map((qualification, index) => (
-                            <QualificationTag key={index}>
-                              <span>{qualification}</span>
-                              <RemoveButton onClick={() => handleRemoveQualification(qualification)}>
-                                ×
-                              </RemoveButton>
-                            </QualificationTag>
-                          ))}
-                        </QualificationsList>
-                      </QualificationsEditor>
-                    ) : (
-                      <DisplayValue>{doctor.professionalInfo.qualifications.join(', ')}</DisplayValue>
+                        ) : (
+                          <DisplayValue>{doctor.professionalInfo.department}</DisplayValue>
+                        )}
+                      </FormGroup>
                     )}
-                  </FormGroup>
 
-                  <FormGroup>
-                    <Label>Verification Status</Label>
-                    <VerificationBadge $status={doctor.authentication.isVerified ? 'verified' : 'pending'}>
-                      {doctor.authentication.isVerified ? '✅ Verified' : '⏳ Pending Verification'}
-                    </VerificationBadge>
-                  </FormGroup>
+                    <FormGroup>
+                      <Label>Experience (Years)</Label>
+                      {editingSection === 'professional' ? (
+                        <Input
+                          type="number"
+                          value={professionalFormData.experience.toString()}
+                          onChange={(e) => handleProfessionalInputChange('experience', parseInt(e.target.value) || 0)}
+                          placeholder="Enter years of experience"
+                          min="0"
+                          max="50"
+                        />
+                      ) : (
+                        <DisplayValue>{doctor.professionalInfo.experience} Years</DisplayValue>
+                      )}
+                    </FormGroup>
 
-                  <FormGroup>
-                    <Label>Admin Approval</Label>
-                    <VerificationBadge $status={doctor.isVerifiedByAdmin ? 'verified' : 'pending'}>
-                      {doctor.isVerifiedByAdmin ? '✅ Approved' : '⏳ Pending Approval'}
-                    </VerificationBadge>
-                  </FormGroup>
-                </FormGrid>
+                    <FormGroup>
+                      <Label>License Number</Label>
+                      {editingSection === 'professional' ? (
+                        <Input
+                          type="text"
+                          value={professionalFormData.licenseNumber}
+                          onChange={(e) => handleProfessionalInputChange('licenseNumber', e.target.value)}
+                          placeholder="Enter license number"
+                        />
+                      ) : (
+                        <DisplayValue>{doctor.professionalInfo.licenseNumber}</DisplayValue>
+                      )}
+                    </FormGroup>
 
-                <SectionTitle style={{ marginTop: '32px' }}>Account Information</SectionTitle>
-                
-                <InfoGrid>
-                  <InfoItem>
-                    <InfoLabel>Registration Date</InfoLabel>
-                    <InfoValue>{formatTimestamp(doctor.registrationDate)}</InfoValue>
-                  </InfoItem>
-                  <InfoItem>
-                    <InfoLabel>Last Updated</InfoLabel>
-                    <InfoValue>{formatTimestamp(doctor.updatedAt)}</InfoValue>
-                  </InfoItem>
-                  <InfoItem>
-                    <InfoLabel>Last Password Change</InfoLabel>
-                    <InfoValue>{formatTimestamp(doctor.authentication.lastPasswordChange)}</InfoValue>
-                  </InfoItem>
-                  <InfoItem>
-                    <InfoLabel>Two-Factor Auth</InfoLabel>
-                    <SecurityBadge $enabled={doctor.authentication.twoFactorEnabled}>
-                      {doctor.authentication.twoFactorEnabled ? '🔐 Enabled' : '🔓 Disabled'}
-                    </SecurityBadge>
-                  </InfoItem>
-                </InfoGrid>
+                    <FormGroup>
+                      <Label>Qualifications</Label>
+                      {editingSection === 'professional' ? (
+                        <QualificationsEditor>
+                          <QualificationInputContainer>
+                            <Input
+                              type="text"
+                              value={qualificationInput}
+                              onChange={(e) => setQualificationInput(e.target.value)}
+                              placeholder="Add qualification"
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleAddQualification();
+                                }
+                              }}
+                            />
+                            <AddButton type="button" onClick={handleAddQualification}>
+                              Add
+                            </AddButton>
+                          </QualificationInputContainer>
+                          <QualificationsList>
+                            {professionalFormData.qualifications.map((qualification, index) => (
+                              <QualificationTag key={index}>
+                                <span>{qualification}</span>
+                                <RemoveButton onClick={() => handleRemoveQualification(qualification)}>
+                                  ×
+                                </RemoveButton>
+                              </QualificationTag>
+                            ))}
+                          </QualificationsList>
+                        </QualificationsEditor>
+                      ) : (
+                        <DisplayValue>{doctor.professionalInfo.qualifications.join(', ')}</DisplayValue>
+                      )}
+                    </FormGroup>
+
+                    <FormGroup>
+                      <Label>Verification Status</Label>
+                      <VerificationBadge $status={doctor.authentication.isVerified ? 'verified' : 'pending'}>
+                        {doctor.authentication.isVerified ? '✅ Verified' : '⏳ Pending Verification'}
+                      </VerificationBadge>
+                    </FormGroup>
+
+                    <FormGroup>
+                      <Label>Admin Approval</Label>
+                      <VerificationBadge $status={doctor.isVerifiedByAdmin ? 'verified' : 'pending'}>
+                        {doctor.isVerifiedByAdmin ? '✅ Approved' : '⏳ Pending Approval'}
+                      </VerificationBadge>
+                    </FormGroup>
+                  </FormGrid>
+                </SectionContainer>
+
+                {/* Account Information Section */}
+                <SectionContainer>
+                  <SectionTitle>Account Information</SectionTitle>
+                  
+                  <InfoGrid>
+                    {doctor.registrationDate && (
+                      <InfoItem>
+                        <InfoLabel>Registration Date</InfoLabel>
+                        <InfoValue>{formatTimestamp(doctor.registrationDate)}</InfoValue>
+                      </InfoItem>
+                    )}
+                    <InfoItem>
+                      <InfoLabel>Last Updated</InfoLabel>
+                      <InfoValue>{formatTimestamp(doctor.updatedAt)}</InfoValue>
+                    </InfoItem>
+                    {doctor.authentication.lastPasswordChange && (
+                      <InfoItem>
+                        <InfoLabel>Last Password Change</InfoLabel>
+                        <InfoValue>{formatTimestamp(doctor.authentication.lastPasswordChange)}</InfoValue>
+                      </InfoItem>
+                    )}
+                    <InfoItem>
+                      <InfoLabel>Two-Factor Auth</InfoLabel>
+                      <SecurityBadge $enabled={doctor.authentication.twoFactorEnabled || false}>
+                        {doctor.authentication.twoFactorEnabled ? '🔐 Enabled' : '🔓 Disabled'}
+                      </SecurityBadge>
+                    </InfoItem>
+                  </InfoGrid>
+                </SectionContainer>
               </ProfileTab>
             )}
 
@@ -623,8 +695,8 @@ const DoctorProfile: React.FC = () => {
                 <SectionTitle>Working Schedule</SectionTitle>
                 
                 <ScheduleGrid>
-                  {doctor.schedule.workingDays.map((day) => (
-                    <ScheduleDay key={day.id} $isWorking={day.isWorking}>
+                  {doctor.schedule.workingDays.map((day, index) => (
+                    <ScheduleDay key={index} $isWorking={day.isWorking}>
                       <DayName>{capitalizeFirstLetter(day.day)}</DayName>
                       <DayTime>
                         {day.isWorking 
@@ -673,11 +745,11 @@ const DoctorProfile: React.FC = () => {
                   <>
                     <SectionTitle style={{ marginTop: '32px' }}>Break Times</SectionTitle>
                     <BreakTimes>
-                      {doctor.schedule.breakTimes.map((breakTime) => (
-                        <BreakTimeItem key={breakTime.id}>
+                      {doctor.schedule.breakTimes.map((breakTime, index) => (
+                        <BreakTimeItem key={index}>
                           <BreakIcon>☕</BreakIcon>
                           <BreakContent>
-                            <BreakLabel>{breakTime.description}</BreakLabel>
+                            <BreakLabel>{breakTime.title || 'Break'}</BreakLabel>
                             <BreakTime>{breakTime.startTime} - {breakTime.endTime}</BreakTime>
                           </BreakContent>
                         </BreakTimeItem>
@@ -702,46 +774,56 @@ const DoctorProfile: React.FC = () => {
                     </FeeContent>
                   </FeeCard>
 
-                  <FeeCard>
-                    <FeeIcon>🔄</FeeIcon>
-                    <FeeContent>
-                      <FeeLabel>Follow-up Fee</FeeLabel>
-                      <FeeAmount>{formatCurrency(doctor.fees.followUpFee)}</FeeAmount>
-                      <FeeDescription>Follow-up appointment charges</FeeDescription>
-                    </FeeContent>
-                  </FeeCard>
+                  {doctor.fees.followUpFee && (
+                    <FeeCard>
+                      <FeeIcon>🔄</FeeIcon>
+                      <FeeContent>
+                        <FeeLabel>Follow-up Fee</FeeLabel>
+                        <FeeAmount>{formatCurrency(doctor.fees.followUpFee)}</FeeAmount>
+                        <FeeDescription>Follow-up appointment charges</FeeDescription>
+                      </FeeContent>
+                    </FeeCard>
+                  )}
 
-                  <FeeCard>
-                    <FeeIcon>🚨</FeeIcon>
-                    <FeeContent>
-                      <FeeLabel>Emergency Fee</FeeLabel>
-                      <FeeAmount>{formatCurrency(doctor.fees.emergencyFee)}</FeeAmount>
-                      <FeeDescription>Emergency consultation charges</FeeDescription>
-                    </FeeContent>
-                  </FeeCard>
+                  {doctor.fees.emergencyFee && (
+                    <FeeCard>
+                      <FeeIcon>🚨</FeeIcon>
+                      <FeeContent>
+                        <FeeLabel>Emergency Fee</FeeLabel>
+                        <FeeAmount>{formatCurrency(doctor.fees.emergencyFee)}</FeeAmount>
+                        <FeeDescription>Emergency consultation charges</FeeDescription>
+                      </FeeContent>
+                    </FeeCard>
+                  )}
                 </FeesGrid>
 
-                <SectionTitle style={{ marginTop: '32px' }}>Fee Summary</SectionTitle>
-                
-                <FeeSummary>
-                  <SummaryItem>
-                    <SummaryLabel>Average Fee per Consultation</SummaryLabel>
-                    <SummaryValue>
-                      {formatCurrency(
-                        (doctor.fees.consultationFee + doctor.fees.followUpFee) / 2
+                {doctor.fees.followUpFee && (
+                  <>
+                    <SectionTitle style={{ marginTop: '32px' }}>Fee Summary</SectionTitle>
+                    
+                    <FeeSummary>
+                      <SummaryItem>
+                        <SummaryLabel>Average Fee per Consultation</SummaryLabel>
+                        <SummaryValue>
+                          {formatCurrency(
+                            (doctor.fees.consultationFee + (doctor.fees.followUpFee || 0)) / 2
+                          )}
+                        </SummaryValue>
+                      </SummaryItem>
+                      {doctor.fees.emergencyFee && (
+                        <SummaryItem>
+                          <SummaryLabel>Emergency Markup</SummaryLabel>
+                          <SummaryValue>
+                            {Math.round(
+                              ((doctor.fees.emergencyFee - doctor.fees.consultationFee) / 
+                              doctor.fees.consultationFee) * 100
+                            )}% higher
+                          </SummaryValue>
+                        </SummaryItem>
                       )}
-                    </SummaryValue>
-                  </SummaryItem>
-                  <SummaryItem>
-                    <SummaryLabel>Emergency Markup</SummaryLabel>
-                    <SummaryValue>
-                      {Math.round(
-                        ((doctor.fees.emergencyFee - doctor.fees.consultationFee) / 
-                        doctor.fees.consultationFee) * 100
-                      )}% higher
-                    </SummaryValue>
-                  </SummaryItem>
-                </FeeSummary>
+                    </FeeSummary>
+                  </>
+                )}
               </FeesTab>
             )}
 
@@ -766,13 +848,15 @@ const DoctorProfile: React.FC = () => {
                     </StatCardContent>
                   </StatCard>
 
-                  <StatCard>
-                    <StatCardIcon>❌</StatCardIcon>
-                    <StatCardContent>
-                      <StatCardLabel>Cancelled</StatCardLabel>
-                      <StatCardValue>{doctor.statistics.cancelledAppointments}</StatCardValue>
-                    </StatCardContent>
-                  </StatCard>
+                  {doctor.statistics.cancelledAppointments !== undefined && (
+                    <StatCard>
+                      <StatCardIcon>❌</StatCardIcon>
+                      <StatCardContent>
+                        <StatCardLabel>Cancelled</StatCardLabel>
+                        <StatCardValue>{doctor.statistics.cancelledAppointments}</StatCardValue>
+                      </StatCardContent>
+                    </StatCard>
+                  )}
 
                   <StatCard>
                     <StatCardIcon>⭐</StatCardIcon>
@@ -819,19 +903,21 @@ const DoctorProfile: React.FC = () => {
                         </InsightContent>
                       </InsightCard>
 
-                      <InsightCard>
-                        <InsightIcon>📅</InsightIcon>
-                        <InsightContent>
-                          <InsightTitle>Cancellation Rate</InsightTitle>
-                          <InsightValue>
-                            {Math.round((doctor.statistics.cancelledAppointments / 
-                            doctor.statistics.totalAppointments) * 100)}%
-                          </InsightValue>
-                          <InsightDescription>
-                            of appointments were cancelled
-                          </InsightDescription>
-                        </InsightContent>
-                      </InsightCard>
+                      {doctor.statistics.cancelledAppointments !== undefined && (
+                        <InsightCard>
+                          <InsightIcon>📅</InsightIcon>
+                          <InsightContent>
+                            <InsightTitle>Cancellation Rate</InsightTitle>
+                            <InsightValue>
+                              {Math.round((doctor.statistics.cancelledAppointments / 
+                              doctor.statistics.totalAppointments) * 100)}%
+                            </InsightValue>
+                            <InsightDescription>
+                              of appointments were cancelled
+                            </InsightDescription>
+                          </InsightContent>
+                        </InsightCard>
+                      )}
 
                       {doctor.statistics.rating > 0 && (
                         <InsightCard>
@@ -859,9 +945,7 @@ const DoctorProfile: React.FC = () => {
   );
 };
 
-// Styled Components (keeping all existing styles and adding new ones for edit mode)
-
-// Existing styled components remain the same...
+// Styled Components
 const PageContainer = styled.div`
   max-width: 1200px;
   margin: 0 auto;
@@ -981,27 +1065,18 @@ const Subtitle = styled.p`
   margin: 0;
 `;
 
-const HeaderActions = styled.div`
-  display: flex;
-  gap: 12px;
-  
-  @media (max-width: 768px) {
-    width: 100%;
-    justify-content: space-between;
-  }
-`;
-
 const ActionButton = styled.button<{ $variant: string }>`
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 16px;
-  border-radius: 8px;
-  font-size: 14px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
   border: 1px solid;
+  white-space: nowrap;
   
   ${props => {
     switch (props.$variant) {
@@ -1036,11 +1111,6 @@ const ActionButton = styled.button<{ $variant: string }>`
     opacity: 0.6;
     cursor: not-allowed;
     transform: none;
-  }
-  
-  @media (max-width: 768px) {
-    flex: 1;
-    justify-content: center;
   }
 `;
 
@@ -1247,11 +1317,42 @@ const ScheduleTab = styled.div``;
 const FeesTab = styled.div``;
 const StatisticsTab = styled.div``;
 
+const SectionContainer = styled.div`
+  margin-bottom: 40px;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const SectionHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+`;
+
+const SectionActions = styled.div`
+  display: flex;
+  gap: 8px;
+  
+  @media (max-width: 768px) {
+    width: 100%;
+    justify-content: space-between;
+  }
+`;
+
 const SectionTitle = styled.h3`
   font-size: 20px;
   font-weight: 600;
   color: ${theme.colors.textPrimary};
-  margin: 0 0 24px 0;
+  margin: 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1297,7 +1398,6 @@ const DisplayValue = styled.div`
   font-weight: 500;
 `;
 
-// New input component for edit mode
 const Input = styled.input`
   padding: 12px 16px;
   border: 1px solid #e2e8f0;
@@ -1319,7 +1419,6 @@ const Input = styled.input`
   }
 `;
 
-// Qualifications editor components
 const QualificationsEditor = styled.div`
   display: flex;
   flex-direction: column;
@@ -1455,6 +1554,7 @@ const InfoValue = styled.div`
   font-weight: 600;
 `;
 
+// Schedule components
 const ScheduleGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -1614,6 +1714,7 @@ const BreakTime = styled.div`
   font-weight: 500;
 `;
 
+// Fees components
 const FeesGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -1697,6 +1798,7 @@ const SummaryValue = styled.div`
   font-weight: 700;
 `;
 
+// Statistics components
 const StatsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

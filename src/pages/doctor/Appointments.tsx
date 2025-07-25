@@ -5,10 +5,7 @@ import {
   FiClock, 
   FiUser, 
   FiPhone, 
-  FiMail, 
-  FiMapPin, 
   FiEdit3, 
-  FiTrash2, 
   FiEye, 
   FiRefreshCw, 
   FiFilter, 
@@ -21,6 +18,76 @@ import {
   FiPause,
   FiStopCircle
 } from "react-icons/fi";
+
+// Import the custom hooks (removed appointmentById hook since we're not using it)
+import {
+  useDoctorAppointments,
+  useDoctorTodayAppointments,
+  useDoctorUpcomingAppointments,
+  // useDoctorAppointmentById, // Commented out since we're using selectedAppointment directly
+  useUpdateAppointmentConsultation,
+  useUpdateAppointmentStatus
+} from "@/hooks/useDoctor";
+
+// TypeScript interfaces based on your actual API response
+interface Address {
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+}
+
+interface PatientInfo {
+  _id: string;
+  patientId: string;
+  personalInfo: {
+    firstName: string;
+    lastName: string;
+    dateOfBirth: string;
+    gender: string;
+    bloodGroup: string;
+  };
+  contactInfo: {
+    email: string;
+    phone: string;
+    alternatePhone: string;
+    address: Address;
+  };
+}
+
+interface ConsultationData {
+  symptoms?: string;
+  diagnosis?: string;
+  treatment?: string;
+  medications?: string;
+  followUpInstructions?: string;
+  doctorNotes?: string;
+}
+
+interface AppointmentSummary {
+  _id: string;
+  appointmentId: string;
+  patient: PatientInfo;
+  doctor: string; // Doctor ID as string based on your data
+  appointmentDateTime: string;
+  duration: number;
+  appointmentType: string;
+  status: string;
+  priority: string;
+  bookingSource: string;
+  symptoms: string[];
+  notes?: string;
+  specialRequirements?: string;
+  remindersSent: number;
+  paymentStatus: string;
+  paymentAmount?: number;
+  consultation?: ConsultationData;
+  metadata?: any;
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+}
 
 // Theme colors matching your existing design
 const theme = {
@@ -44,143 +111,74 @@ const theme = {
   }
 };
 
-const AppointmentManagement = () => {
-  const [activeTab, setActiveTab] = useState("all");
-  const [appointments, setAppointments] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedAppointment, setSelectedAppointment] = useState(null);
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [isConsultationModalOpen, setIsConsultationModalOpen] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
+const AppointmentManagement: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<string>("all");
+  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentSummary | null>(null);
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState<boolean>(false);
+  const [isConsultationModalOpen, setIsConsultationModalOpen] = useState<boolean>(false);
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
   
-  // Filters
-  const [filters, setFilters] = useState({
-    status: 'all',
-    dateFrom: '',
-    dateTo: '',
-    patientName: '',
-    appointmentType: 'all'
-  });
+  // Backend hooks
+  const { 
+    data: allAppointments, 
+    isLoading: isLoadingAll, 
+    error: errorAll, 
+    refetch: refetchAll 
+  } = useDoctorAppointments();
   
-  // Pagination
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0
-  });
+  const { 
+    data: todayAppointments, 
+    isLoading: isLoadingToday, 
+    refetch: refetchToday 
+  } = useDoctorTodayAppointments();
+  
+  const { 
+    data: upcomingAppointments, 
+    isLoading: isLoadingUpcoming, 
+    refetch: refetchUpcoming 
+  } = useDoctorUpcomingAppointments();
+console.log("upcomingAppointments", upcomingAppointments);
 
-  // Mock data for demonstration
-  const mockAppointments = [
-    {
-      id: "APT001",
-      patient: {
-        name: "John Doe",
-        phone: "+91 9876543210",
-        email: "john@example.com",
-        age: 32
-      },
-      date: "2025-07-21",
-      time: "10:00",
-      type: "Consultation",
-      status: "confirmed",
-      duration: 30,
-      fees: 500,
-      symptoms: "Fever and headache",
-      notes: "Follow up required"
-    },
-    {
-      id: "APT002",
-      patient: {
-        name: "Jane Smith",
-        phone: "+91 9876543211",
-        email: "jane@example.com",
-        age: 28
-      },
-      date: "2025-07-21",
-      time: "11:30",
-      type: "Follow-up",
-      status: "in-progress",
-      duration: 20,
-      fees: 300,
-      symptoms: "Diabetes checkup",
-      notes: "Regular monitoring"
-    },
-    {
-      id: "APT003",
-      patient: {
-        name: "Mike Johnson",
-        phone: "+91 9876543212",
-        email: "mike@example.com",
-        age: 45
-      },
-      date: "2025-07-21",
-      time: "14:00",
-      type: "Consultation",
-      status: "scheduled",
-      duration: 45,
-      fees: 750,
-      symptoms: "Chest pain",
-      notes: "Emergency consultation"
-    },
-    {
-      id: "APT004",
-      patient: {
-        name: "Sarah Wilson",
-        phone: "+91 9876543213",
-        email: "sarah@example.com",
-        age: 35
-      },
-      date: "2025-07-22",
-      time: "09:00",
-      type: "Consultation",
-      status: "completed",
-      duration: 30,
-      fees: 500,
-      symptoms: "Routine checkup",
-      notes: "All normal"
-    },
-    {
-      id: "APT005",
-      patient: {
-        name: "Robert Brown",
-        phone: "+91 9876543214",
-        email: "robert@example.com",
-        age: 52
-      },
-      date: "2025-07-23",
-      time: "15:30",
-      type: "Follow-up",
-      status: "scheduled",
-      duration: 25,
-      fees: 350,
-      symptoms: "Blood pressure monitoring",
-      notes: "Regular checkup"
-    },
-    {
-      id: "APT006",
-      patient: {
-        name: "Emily Davis",
-        phone: "+91 9876543215",
-        email: "emily@example.com",
-        age: 29
-      },
-      date: "2025-07-24",
-      time: "11:00",
-      type: "Consultation",
-      status: "confirmed",
-      duration: 40,
-      fees: 600,
-      symptoms: "Migraine and nausea",
-      notes: "First visit"
+  // const { 
+  //   data: appointmentDetails, 
+  //   isLoading: isLoadingDetails,
+  //   error: appointmentDetailsError
+  // } = useDoctorAppointmentById(selectedAppointmentId || '');
+
+  const updateConsultationMutation = useUpdateAppointmentConsultation(selectedAppointmentId || '');
+  const updateStatusMutation = useUpdateAppointmentStatus(selectedAppointmentId || '');
+
+  // Get current appointments based on active tab
+  const getCurrentAppointments = (): AppointmentSummary[] => {
+    switch (activeTab) {
+      case 'today':
+        return todayAppointments?.data?.appointments || [];
+      case 'upcoming':
+        return upcomingAppointments?.data?.appointments || [];
+      case 'all':
+      default:
+        return allAppointments?.data?.appointments || [];
     }
-  ];
+  };
 
+  const getCurrentLoading = (): boolean => {
+    switch (activeTab) {
+      case 'today':
+        return isLoadingToday;
+      case 'upcoming':
+        return isLoadingUpcoming;
+      case 'all':
+      default:
+        return isLoadingAll;
+    }
+  };
+
+  const appointments = getCurrentAppointments();
+  const loading = getCurrentLoading();
+
+  // Update current time every minute
   useEffect(() => {
-    setAppointments(mockAppointments);
-    setPagination(prev => ({ ...prev, total: mockAppointments.length, totalPages: 1 }));
-    
-    // Update current time every minute
     const interval = setInterval(() => {
       setCurrentTime(new Date());
     }, 60000);
@@ -188,7 +186,22 @@ const AppointmentManagement = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const getStatusIcon = (status) => {
+  // Refetch data when tab changes
+  useEffect(() => {
+    switch (activeTab) {
+      case 'today':
+        refetchToday();
+        break;
+      case 'upcoming':
+        refetchUpcoming();
+        break;
+      case 'all':
+        refetchAll();
+        break;
+    }
+  }, [activeTab, refetchToday, refetchUpcoming, refetchAll]);
+
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case 'confirmed': return <FiCheck size={12} />;
       case 'completed': return <FiCheck size={12} />;
@@ -199,50 +212,181 @@ const AppointmentManagement = () => {
     }
   };
 
-  const getAppointmentsByTab = () => {
-    const today = new Date().toISOString().split('T')[0];
-    
-    switch (activeTab) {
-      case 'today':
-        return appointments.filter(apt => apt.date === today);
-      case 'upcoming':
-        return appointments.filter(apt => new Date(apt.date) > new Date());
-      default:
-        return appointments;
+  const handleStatusUpdate = async (appointmentId: string, newStatus: string) => {
+    try {
+      setSelectedAppointmentId(appointmentId);
+      await updateStatusMutation.mutateAsync({ status: newStatus });
+      
+      // Refetch current tab data
+      switch (activeTab) {
+        case 'today':
+          refetchToday();
+          break;
+        case 'upcoming':
+          refetchUpcoming();
+          break;
+        case 'all':
+          refetchAll();
+          break;
+      }
+    } catch (error) {
+      console.error('Failed to update appointment status:', error);
     }
   };
 
-  const handleStatusUpdate = (appointmentId, newStatus) => {
-    setAppointments(prev => 
-      prev.map(apt => 
-        apt.id === appointmentId 
-          ? { ...apt, status: newStatus }
-          : apt
-      )
-    );
+  const handleViewDetails = (appointment: AppointmentSummary) => {
+    console.log('🔍 Opening details for appointment:', {
+      id: appointment._id,
+      appointmentId: appointment.appointmentId,
+      patient: appointment.patient,
+      fullAppointment: appointment
+    });
+    
+    // Set both the appointment and ID immediately
+    setSelectedAppointment(appointment);
+    console.log("appointment detail modal", appointment);
+    setSelectedAppointmentId(appointment._id);
+    setIsDetailsModalOpen(true);
   };
 
-  const AppointmentCard = ({ appointment }) => {
-    const isToday = appointment.date === new Date().toISOString().split('T')[0];
-    const appointmentTime = new Date(`${appointment.date} ${appointment.time}`);
-    const isPast = appointmentTime < currentTime;
-    const isCurrent = Math.abs(appointmentTime - currentTime) <= 15 * 60 * 1000; // Within 15 mins
+  const handleStartConsultation = (appointment: AppointmentSummary) => {
+    console.log('🏥 Starting consultation for appointment:', appointment);
+    setSelectedAppointment(appointment);
+    setSelectedAppointmentId(appointment._id);
+    setIsConsultationModalOpen(true);
+  };
+
+  const handleRefresh = () => {
+    switch (activeTab) {
+      case 'today':
+        refetchToday();
+        break;
+      case 'upcoming':
+        refetchUpcoming();
+        break;
+      case 'all':
+        refetchAll();
+        break;
+    }
+  };
+
+  // Helper functions to extract patient info with comprehensive null safety
+  const getPatientName = (appointment: AppointmentSummary | null): string => {
+    if (!appointment) {
+      console.warn('❌ No appointment provided to getPatientName');
+      return 'Unknown Patient';
+    }
+    
+    if (!appointment.patient) {
+      console.warn('❌ No patient data in appointment:', appointment._id);
+      return 'Unknown Patient';
+    }
+    
+    if (!appointment.patient.personalInfo) {
+      console.warn('❌ No personalInfo in patient data:', appointment.patient);
+      return 'Unknown Patient';
+    }
+    
+    const firstName = appointment.patient.personalInfo.firstName || '';
+    const lastName = appointment.patient.personalInfo.lastName || '';
+    const fullName = `${firstName} ${lastName}`.trim();
+    
+    console.log('✅ Patient name extracted:', fullName, 'from:', appointment.patient.personalInfo);
+    return fullName || 'Unknown Patient';
+  };
+
+  const getPatientPhone = (appointment: AppointmentSummary | null): string => {
+    const phone = appointment?.patient?.contactInfo?.phone || 'N/A';
+    console.log('📞 Patient phone:', phone);
+    return phone;
+  };
+
+  const getPatientEmail = (appointment: AppointmentSummary | null): string => {
+    const email = appointment?.patient?.contactInfo?.email || 'N/A';
+    console.log('📧 Patient email:', email);
+    return email;
+  };
+
+  const getPatientAge = (appointment: AppointmentSummary | null): string | number => {
+    if (!appointment?.patient?.personalInfo?.dateOfBirth) {
+      console.log('🎂 No DOB available for age calculation');
+      return 'N/A';
+    }
+    
+    try {
+      const dob = new Date(appointment.patient.personalInfo.dateOfBirth);
+      const today = new Date();
+      let age = today.getFullYear() - dob.getFullYear();
+      const monthDiff = today.getMonth() - dob.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+        age--;
+      }
+      console.log('🎂 Patient age calculated:', age);
+      return age;
+    } catch (error) {
+      console.error('❌ Error calculating age:', error);
+      return 'N/A';
+    }
+  };
+
+  const getPatientAddress = (appointment: AppointmentSummary | null): string => {
+    const address = appointment?.patient?.contactInfo?.address;
+    if (!address) {
+      console.log('🏠 No address available');
+      return 'N/A';
+    }
+    
+    const parts = [
+      address.street,
+      address.city,
+      address.state,
+      address.zipCode
+    ].filter(Boolean);
+    
+    const fullAddress = parts.join(', ') || 'N/A';
+    console.log('🏠 Patient address:', fullAddress);
+    return fullAddress;
+  };
+
+  const formatAppointmentTime = (appointmentDateTime: string): string => {
+    try {
+      const date = new Date(appointmentDateTime);
+      const formatted = date.toLocaleTimeString('en-IN', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true 
+      });
+      console.log('⏰ Time formatted:', formatted, 'from:', appointmentDateTime);
+      return formatted;
+    } catch (error) {
+      console.error('❌ Error formatting time:', error);
+      return 'Invalid Time';
+    }
+  };
+
+  const AppointmentCard: React.FC<{ appointment: AppointmentSummary }> = ({ appointment }) => {
+    const appointmentDate = new Date(appointment.appointmentDateTime);
+    const isToday = appointmentDate.toDateString() === new Date().toDateString();
+    const isCurrent = Math.abs(appointmentDate.getTime() - currentTime.getTime()) <= 15 * 60 * 1000; // Within 15 mins
+
+    const patientName = getPatientName(appointment);
+    const patientInitials = patientName.split(' ').map(n => n[0]).join('').toUpperCase();
 
     return (
       <CardContainer isToday={isToday} isCurrent={isCurrent}>
         <CardHeader>
           <PatientInfo>
             <PatientAvatar>
-              {appointment.patient.name.split(' ').map(n => n[0]).join('')}
+              {patientInitials}
             </PatientAvatar>
             <PatientDetails>
-              <PatientName>{appointment.patient.name}</PatientName>
-              <AppointmentId>#{appointment.id}</AppointmentId>
+              <PatientName>{patientName}</PatientName>
+              <AppointmentId>#{appointment.appointmentId}</AppointmentId>
             </PatientDetails>
           </PatientInfo>
           <StatusBadge status={appointment.status}>
             {getStatusIcon(appointment.status)}
-            {appointment.status.replace('-', ' ')}
+            {appointment.status?.replace('-', ' ') || 'scheduled'}
           </StatusBadge>
         </CardHeader>
 
@@ -250,36 +394,40 @@ const AppointmentManagement = () => {
           <AppointmentDetails>
             <DetailRow>
               <FiCalendar size={14} />
-              <span>{new Date(appointment.date).toLocaleDateString('en-IN')}</span>
+              <span>{appointmentDate.toLocaleDateString('en-IN')}</span>
             </DetailRow>
             <DetailRow>
               <FiClock size={14} />
-              <span>{appointment.time} ({appointment.duration} min)</span>
+              <span>
+                {formatAppointmentTime(appointment.appointmentDateTime)} 
+                ({appointment.duration || 30} min)
+              </span>
             </DetailRow>
             <DetailRow>
               <FiUser size={14} />
-              <span>{appointment.type}</span>
+              <span>{appointment.appointmentType || 'Consultation'}</span>
             </DetailRow>
             <DetailRow>
               <FiPhone size={14} />
-              <span>{appointment.patient.phone}</span>
+              <span>{getPatientPhone(appointment)}</span>
             </DetailRow>
           </AppointmentDetails>
 
           <SymptomsText>
-            <strong>Symptoms:</strong> {appointment.symptoms}
+            <strong>Symptoms:</strong> {
+              Array.isArray(appointment.symptoms) 
+                ? appointment.symptoms.join(', ') 
+                : appointment.symptoms || 'Not specified'
+            }
           </SymptomsText>
 
-          <FeesAmount>₹{appointment.fees}</FeesAmount>
+          <FeesAmount>₹{appointment.paymentAmount || 500}</FeesAmount>
         </CardContent>
 
         <CardActions>
           <ActionButton 
             variant="primary" 
-            onClick={() => {
-              setSelectedAppointment(appointment);
-              setIsDetailsModalOpen(true);
-            }}
+            onClick={() => handleViewDetails(appointment)}
           >
             <FiEye size={14} />
             View Details
@@ -288,7 +436,8 @@ const AppointmentManagement = () => {
           {appointment.status === 'confirmed' && (
             <ActionButton 
               variant="success"
-              onClick={() => handleStatusUpdate(appointment.id, 'in-progress')}
+              onClick={() => handleStatusUpdate(appointment._id, 'in-progress')}
+              disabled={updateStatusMutation.isLoading}
             >
               <FiPlay size={14} />
               Start
@@ -298,10 +447,7 @@ const AppointmentManagement = () => {
           {appointment.status === 'in-progress' && (
             <ActionButton 
               variant="warning"
-              onClick={() => {
-                setSelectedAppointment(appointment);
-                setIsConsultationModalOpen(true);
-              }}
+              onClick={() => handleStartConsultation(appointment)}
             >
               <FiEdit3 size={14} />
               Add Notes
@@ -311,7 +457,8 @@ const AppointmentManagement = () => {
           {appointment.status === 'scheduled' && (
             <ActionButton 
               variant="primary"
-              onClick={() => handleStatusUpdate(appointment.id, 'confirmed')}
+              onClick={() => handleStatusUpdate(appointment._id, 'confirmed')}
+              disabled={updateStatusMutation.isLoading}
             >
               <FiCheck size={14} />
               Confirm
@@ -322,8 +469,24 @@ const AppointmentManagement = () => {
     );
   };
 
-  const AppointmentDetailsModal = () => {
-    if (!selectedAppointment || !isDetailsModalOpen) return null;
+  const AppointmentDetailsModal: React.FC = () => {
+    // Always use selectedAppointment as the primary source since we have all the data
+    // Only use appointmentDetails if it has more complete data
+    const appointment = /* (appointmentDetails?.data && Object.keys(appointmentDetails.data).length > 0) 
+      ? appointmentDetails.data 
+      :  */selectedAppointment;
+    
+    console.log('🗂️ Modal rendering with appointment:', {
+     /*  hasAppointmentDetails: !!appointmentDetails?.data, */
+      hasSelectedAppointment: !!selectedAppointment,
+      finalAppointment: appointment,
+      isModalOpen: isDetailsModalOpen
+    });
+    
+    if (!appointment || !isDetailsModalOpen) {
+      console.log('🚫 Modal not rendering - missing appointment or modal closed');
+      return null;
+    }
 
     return (
       <ModalOverlay onClick={() => setIsDetailsModalOpen(false)}>
@@ -336,81 +499,213 @@ const AppointmentManagement = () => {
           </ModalHeader>
           
           <ModalBody>
-            <DetailSection>
-              <SectionTitle>Patient Information</SectionTitle>
-              <DetailGrid>
-                <DetailItem>
-                  <DetailLabel>Name</DetailLabel>
-                  <DetailValue>{selectedAppointment.patient.name}</DetailValue>
-                </DetailItem>
-                <DetailItem>
-                  <DetailLabel>Age</DetailLabel>
-                  <DetailValue>{selectedAppointment.patient.age} years</DetailValue>
-                </DetailItem>
-                <DetailItem>
-                  <DetailLabel>Phone</DetailLabel>
-                  <DetailValue>{selectedAppointment.patient.phone}</DetailValue>
-                </DetailItem>
-                <DetailItem>
-                  <DetailLabel>Email</DetailLabel>
-                  <DetailValue>{selectedAppointment.patient.email}</DetailValue>
-                </DetailItem>
-              </DetailGrid>
-            </DetailSection>
+            {!selectedAppointment ? (
+              <LoadingContainer>
+                <LoadingSpinner />
+                <LoadingText>Loading appointment details...</LoadingText>
+              </LoadingContainer>
+            ) : (
+              <>
+                <DetailSection>
+                  <SectionTitle>Patient Information</SectionTitle>
+                  <DetailGrid>
+                    <DetailItem>
+                      <DetailLabel>Name</DetailLabel>
+                      <DetailValue>{getPatientName(appointment)}</DetailValue>
+                    </DetailItem>
+                    <DetailItem>
+                      <DetailLabel>Patient ID</DetailLabel>
+                      <DetailValue>{appointment.patient?.patientId || 'N/A'}</DetailValue>
+                    </DetailItem>
+                    <DetailItem>
+                      <DetailLabel>Age</DetailLabel>
+                      <DetailValue>{getPatientAge(appointment)} years</DetailValue>
+                    </DetailItem>
+                    <DetailItem>
+                      <DetailLabel>Gender</DetailLabel>
+                      <DetailValue>
+                        {appointment.patient?.personalInfo?.gender ? 
+                          appointment.patient.personalInfo.gender.charAt(0).toUpperCase() + 
+                          appointment.patient.personalInfo.gender.slice(1) : 'N/A'}
+                      </DetailValue>
+                    </DetailItem>
+                    <DetailItem>
+                      <DetailLabel>Blood Group</DetailLabel>
+                      <DetailValue>{appointment.patient?.personalInfo?.bloodGroup || 'N/A'}</DetailValue>
+                    </DetailItem>
+                    <DetailItem>
+                      <DetailLabel>Phone</DetailLabel>
+                      <DetailValue>{getPatientPhone(appointment)}</DetailValue>
+                    </DetailItem>
+                    <DetailItem>
+                      <DetailLabel>Alternate Phone</DetailLabel>
+                      <DetailValue>{appointment.patient?.contactInfo?.alternatePhone || 'N/A'}</DetailValue>
+                    </DetailItem>
+                    <DetailItem>
+                      <DetailLabel>Email</DetailLabel>
+                      <DetailValue>{getPatientEmail(appointment)}</DetailValue>
+                    </DetailItem>
+                    <DetailItem>
+                      <DetailLabel>Address</DetailLabel>
+                      <DetailValue>{getPatientAddress(appointment)}</DetailValue>
+                    </DetailItem>
+                  </DetailGrid>
+                </DetailSection>
 
-            <DetailSection>
-              <SectionTitle>Appointment Details</SectionTitle>
-              <DetailGrid>
-                <DetailItem>
-                  <DetailLabel>Date</DetailLabel>
-                  <DetailValue>{new Date(selectedAppointment.date).toLocaleDateString('en-IN')}</DetailValue>
-                </DetailItem>
-                <DetailItem>
-                  <DetailLabel>Time</DetailLabel>
-                  <DetailValue>{selectedAppointment.time}</DetailValue>
-                </DetailItem>
-                <DetailItem>
-                  <DetailLabel>Duration</DetailLabel>
-                  <DetailValue>{selectedAppointment.duration} minutes</DetailValue>
-                </DetailItem>
-                <DetailItem>
-                  <DetailLabel>Type</DetailLabel>
-                  <DetailValue>{selectedAppointment.type}</DetailValue>
-                </DetailItem>
-                <DetailItem>
-                  <DetailLabel>Fees</DetailLabel>
-                  <DetailValue>₹{selectedAppointment.fees}</DetailValue>
-                </DetailItem>
-                <DetailItem>
-                  <DetailLabel>Status</DetailLabel>
-                  <DetailValue>
-                    <StatusBadge status={selectedAppointment.status}>
-                      {getStatusIcon(selectedAppointment.status)}
-                      {selectedAppointment.status.replace('-', ' ')}
-                    </StatusBadge>
-                  </DetailValue>
-                </DetailItem>
-              </DetailGrid>
-            </DetailSection>
+                <DetailSection>
+                  <SectionTitle>Appointment Details</SectionTitle>
+                  <DetailGrid>
+                    <DetailItem>
+                      <DetailLabel>Appointment ID</DetailLabel>
+                      <DetailValue>{appointment.appointmentId}</DetailValue>
+                    </DetailItem>
+                    <DetailItem>
+                      <DetailLabel>Date & Time</DetailLabel>
+                      <DetailValue>
+                        {new Date(appointment.appointmentDateTime).toLocaleDateString('en-IN')} at{' '}
+                        {formatAppointmentTime(appointment.appointmentDateTime)}
+                      </DetailValue>
+                    </DetailItem>
+                    <DetailItem>
+                      <DetailLabel>Duration</DetailLabel>
+                      <DetailValue>{appointment.duration || 30} minutes</DetailValue>
+                    </DetailItem>
+                    <DetailItem>
+                      <DetailLabel>Type</DetailLabel>
+                      <DetailValue>
+                        {appointment.appointmentType?.charAt(0).toUpperCase() + 
+                         appointment.appointmentType?.slice(1) || 'Consultation'}
+                      </DetailValue>
+                    </DetailItem>
+                    <DetailItem>
+                      <DetailLabel>Priority</DetailLabel>
+                      <DetailValue>
+                        {appointment.priority?.charAt(0).toUpperCase() + 
+                         appointment.priority?.slice(1) || 'Medium'}
+                      </DetailValue>
+                    </DetailItem>
+                    <DetailItem>
+                      <DetailLabel>Booking Source</DetailLabel>
+                      <DetailValue>
+                        {appointment.bookingSource?.charAt(0).toUpperCase() + 
+                         appointment.bookingSource?.slice(1) || 'N/A'}
+                      </DetailValue>
+                    </DetailItem>
+                    <DetailItem>
+                      <DetailLabel>Fees</DetailLabel>
+                      <DetailValue>₹{appointment.paymentAmount || 500}</DetailValue>
+                    </DetailItem>
+                    <DetailItem>
+                      <DetailLabel>Payment Status</DetailLabel>
+                      <DetailValue>
+                        <StatusBadge status={appointment.paymentStatus}>
+                          {appointment.paymentStatus?.charAt(0).toUpperCase() + 
+                           appointment.paymentStatus?.slice(1) || 'Pending'}
+                        </StatusBadge>
+                      </DetailValue>
+                    </DetailItem>
+                    <DetailItem>
+                      <DetailLabel>Status</DetailLabel>
+                      <DetailValue>
+                        <StatusBadge status={appointment.status}>
+                          {getStatusIcon(appointment.status)}
+                          {appointment.status?.replace('-', ' ') || 'scheduled'}
+                        </StatusBadge>
+                      </DetailValue>
+                    </DetailItem>
+                    <DetailItem>
+                      <DetailLabel>Reminders Sent</DetailLabel>
+                      <DetailValue>{appointment.remindersSent || 0}</DetailValue>
+                    </DetailItem>
+                    <DetailItem>
+                      <DetailLabel>End Time</DetailLabel>
+                      <DetailValue>
+                        {appointment.endDateTime ? 
+                          formatAppointmentTime(appointment.endDateTime) : 
+                          'Not set'
+                        }
+                      </DetailValue>
+                    </DetailItem>
+                  </DetailGrid>
+                </DetailSection>
 
-            <DetailSection>
-              <SectionTitle>Medical Information</SectionTitle>
-              <DetailItem>
-                <DetailLabel>Symptoms</DetailLabel>
-                <DetailValue>{selectedAppointment.symptoms}</DetailValue>
-              </DetailItem>
-              <DetailItem>
-                <DetailLabel>Notes</DetailLabel>
-                <DetailValue>{selectedAppointment.notes}</DetailValue>
-              </DetailItem>
-            </DetailSection>
+                <DetailSection>
+                  <SectionTitle>Medical Information</SectionTitle>
+                  <DetailItem>
+                    <DetailLabel>Symptoms</DetailLabel>
+                    <DetailValue>
+                      {Array.isArray(appointment.symptoms) 
+                        ? appointment.symptoms.join(', ') 
+                        : appointment.symptoms || 'Not specified'}
+                    </DetailValue>
+                  </DetailItem>
+                  <DetailItem>
+                    <DetailLabel>Notes</DetailLabel>
+                    <DetailValue>{appointment.notes || 'No notes available'}</DetailValue>
+                  </DetailItem>
+                  <DetailItem>
+                    <DetailLabel>Special Requirements</DetailLabel>
+                    <DetailValue>{appointment.specialRequirements || 'None'}</DetailValue>
+                  </DetailItem>
+                  {appointment.consultation && (
+                    <>
+                      <DetailItem>
+                        <DetailLabel>Diagnosis</DetailLabel>
+                        <DetailValue>{appointment.consultation.diagnosis || 'N/A'}</DetailValue>
+                      </DetailItem>
+                      <DetailItem>
+                        <DetailLabel>Treatment</DetailLabel>
+                        <DetailValue>{appointment.consultation.treatment || 'N/A'}</DetailValue>
+                      </DetailItem>
+                      <DetailItem>
+                        <DetailLabel>Medications</DetailLabel>
+                        <DetailValue>{appointment.consultation.medications || 'N/A'}</DetailValue>
+                      </DetailItem>
+                    </>
+                  )}
+                </DetailSection>
+
+                {appointment.metadata && (
+                  <DetailSection>
+                    <SectionTitle>Technical Information</SectionTitle>
+                    <DetailGrid>
+                      <DetailItem>
+                        <DetailLabel>Created At</DetailLabel>
+                        <DetailValue>
+                          {new Date(appointment.createdAt).toLocaleDateString('en-IN')} at{' '}
+                          {new Date(appointment.createdAt).toLocaleTimeString('en-IN')}
+                        </DetailValue>
+                      </DetailItem>
+                      <DetailItem>
+                        <DetailLabel>Last Updated</DetailLabel>
+                        <DetailValue>
+                          {new Date(appointment.updatedAt).toLocaleDateString('en-IN')} at{' '}
+                          {new Date(appointment.updatedAt).toLocaleTimeString('en-IN')}
+                        </DetailValue>
+                      </DetailItem>
+                      <DetailItem>
+                        <DetailLabel>IP Address</DetailLabel>
+                        <DetailValue>{appointment.metadata.ipAddress || 'N/A'}</DetailValue>
+                      </DetailItem>
+                      <DetailItem>
+                        <DetailLabel>User Agent</DetailLabel>
+                        <DetailValue style={{ fontSize: '12px', wordBreak: 'break-all' }}>
+                          {appointment.metadata.userAgent ? 
+                            appointment.metadata.userAgent.slice(0, 50) + '...' : 'N/A'}
+                        </DetailValue>
+                      </DetailItem>
+                    </DetailGrid>
+                  </DetailSection>
+                )}
+              </>
+            )}
           </ModalBody>
 
           <ModalFooter>
             <SecondaryButton onClick={() => setIsDetailsModalOpen(false)}>
               Close
             </SecondaryButton>
-            {selectedAppointment.status !== 'completed' && (
+            {appointment.status !== 'completed' && (
               <PrimaryButton onClick={() => {
                 setIsDetailsModalOpen(false);
                 setIsConsultationModalOpen(true);
@@ -424,9 +719,11 @@ const AppointmentManagement = () => {
     );
   };
 
-  const ConsultationModal = () => {
+  const ConsultationModal: React.FC = () => {
     const [consultationNotes, setConsultationNotes] = useState({
-      symptoms: selectedAppointment?.symptoms || '',
+      symptoms: Array.isArray(selectedAppointment?.symptoms) 
+        ? selectedAppointment.symptoms.join(', ') 
+        : selectedAppointment?.symptoms || '',
       diagnosis: '',
       treatment: '',
       medications: '',
@@ -436,18 +733,44 @@ const AppointmentManagement = () => {
 
     if (!selectedAppointment || !isConsultationModalOpen) return null;
 
-    const handleSaveConsultation = () => {
-      // Here you would typically save to backend
-      handleStatusUpdate(selectedAppointment.id, 'completed');
-      setIsConsultationModalOpen(false);
-      alert('Consultation notes saved successfully!');
+    const handleSaveConsultation = async () => {
+      try {
+        await updateConsultationMutation.mutateAsync({
+          symptoms: consultationNotes.symptoms,
+          diagnosis: consultationNotes.diagnosis,
+          treatment: consultationNotes.treatment,
+          medications: consultationNotes.medications,
+          followUpInstructions: consultationNotes.followUpInstructions,
+          doctorNotes: consultationNotes.doctorNotes
+        });
+
+        // Update status to completed
+        await updateStatusMutation.mutateAsync({ status: 'completed' });
+        
+        setIsConsultationModalOpen(false);
+        
+        // Refetch data
+        switch (activeTab) {
+          case 'today':
+            refetchToday();
+            break;
+          case 'upcoming':
+            refetchUpcoming();
+            break;
+          case 'all':
+            refetchAll();
+            break;
+        }
+      } catch (error) {
+        console.error('Failed to save consultation:', error);
+      }
     };
 
     return (
       <ModalOverlay onClick={() => setIsConsultationModalOpen(false)}>
         <ModalContent large onClick={e => e.stopPropagation()}>
           <ModalHeader>
-            <h2>Consultation Notes - {selectedAppointment.patient.name}</h2>
+            <h2>Consultation Notes - {getPatientName(selectedAppointment)}</h2>
             <CloseButton onClick={() => setIsConsultationModalOpen(false)}>
               <FiX size={20} />
             </CloseButton>
@@ -518,11 +841,17 @@ const AppointmentManagement = () => {
           </ModalBody>
 
           <ModalFooter>
-            <SecondaryButton onClick={() => setIsConsultationModalOpen(false)}>
+            <SecondaryButton 
+              onClick={() => setIsConsultationModalOpen(false)}
+              disabled={updateConsultationMutation.isLoading}
+            >
               Cancel
             </SecondaryButton>
-            <PrimaryButton onClick={handleSaveConsultation}>
-              Save & Complete Appointment
+            <PrimaryButton 
+              onClick={handleSaveConsultation}
+              disabled={updateConsultationMutation.isLoading}
+            >
+              {updateConsultationMutation.isLoading ? 'Saving...' : 'Save & Complete Appointment'}
             </PrimaryButton>
           </ModalFooter>
         </ModalContent>
@@ -530,8 +859,11 @@ const AppointmentManagement = () => {
     );
   };
 
-  const filteredAppointments = getAppointmentsByTab();
-  const todayStats = appointments.filter(apt => apt.date === new Date().toISOString().split('T')[0]);
+  // Calculate today's stats
+  const todayStats = appointments.filter(apt => {
+    const appointmentDate = new Date(apt.appointmentDateTime);
+    return appointmentDate.toDateString() === new Date().toDateString();
+  });
 
   return (
     <Container>
@@ -545,16 +877,18 @@ const AppointmentManagement = () => {
           
           {activeTab === 'today' && (
             <StatsContainer>
-              <StatCard color={theme.colors.primary}>
+              <StatCard>
                 <StatValue>{todayStats.length}</StatValue>
                 <StatLabel>Total Today</StatLabel>
               </StatCard>
-              <StatCard color={theme.colors.success}>
+              <StatCard>
                 <StatValue>{todayStats.filter(a => a.status === 'completed').length}</StatValue>
                 <StatLabel>Completed</StatLabel>
               </StatCard>
-              <StatCard color={theme.colors.warning}>
-                <StatValue>{todayStats.filter(a => !['completed', 'cancelled', 'no-show'].includes(a.status)).length}</StatValue>
+              <StatCard>
+                <StatValue>
+                  {todayStats.filter(a => !['completed', 'cancelled', 'no-show'].includes(a.status)).length}
+                </StatValue>
                 <StatLabel>Remaining</StatLabel>
               </StatCard>
             </StatsContainer>
@@ -562,7 +896,7 @@ const AppointmentManagement = () => {
         </HeaderContent>
         
         <HeaderActions>
-          <RefreshButton onClick={() => window.location.reload()}>
+          <RefreshButton onClick={handleRefresh} disabled={loading}>
             <FiRefreshCw size={16} />
             Refresh
           </RefreshButton>
@@ -604,7 +938,19 @@ const AppointmentManagement = () => {
             <LoadingSpinner />
             <LoadingText>Loading appointments...</LoadingText>
           </LoadingContainer>
-        ) : filteredAppointments.length === 0 ? (
+        ) : errorAll ? (
+          <ErrorContainer>
+            <ErrorIcon>⚠️</ErrorIcon>
+            <ErrorTitle>Error Loading Appointments</ErrorTitle>
+            <ErrorMessage>
+              {errorAll?.message || 'Failed to load appointments. Please try again.'}
+            </ErrorMessage>
+            <PrimaryButton onClick={handleRefresh}>
+              <FiRefreshCw size={16} />
+              Retry
+            </PrimaryButton>
+          </ErrorContainer>
+        ) : appointments.length === 0 ? (
           <EmptyState>
             <EmptyIcon>📅</EmptyIcon>
             <EmptyTitle>No appointments found</EmptyTitle>
@@ -619,8 +965,8 @@ const AppointmentManagement = () => {
           </EmptyState>
         ) : (
           <AppointmentGrid>
-            {filteredAppointments.map(appointment => (
-              <AppointmentCard key={appointment.id} appointment={appointment} />
+            {appointments.map(appointment => (
+              <AppointmentCard key={appointment._id} appointment={appointment} />
             ))}
           </AppointmentGrid>
         )}
@@ -631,6 +977,29 @@ const AppointmentManagement = () => {
     </Container>
   );
 };
+
+// Styled Components with proper TypeScript interfaces
+interface CardContainerProps {
+  isToday: boolean;
+  isCurrent: boolean;
+}
+
+interface TabButtonProps {
+  active: boolean;
+}
+
+interface StatusBadgeProps {
+  status: string;
+}
+
+interface ActionButtonProps {
+  variant: 'primary' | 'success' | 'warning';
+  disabled?: boolean;
+}
+
+interface ModalContentProps {
+  large?: boolean;
+}
 
 // Styled Components
 const Container = styled.div`
@@ -726,13 +1095,18 @@ const Button = styled.button`
   cursor: pointer;
   transition: all 0.2s;
   border: 1px solid rgba(255, 255, 255, 0.2);
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `;
 
 const RefreshButton = styled(Button)`
   background: rgba(255, 255, 255, 0.1);
   color: white;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.2);
   }
 `;
@@ -761,7 +1135,7 @@ const TabContainer = styled.div`
   background: ${theme.colors.gray[50]};
 `;
 
-const TabButton = styled.button`
+const TabButton = styled.button<TabButtonProps>`
   padding: 16px 24px;
   border: none;
   background: ${props => props.active ? 'white' : 'transparent'};
@@ -790,7 +1164,7 @@ const AppointmentGrid = styled.div`
   }
 `;
 
-const CardContainer = styled.div`
+const CardContainer = styled.div<CardContainerProps>`
   border: 1px solid ${theme.colors.gray[200]};
   border-radius: 12px;
   padding: 20px;
@@ -843,17 +1217,20 @@ const AppointmentId = styled.div`
   font-size: 12px;
   color: ${theme.colors.gray[500]};
 `;
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'confirmed': return theme.colors.primary;
-      case 'completed': return theme.colors.success;
-      case 'in-progress': return theme.colors.warning;
-      case 'cancelled': return theme.colors.danger;
-      case 'no-show': return theme.colors.danger;
-      default: return theme.colors.gray[500];
-    }
-  };
-const StatusBadge = styled.span`
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'confirmed': return theme.colors.primary;
+    case 'completed': return theme.colors.success;
+    case 'in-progress': return theme.colors.warning;
+    case 'cancelled': return theme.colors.danger;
+    case 'no-show': return theme.colors.danger;
+    case 'pending': return theme.colors.warning;
+    default: return theme.colors.gray[500];
+  }
+};
+
+const StatusBadge = styled.span<StatusBadgeProps>`
   display: flex;
   align-items: center;
   gap: 4px;
@@ -905,7 +1282,7 @@ const CardActions = styled.div`
   flex-wrap: wrap;
 `;
 
-const ActionButton = styled.button`
+const ActionButton = styled.button<ActionButtonProps>`
   display: flex;
   align-items: center;
   gap: 4px;
@@ -917,6 +1294,11 @@ const ActionButton = styled.button`
   cursor: pointer;
   transition: all 0.2s;
   
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
   ${props => {
     switch (props.variant) {
       case 'primary':
@@ -924,28 +1306,28 @@ const ActionButton = styled.button`
           background: ${theme.colors.primary}10;
           border-color: ${theme.colors.primary}30;
           color: ${theme.colors.primary};
-          &:hover { background: ${theme.colors.primary}20; }
+          &:hover:not(:disabled) { background: ${theme.colors.primary}20; }
         `;
       case 'success':
         return `
           background: ${theme.colors.success}10;
           border-color: ${theme.colors.success}30;
           color: ${theme.colors.success};
-          &:hover { background: ${theme.colors.success}20; }
+          &:hover:not(:disabled) { background: ${theme.colors.success}20; }
         `;
       case 'warning':
         return `
           background: ${theme.colors.warning}10;
           border-color: ${theme.colors.warning}30;
           color: ${theme.colors.warning};
-          &:hover { background: ${theme.colors.warning}20; }
+          &:hover:not(:disabled) { background: ${theme.colors.warning}20; }
         `;
       default:
         return `
           background: ${theme.colors.gray[100]};
           border-color: ${theme.colors.gray[300]};
           color: ${theme.colors.gray[700]};
-          &:hover { background: ${theme.colors.gray[200]}; }
+          &:hover:not(:disabled) { background: ${theme.colors.gray[200]}; }
         `;
     }
   }}
@@ -977,6 +1359,36 @@ const LoadingText = styled.div`
   margin-top: 12px;
   color: ${theme.colors.gray[600]};
   font-size: 14px;
+`;
+
+const ErrorContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+`;
+
+const ErrorIcon = styled.div`
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.6;
+`;
+
+const ErrorTitle = styled.h3`
+  font-size: 18px;
+  font-weight: 600;
+  color: ${theme.colors.danger};
+  margin: 0 0 8px 0;
+`;
+
+const ErrorMessage = styled.p`
+  font-size: 14px;
+  color: ${theme.colors.gray[500]};
+  margin: 0 0 20px 0;
+  max-width: 400px;
+  line-height: 1.5;
 `;
 
 const EmptyState = styled.div`
@@ -1024,7 +1436,7 @@ const ModalOverlay = styled.div`
   padding: 20px;
 `;
 
-const ModalContent = styled.div`
+const ModalContent = styled.div<ModalContentProps>`
   background: white;
   border-radius: 12px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
@@ -1086,8 +1498,11 @@ const PrimaryButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: ${theme.colors.primary}dd;
     transform: translateY(-1px);
   }
@@ -1110,9 +1525,14 @@ const SecondaryButton = styled.button`
   cursor: pointer;
   transition: all 0.2s;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: ${theme.colors.gray[50]};
     border-color: ${theme.colors.gray[400]};
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 `;
 

@@ -26,6 +26,90 @@ import {
   FiUsers,
   FiTrendingUp
 } from "react-icons/fi";
+import {useDoctorPatients, useDoctorPatientConsultationHistory} from "@/hooks/useDoctor";
+
+// Types
+interface Patient {
+  id: string;
+  patientId: string;
+  name: string;
+  age: number;
+  gender: 'male' | 'female' | 'other';
+  phone: string;
+  email: string;
+  profilePicture?: string | null;
+  lastVisit?: string | null;
+  registeredDate: string;
+  status: 'active' | 'inactive';
+  address: string;
+  needsFollowUp: boolean;
+  totalVisits: number;
+  conditions: string[];
+  lastDiagnosis?: string | null;
+}
+
+interface ConsultationHistory {
+  visits: Visit[];
+  conditions: Condition[];
+  medications: Medication[];
+  allergies: string[];
+  vitals: Vital[];
+}
+
+interface Visit {
+  id: number;
+  date: string;
+  time: string;
+  type: string;
+  chiefComplaint: string;
+  diagnosis: string;
+  status: 'completed' | 'cancelled' | 'no-show';
+}
+
+interface Condition {
+  id: number;
+  name: string;
+  status: 'active' | 'inactive';
+  diagnosedDate: string;
+  notes: string;
+}
+
+interface Medication {
+  id: number;
+  name: string;
+  dosage: string;
+  frequency: string;
+  status: 'active' | 'inactive';
+  startDate: string;
+}
+
+interface Vital {
+  date: string;
+  bloodPressure: string;
+  heartRate: number;
+  temperature: number;
+  weight: number;
+}
+
+interface Filters {
+  gender: 'all' | 'male' | 'female' | 'other';
+  ageRange: 'all' | '0-18' | '19-35' | '36-55' | '56+';
+  lastVisit: 'all' | 'last_week' | 'last_month' | 'last_3_months' | 'last_6_months' | 'over_6_months' | 'never';
+  status: 'all' | 'active' | 'inactive';
+}
+
+interface PatientStats {
+  total: number;
+  newThisWeek: number;
+  seenThisMonth: number;
+  needFollowUp: number;
+}
+
+type SortBy = 'name_asc' | 'name_desc' | 'last_visit_desc' | 'last_visit_asc' | 'age_asc' | 'age_desc';
+type ViewMode = 'cards' | 'table';
+type ActiveTab = 'overview' | 'history' | 'appointments' | 'documents';
+type PatientStatus = 'active' | 'inactive';
+type StatusBadgeStatus = 'success' | 'warning' | 'danger';
 
 // Theme colors matching your existing design
 const theme = {
@@ -49,337 +133,288 @@ const theme = {
   }
 };
 
-const PatientManagement = () => {
-  const [patients, setPatients] = useState([]);
-  const [selectedPatient, setSelectedPatient] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
-  const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [activeDetailTab, setActiveDetailTab] = useState('overview');
-  const [patientHistory, setPatientHistory] = useState(null);
-  const [historyLoading, setHistoryLoading] = useState(false);
+const PatientManagement: React.FC = () => {
+  // API Hooks
+  const { 
+    data: patientsData, 
+    isLoading: patientsLoading, 
+    error: patientsError, 
+    refetch: refetchPatients 
+  } = useDoctorPatients();
+
+  // State
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [viewMode, setViewMode] = useState<ViewMode>('cards');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
+  const [activeDetailTab, setActiveDetailTab] = useState<ActiveTab>('overview');
   
   // Filters
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<Filters>({
     gender: 'all',
     ageRange: 'all',
     lastVisit: 'all',
     status: 'active'
   });
   
-  // Pagination
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 20,
-    total: 0,
-    totalPages: 0
-  });
-  
-  const [sortBy, setSortBy] = useState('name_asc');
+  const [sortBy, setSortBy] = useState<SortBy>('name_asc');
 
-  // Mock data for demonstration
-  const mockPatients = [
-    {
-      id: "PAT001",
-      patientId: "PAT001",
-      name: "John Doe",
-      age: 32,
-      gender: "male",
-      phone: "+91 9876543210",
-      email: "john@example.com",
-      profilePicture: null,
-      lastVisit: "2025-07-15",
-      registeredDate: "2024-01-15",
-      status: "active",
-      address: "123 Main St, City",
-      needsFollowUp: true,
-      totalVisits: 5,
-      conditions: ["Hypertension", "Diabetes"],
-      lastDiagnosis: "Routine checkup"
-    },
-    {
-      id: "PAT002",
-      patientId: "PAT002",
-      name: "Jane Smith",
-      age: 28,
-      gender: "female",
-      phone: "+91 9876543211",
-      email: "jane@example.com",
-      profilePicture: null,
-      lastVisit: "2025-07-20",
-      registeredDate: "2024-03-20",
-      status: "active",
-      address: "456 Oak Ave, City",
-      needsFollowUp: false,
-      totalVisits: 8,
-      conditions: ["Migraine"],
-      lastDiagnosis: "Migraine treatment"
-    },
-    {
-      id: "PAT003",
-      patientId: "PAT003",
-      name: "Mike Johnson",
-      age: 45,
-      gender: "male",
-      phone: "+91 9876543212",
-      email: "mike@example.com",
-      profilePicture: null,
-      lastVisit: "2025-06-10",
-      registeredDate: "2023-08-10",
-      status: "active",
-      address: "789 Pine St, City",
-      needsFollowUp: true,
-      totalVisits: 12,
-      conditions: ["Heart Disease", "High Cholesterol"],
-      lastDiagnosis: "Cardiac consultation"
-    },
-    {
-      id: "PAT004",
-      patientId: "PAT004",
-      name: "Sarah Wilson",
-      age: 35,
-      gender: "female",
-      phone: "+91 9876543213",
-      email: "sarah@example.com",
-      profilePicture: null,
-      lastVisit: null,
-      registeredDate: "2025-07-01",
-      status: "active",
-      address: "321 Elm St, City",
-      needsFollowUp: false,
-      totalVisits: 0,
-      conditions: [],
-      lastDiagnosis: null
-    },
-    {
-      id: "PAT005",
-      patientId: "PAT005",
-      name: "Robert Brown",
-      age: 52,
-      gender: "male",
-      phone: "+91 9876543214",
-      email: "robert@example.com",
-      profilePicture: null,
-      lastVisit: "2025-07-18",
-      registeredDate: "2023-12-05",
-      status: "active",
-      address: "654 Maple Dr, City",
-      needsFollowUp: false,
-      totalVisits: 15,
-      conditions: ["Arthritis", "Diabetes"],
-      lastDiagnosis: "Joint pain management"
+  // Patient consultation history hook
+  const { 
+    data: patientHistory, 
+    isLoading: historyLoading, 
+    refetch: refetchHistory 
+  } = useDoctorPatientConsultationHistory(selectedPatient?.id || '');
+
+  // FIXED: Transform API data to match component interface
+  const patients: Patient[] = useMemo(() => {
+    let rawPatients: any[] = [];
+    
+    // Handle different possible data structures
+    if (Array.isArray(patientsData)) {
+      rawPatients = patientsData;
+    } else if (patientsData?.data?.patients && Array.isArray(patientsData.data.patients)) {
+      rawPatients = patientsData.data.patients;
+    } else if (patientsData?.data && Array.isArray(patientsData.data)) {
+      rawPatients = patientsData.data;
+    } else if (patientsData?.patients && Array.isArray(patientsData.patients)) {
+      rawPatients = patientsData.patients;
     }
-  ];
 
-  useEffect(() => {
-    setPatients(mockPatients);
-    setPagination(prev => ({ 
-      ...prev, 
-      total: mockPatients.length, 
-      totalPages: Math.ceil(mockPatients.length / prev.limit) 
-    }));
-  }, []);
+    // Calculate age from date of birth
+    const calculateAge = (dateOfBirth: string): number => {
+      try {
+        const birth = new Date(dateOfBirth);
+        const today = new Date();
+        let age = today.getFullYear() - birth.getFullYear();
+        const monthDiff = today.getMonth() - birth.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+          age--;
+        }
+        return age;
+      } catch {
+        return 0;
+      }
+    };
+
+    // Transform the raw API data to match our Patient interface
+    return rawPatients.map((rawPatient: any): Patient => {
+      return {
+        id: rawPatient._id || rawPatient.id || '',
+        patientId: rawPatient.patientId || '',
+        name: `${rawPatient.personalInfo?.firstName || ''} ${rawPatient.personalInfo?.lastName || ''}`.trim() || 'Unknown Patient',
+        age: rawPatient.personalInfo?.dateOfBirth ? calculateAge(rawPatient.personalInfo.dateOfBirth) : 0,
+        gender: rawPatient.personalInfo?.gender || 'other',
+        phone: rawPatient.contactInfo?.phone || '',
+        email: rawPatient.contactInfo?.email || '',
+        profilePicture: rawPatient.personalInfo?.profilePicture || null,
+        lastVisit: rawPatient.statistics?.lastVisit || null,
+        registeredDate: rawPatient.createdAt || rawPatient.registeredDate || new Date().toISOString(),
+        status: 'active', // Default to active since API doesn't seem to have this field
+        address: rawPatient.contactInfo?.address ? 
+          `${rawPatient.contactInfo.address.street || ''} ${rawPatient.contactInfo.address.city || ''} ${rawPatient.contactInfo.address.state || ''} ${rawPatient.contactInfo.address.zipCode || ''}`.trim() 
+          : '',
+        needsFollowUp: false, // Default value since API doesn't have this
+        totalVisits: rawPatient.statistics?.totalAppointments || 0,
+        conditions: rawPatient.medicalHistory?.conditions || [],
+        lastDiagnosis: rawPatient.medicalHistory?.lastDiagnosis || null,
+      };
+    });
+  }, [patientsData]);
 
   // Debounced search function
   const debouncedSearch = useCallback(
-    debounce(async (query) => {
-      if (query.trim().length >= 2) {
-        setSearching(true);
-        // Simulate API call
-        setTimeout(() => {
-          const results = mockPatients.filter(patient =>
-            patient.name.toLowerCase().includes(query.toLowerCase()) ||
-            patient.phone.includes(query) ||
-            patient.email.toLowerCase().includes(query.toLowerCase()) ||
-            patient.patientId.toLowerCase().includes(query.toLowerCase())
-          );
-          setSearchResults(results);
-          setSearching(false);
-        }, 300);
-      } else {
-        setSearchResults([]);
-        setSearching(false);
-      }
+    debounce((query: string) => {
+      // Search is handled in filteredAndSortedPatients memo
     }, 300),
-    [mockPatients]
+    []
   );
 
-  // useEffect(() => {
-  //   if (searchQuery) {
-  //     debouncedSearch(searchQuery);
-  //   } else {
-  //     setSearchResults([]);
-  //   }
-  // }, [searchQuery, debouncedSearch]);
+  useEffect(() => {
+    if (searchQuery) {
+      debouncedSearch(searchQuery);
+    }
+  }, [searchQuery, debouncedSearch]);
 
-  // Filter and sort patients
+  // Fixed: Filter and sort patients with safety checks
   const filteredAndSortedPatients = useMemo(() => {
-    const patientsToFilter = searchQuery.length >= 2 ? searchResults : patients;
-    
-    return patientsToFilter
-      .filter(patient => {
-        const matchesGender = filters.gender === 'all' || patient.gender === filters.gender;
-        const matchesAgeRange = filters.ageRange === 'all' || checkAgeRange(patient.age, filters.ageRange);
-        const matchesLastVisit = filters.lastVisit === 'all' || checkLastVisit(patient.lastVisit, filters.lastVisit);
-        const matchesStatus = filters.status === 'all' || patient.status === filters.status;
+    let filteredPatients = patients;
+
+    // Apply search filter - FIXED: Remove minimum length requirement and add safety checks
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filteredPatients = filteredPatients.filter(patient => {
+        // Add safety checks for undefined values
+        const name = patient.name?.toLowerCase() || '';
+        const phone = patient.phone || '';
+        const email = patient.email?.toLowerCase() || '';
+        const patientId = patient.patientId?.toLowerCase() || '';
         
-        return matchesGender && matchesAgeRange && matchesLastVisit && matchesStatus;
-      })
-      .sort((a, b) => {
-        switch (sortBy) {
-          case 'name_asc':
-            return a.name.localeCompare(b.name);
-          case 'name_desc':
-            return b.name.localeCompare(a.name);
-          case 'last_visit_desc':
-            return new Date(b.lastVisit || 0) - new Date(a.lastVisit || 0);
-          case 'last_visit_asc':
-            return new Date(a.lastVisit || 0) - new Date(b.lastVisit || 0);
-          case 'age_asc':
-            return a.age - b.age;
-          case 'age_desc':
-            return b.age - a.age;
-          default:
-            return 0;
-        }
+        return name.includes(query) ||
+               phone.includes(query) ||
+               email.includes(query) ||
+               patientId.includes(query);
       });
-  }, [patients, searchResults, searchQuery, filters, sortBy]);
-
-  const checkAgeRange = (age, range) => {
-    switch (range) {
-      case '0-18': return age <= 18;
-      case '19-35': return age >= 19 && age <= 35;
-      case '36-55': return age >= 36 && age <= 55;
-      case '56+': return age >= 56;
-      default: return true;
     }
-  };
 
-  const checkLastVisit = (lastVisit, range) => {
-    if (!lastVisit) return range === 'never';
-    const visitDate = new Date(lastVisit);
-    const now = new Date();
-    const daysDiff = Math.floor((now - visitDate) / (1000 * 60 * 60 * 24));
+    // Apply other filters with safety checks
+    filteredPatients = filteredPatients.filter(patient => {
+      // Add null/undefined checks
+      if (!patient) return false;
+      
+      const matchesGender = filters.gender === 'all' || patient.gender === filters.gender;
+      const matchesAgeRange = filters.ageRange === 'all' || checkAgeRange(patient.age || 0, filters.ageRange);
+      const matchesLastVisit = filters.lastVisit === 'all' || checkLastVisit(patient.lastVisit, filters.lastVisit);
+      const matchesStatus = filters.status === 'all' || patient.status === filters.status;
+      
+      return matchesGender && matchesAgeRange && matchesLastVisit && matchesStatus;
+    });
+
+    // Apply sorting with safety checks
+    return filteredPatients.sort((a, b) => {
+      if (!a || !b) return 0;
+      
+      switch (sortBy) {
+        case 'name_asc':
+          return (a.name || '').localeCompare(b.name || '');
+        case 'name_desc':
+          return (b.name || '').localeCompare(a.name || '');
+        case 'last_visit_desc':
+          return new Date(b.lastVisit || 0).getTime() - new Date(a.lastVisit || 0).getTime();
+        case 'last_visit_asc':
+          return new Date(a.lastVisit || 0).getTime() - new Date(b.lastVisit || 0).getTime();
+        case 'age_asc':
+          return (a.age || 0) - (b.age || 0);
+        case 'age_desc':
+          return (b.age || 0) - (a.age || 0);
+        default:
+          return 0;
+      }
+    });
+  }, [patients, searchQuery, filters, sortBy]);
+
+  // Log filtered results for debugging
+  useEffect(() => {
+    console.log("filteredAndSortedPatients length:", filteredAndSortedPatients.length);
+    console.log("filteredAndSortedPatients:", filteredAndSortedPatients);
+  }, [filteredAndSortedPatients]);
+
+  // Fixed: Age range check with safety
+  const checkAgeRange = (age: number, range: string): boolean => {
+    const safeAge = age || 0;
     
     switch (range) {
-      case 'last_week': return daysDiff <= 7;
-      case 'last_month': return daysDiff <= 30;
-      case 'last_3_months': return daysDiff <= 90;
-      case 'last_6_months': return daysDiff <= 180;
-      case 'over_6_months': return daysDiff > 180;
-      case 'never': return false;
+      case '0-18': return safeAge <= 18;
+      case '19-35': return safeAge >= 19 && safeAge <= 35;
+      case '36-55': return safeAge >= 36 && safeAge <= 55;
+      case '56+': return safeAge >= 56;
       default: return true;
     }
   };
 
-  const handlePatientSelect = (patient) => {
+  // Fixed: Last visit check with safety
+  const checkLastVisit = (lastVisit: string | null | undefined, range: string): boolean => {
+    if (!lastVisit || lastVisit === 'null' || lastVisit === 'undefined') {
+      return range === 'never';
+    }
+    
+    try {
+      const visitDate = new Date(lastVisit);
+      if (isNaN(visitDate.getTime())) {
+        return range === 'never';
+      }
+      
+      const now = new Date();
+      const daysDiff = Math.floor((now.getTime() - visitDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      switch (range) {
+        case 'last_week': return daysDiff <= 7;
+        case 'last_month': return daysDiff <= 30;
+        case 'last_3_months': return daysDiff <= 90;
+        case 'last_6_months': return daysDiff <= 180;
+        case 'over_6_months': return daysDiff > 180;
+        case 'never': return false;
+        default: return true;
+      }
+    } catch (error) {
+      return range === 'never';
+    }
+  };
+
+  const handlePatientSelect = (patient: Patient): void => {
     setSelectedPatient(patient);
     setActiveDetailTab('overview');
-    setPatientHistory(null);
   };
 
-  const loadPatientHistory = async (patientId) => {
-    setHistoryLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setPatientHistory({
-        visits: [
-          {
-            id: 1,
-            date: "2025-07-20",
-            time: "10:00",
-            type: "Consultation",
-            chiefComplaint: "Headache and fever",
-            diagnosis: "Viral infection",
-            status: "completed"
-          },
-          {
-            id: 2,
-            date: "2025-06-15",
-            time: "14:30",
-            type: "Follow-up",
-            chiefComplaint: "Blood pressure check",
-            diagnosis: "Hypertension monitoring",
-            status: "completed"
-          }
-        ],
-        conditions: [
-          {
-            id: 1,
-            name: "Hypertension",
-            status: "active",
-            diagnosedDate: "2024-01-15",
-            notes: "Well controlled with medication"
-          }
-        ],
-        medications: [
-          {
-            id: 1,
-            name: "Lisinopril",
-            dosage: "10mg",
-            frequency: "Once daily",
-            status: "active",
-            startDate: "2024-01-15"
-          }
-        ],
-        allergies: ["Penicillin"],
-        vitals: [
-          {
-            date: "2025-07-20",
-            bloodPressure: "120/80",
-            heartRate: 72,
-            temperature: 98.6,
-            weight: 70
-          }
-        ]
-      });
-      setHistoryLoading(false);
-    }, 500);
-  };
-
-  // Patient stats
-  const patientStats = useMemo(() => {
+  // Fixed: Patient stats with safety checks
+  const patientStats: PatientStats = useMemo(() => {
     const now = new Date();
     const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const lastMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     
     return {
       total: patients.length,
-      newThisWeek: patients.filter(p => new Date(p.registeredDate) > lastWeek).length,
-      seenThisMonth: patients.filter(p => 
-        p.lastVisit && new Date(p.lastVisit) > lastMonth
-      ).length,
-      needFollowUp: patients.filter(p => p.needsFollowUp).length
+      newThisWeek: patients.filter(p => {
+        try {
+          return p.registeredDate && new Date(p.registeredDate) > lastWeek;
+        } catch {
+          return false;
+        }
+      }).length,
+      seenThisMonth: patients.filter(p => {
+        try {
+          return p.lastVisit && p.lastVisit !== 'null' && new Date(p.lastVisit) > lastMonth;
+        } catch {
+          return false;
+        }
+      }).length,
+      needFollowUp: patients.filter(p => p.needsFollowUp === true).length
     };
   }, [patients]);
 
-  const PatientCard = ({ patient, isSelected, onClick }) => {
+  // Fixed: PatientCard component with safety checks
+  const PatientCard: React.FC<{
+    patient: Patient;
+    isSelected: boolean;
+    onClick: () => void;
+  }> = ({ patient, isSelected, onClick }) => {
+    // Add safety checks for patient data
+    if (!patient) return null;
+    
+    const safeName = patient.name || 'Unknown Patient';
+    const safePatientId = patient.patientId || 'N/A';
+    const safeAge = patient.age || 0;
+    const safeGender = patient.gender || 'unknown';
+    const safePhone = patient.phone || 'N/A';
+    const safeEmail = patient.email || 'N/A';
+    const safeAddress = patient.address || 'N/A';
+    const safeConditions = patient.conditions || [];
+
     return (
       <PatientCardContainer selected={isSelected} onClick={onClick}>
         <PatientCardHeader>
           <PatientAvatar>
             <img 
               src={patient.profilePicture || 'https://avatar.iran.liara.run/public'} 
-              alt={patient.name}
+              alt={safeName}
               onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'flex';
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+                const fallback = target.nextSibling as HTMLElement;
+                if (fallback) fallback.style.display = 'flex';
               }}
             />
             <div className="avatar-fallback">
-              {patient.name.split(' ').map(n => n[0]).join('')}
+              {safeName.split(' ').map(n => n[0]).join('').toUpperCase()}
             </div>
-            <StatusIndicator status={patient.status} />
+            <StatusIndicator status={patient.status || 'inactive'} />
             {patient.needsFollowUp && <FollowUpIndicator title="Needs Follow-up" />}
           </PatientAvatar>
           
           <PatientBasicInfo>
-            <PatientName>{patient.name}</PatientName>
-            <PatientId>#{patient.patientId}</PatientId>
-            <PatientMeta>{patient.age} years • {patient.gender}</PatientMeta>
+            <PatientName>{safeName}</PatientName>
+            <PatientId>#{safePatientId}</PatientId>
+            <PatientMeta>{safeAge} years • {safeGender}</PatientMeta>
           </PatientBasicInfo>
         </PatientCardHeader>
 
@@ -387,24 +422,24 @@ const PatientManagement = () => {
           <ContactInfo>
             <ContactItem>
               <FiPhone size={12} />
-              <span>{patient.phone}</span>
+              <span>{safePhone}</span>
             </ContactItem>
             <ContactItem>
               <FiMail size={12} />
-              <span>{patient.email}</span>
+              <span>{safeEmail}</span>
             </ContactItem>
             <ContactItem>
               <FiMapPin size={12} />
-              <span>{patient.address}</span>
+              <span>{safeAddress}</span>
             </ContactItem>
           </ContactInfo>
 
           <VisitInfo>
             <div className="last-visit">
-              <strong>Last Visit:</strong> {patient.lastVisit ? formatDate(patient.lastVisit) : 'Never'}
+              <strong>Last Visit:</strong> {patient.lastVisit && patient.lastVisit !== 'null' ? formatDate(patient.lastVisit) : 'Never'}
             </div>
             <div className="total-visits">
-              <strong>Total Visits:</strong> {patient.totalVisits}
+              <strong>Total Visits:</strong> {patient.totalVisits || 0}
             </div>
             {patient.lastDiagnosis && (
               <div className="last-diagnosis">
@@ -413,15 +448,15 @@ const PatientManagement = () => {
             )}
           </VisitInfo>
 
-          {patient.conditions.length > 0 && (
+          {safeConditions.length > 0 && (
             <ConditionsInfo>
               <strong>Conditions:</strong>
               <ConditionTags>
-                {patient.conditions.slice(0, 2).map((condition, index) => (
+                {safeConditions.slice(0, 2).map((condition, index) => (
                   <ConditionTag key={index}>{condition}</ConditionTag>
                 ))}
-                {patient.conditions.length > 2 && (
-                  <ConditionTag>+{patient.conditions.length - 2} more</ConditionTag>
+                {safeConditions.length > 2 && (
+                  <ConditionTag>+{safeConditions.length - 2} more</ConditionTag>
                 )}
               </ConditionTags>
             </ConditionsInfo>
@@ -454,7 +489,7 @@ const PatientManagement = () => {
     );
   };
 
-  const PatientDetailsPanel = () => {
+  const PatientDetailsPanel: React.FC = () => {
     if (!selectedPatient) {
       return (
         <EmptyPatientSelection>
@@ -465,10 +500,6 @@ const PatientManagement = () => {
           <EmptyMessage>
             Choose a patient from the list to see their medical history, appointments, and contact information.
           </EmptyMessage>
-          <AddPatientButton>
-            <FiPlus size={16} />
-            Add New Patient
-          </AddPatientButton>
         </EmptyPatientSelection>
       );
     }
@@ -482,20 +513,22 @@ const PatientManagement = () => {
                 src={selectedPatient.profilePicture || 'https://avatar.iran.liara.run/public'} 
                 alt={selectedPatient.name}
                 onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'flex';
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  const fallback = target.nextSibling as HTMLElement;
+                  if (fallback) fallback.style.display = 'flex';
                 }}
               />
               <div className="avatar-fallback">
-                {selectedPatient.name.split(' ').map(n => n[0]).join('')}
+                {(selectedPatient.name || '').split(' ').map(n => n[0]).join('').toUpperCase()}
               </div>
             </PatientAvatarLarge>
             
             <PatientDetailInfo>
-              <h2>{selectedPatient.name}</h2>
-              <p>Patient ID: #{selectedPatient.patientId}</p>
-              <p>{selectedPatient.age} years • {selectedPatient.gender}</p>
-              <p>{selectedPatient.phone} • {selectedPatient.email}</p>
+              <h2>{selectedPatient.name || 'Unknown Patient'}</h2>
+              <p>Patient ID: #{selectedPatient.patientId || 'N/A'}</p>
+              <p>{selectedPatient.age || 0} years • {selectedPatient.gender || 'unknown'}</p>
+              <p>{selectedPatient.phone || 'N/A'} • {selectedPatient.email || 'N/A'}</p>
             </PatientDetailInfo>
           </PatientDetailBasicInfo>
           
@@ -523,12 +556,7 @@ const PatientManagement = () => {
           </TabButton>
           <TabButton 
             active={activeDetailTab === 'history'} 
-            onClick={() => {
-              setActiveDetailTab('history');
-              if (!patientHistory) {
-                loadPatientHistory(selectedPatient.id);
-              }
-            }}
+            onClick={() => setActiveDetailTab('history')}
           >
             Medical History
           </TabButton>
@@ -552,7 +580,7 @@ const PatientManagement = () => {
             <PatientHistoryTab 
               history={patientHistory} 
               loading={historyLoading}
-              onRefresh={() => loadPatientHistory(selectedPatient.id)}
+              onRefresh={refetchHistory}
             />
           )}
           {activeDetailTab === 'appointments' && <PatientAppointmentsTab patient={selectedPatient} />}
@@ -562,26 +590,26 @@ const PatientManagement = () => {
     );
   };
 
-  const PatientOverviewTab = ({ patient }) => (
+  const PatientOverviewTab: React.FC<{ patient: Patient }> = ({ patient }) => (
     <OverviewContent>
       <OverviewSection>
         <SectionTitle>Contact Information</SectionTitle>
         <InfoGrid>
           <InfoItem>
             <InfoLabel>Phone</InfoLabel>
-            <InfoValue>{patient.phone}</InfoValue>
+            <InfoValue>{patient.phone || 'N/A'}</InfoValue>
           </InfoItem>
           <InfoItem>
             <InfoLabel>Email</InfoLabel>
-            <InfoValue>{patient.email}</InfoValue>
+            <InfoValue>{patient.email || 'N/A'}</InfoValue>
           </InfoItem>
           <InfoItem>
             <InfoLabel>Address</InfoLabel>
-            <InfoValue>{patient.address}</InfoValue>
+            <InfoValue>{patient.address || 'N/A'}</InfoValue>
           </InfoItem>
           <InfoItem>
             <InfoLabel>Registered</InfoLabel>
-            <InfoValue>{formatDate(patient.registeredDate)}</InfoValue>
+            <InfoValue>{patient.registeredDate ? formatDate(patient.registeredDate) : 'N/A'}</InfoValue>
           </InfoItem>
         </InfoGrid>
       </OverviewSection>
@@ -591,15 +619,15 @@ const PatientManagement = () => {
         <InfoGrid>
           <InfoItem>
             <InfoLabel>Total Visits</InfoLabel>
-            <InfoValue>{patient.totalVisits}</InfoValue>
+            <InfoValue>{patient.totalVisits || 0}</InfoValue>
           </InfoItem>
           <InfoItem>
             <InfoLabel>Last Visit</InfoLabel>
-            <InfoValue>{patient.lastVisit ? formatDate(patient.lastVisit) : 'Never'}</InfoValue>
+            <InfoValue>{patient.lastVisit && patient.lastVisit !== 'null' ? formatDate(patient.lastVisit) : 'Never'}</InfoValue>
           </InfoItem>
           <InfoItem>
             <InfoLabel>Known Conditions</InfoLabel>
-            <InfoValue>{patient.conditions.length}</InfoValue>
+            <InfoValue>{(patient.conditions || []).length}</InfoValue>
           </InfoItem>
           <InfoItem>
             <InfoLabel>Follow-up Required</InfoLabel>
@@ -612,11 +640,11 @@ const PatientManagement = () => {
         </InfoGrid>
       </OverviewSection>
 
-      {patient.conditions.length > 0 && (
+      {(patient.conditions || []).length > 0 && (
         <OverviewSection>
           <SectionTitle>Active Conditions</SectionTitle>
           <ConditionList>
-            {patient.conditions.map((condition, index) => (
+            {(patient.conditions || []).map((condition, index) => (
               <ConditionItem key={index}>
                 <ConditionName>{condition}</ConditionName>
                 <ConditionStatus>Active</ConditionStatus>
@@ -628,7 +656,11 @@ const PatientManagement = () => {
     </OverviewContent>
   );
 
-  const PatientHistoryTab = ({ history, loading, onRefresh }) => {
+  const PatientHistoryTab: React.FC<{
+    history: ConsultationHistory | undefined;
+    loading: boolean;
+    onRefresh: () => void;
+  }> = ({ history, loading, onRefresh }) => {
     if (loading) {
       return (
         <LoadingContainer>
@@ -652,19 +684,19 @@ const PatientManagement = () => {
         <HistoryHeader>
           <HistoryStats>
             <StatCard>
-              <StatValue>{history.visits.length}</StatValue>
+              <StatValue>{(history.visits || []).length}</StatValue>
               <StatLabel>Total Visits</StatLabel>
             </StatCard>
             <StatCard>
-              <StatValue>{history.conditions.filter(c => c.status === 'active').length}</StatValue>
+              <StatValue>{(history.conditions || []).filter(c => c.status === 'active').length}</StatValue>
               <StatLabel>Active Conditions</StatLabel>
             </StatCard>
             <StatCard>
-              <StatValue>{history.medications.filter(m => m.status === 'active').length}</StatValue>
+              <StatValue>{(history.medications || []).filter(m => m.status === 'active').length}</StatValue>
               <StatLabel>Current Medications</StatLabel>
             </StatCard>
             <StatCard>
-              <StatValue>{history.allergies.length}</StatValue>
+              <StatValue>{(history.allergies || []).length}</StatValue>
               <StatLabel>Known Allergies</StatLabel>
             </StatCard>
           </HistoryStats>
@@ -677,7 +709,7 @@ const PatientManagement = () => {
 
         <HistoryTimeline>
           <TimelineTitle>Recent Visits</TimelineTitle>
-          {history.visits.map(visit => (
+          {(history.visits || []).map(visit => (
             <TimelineItem key={visit.id}>
               <TimelineDate>{formatDate(visit.date)}</TimelineDate>
               <TimelineContent>
@@ -696,10 +728,10 @@ const PatientManagement = () => {
     );
   };
 
-  const PatientAppointmentsTab = ({ patient }) => (
+  const PatientAppointmentsTab: React.FC<{ patient: Patient }> = ({ patient }) => (
     <AppointmentsContent>
       <AppointmentsHeader>
-        <h3>Appointments for {patient.name}</h3>
+        <h3>Appointments for {patient.name || 'Patient'}</h3>
         <ActionButton variant="primary">
           <FiPlus size={16} />
           Schedule New
@@ -709,10 +741,10 @@ const PatientManagement = () => {
     </AppointmentsContent>
   );
 
-  const PatientDocumentsTab = ({ patient }) => (
+  const PatientDocumentsTab: React.FC<{ patient: Patient }> = ({ patient }) => (
     <DocumentsContent>
       <DocumentsHeader>
-        <h3>Documents for {patient.name}</h3>
+        <h3>Documents for {patient.name || 'Patient'}</h3>
         <ActionButton variant="primary">
           <FiPlus size={16} />
           Upload Document
@@ -721,6 +753,29 @@ const PatientManagement = () => {
       <p>Patient documents and files will be displayed here.</p>
     </DocumentsContent>
   );
+
+  // Loading state
+  if (patientsLoading) {
+    return (
+      <LoadingContainer>
+        <LoadingSpinner />
+        <LoadingText>Loading patients...</LoadingText>
+      </LoadingContainer>
+    );
+  }
+
+  // Error state
+  if (patientsError) {
+    return (
+      <ErrorContainer>
+        <ErrorMessage>Failed to load patients. Please try again.</ErrorMessage>
+        <ActionButton onClick={refetchPatients}>
+          <FiRefreshCw size={16} />
+          Retry
+        </ActionButton>
+      </ErrorContainer>
+    );
+  }
 
   return (
     <Container>
@@ -757,7 +812,7 @@ const PatientManagement = () => {
         </HeaderContent>
         
         <HeaderActions>
-          <RefreshButton onClick={() => window.location.reload()}>
+          <RefreshButton onClick={refetchPatients}>
             <FiRefreshCw size={16} />
             Refresh
           </RefreshButton>
@@ -765,10 +820,6 @@ const PatientManagement = () => {
             <FiDownload size={16} />
             Export
           </ExportButton>
-          <AddPatientButton>
-            <FiPlus size={16} />
-            Add Patient
-          </AddPatientButton>
         </HeaderActions>
       </Header>
 
@@ -783,7 +834,7 @@ const PatientManagement = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               <SearchIcon>
-                {searching ? <LoadingSpinner size="small" /> : <FiSearch size={16} />}
+                <FiSearch size={16} />
               </SearchIcon>
               {searchQuery && (
                 <ClearSearchButton onClick={() => setSearchQuery('')}>
@@ -810,7 +861,7 @@ const PatientManagement = () => {
 
               <SortSelect
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
+                onChange={(e) => setSortBy(e.target.value as SortBy)}
               >
                 <option value="name_asc">Name A-Z</option>
                 <option value="name_desc">Name Z-A</option>
@@ -831,7 +882,7 @@ const PatientManagement = () => {
               <AdvancedFilters>
                 <FilterSelect
                   value={filters.gender}
-                  onChange={(e) => setFilters(prev => ({ ...prev, gender: e.target.value }))}
+                  onChange={(e) => setFilters(prev => ({ ...prev, gender: e.target.value as Filters['gender'] }))}
                 >
                   <option value="all">All Genders</option>
                   <option value="male">Male</option>
@@ -841,7 +892,7 @@ const PatientManagement = () => {
 
                 <FilterSelect
                   value={filters.ageRange}
-                  onChange={(e) => setFilters(prev => ({ ...prev, ageRange: e.target.value }))}
+                  onChange={(e) => setFilters(prev => ({ ...prev, ageRange: e.target.value as Filters['ageRange'] }))}
                 >
                   <option value="all">All Ages</option>
                   <option value="0-18">Children (0-18)</option>
@@ -852,7 +903,7 @@ const PatientManagement = () => {
 
                 <FilterSelect
                   value={filters.lastVisit}
-                  onChange={(e) => setFilters(prev => ({ ...prev, lastVisit: e.target.value }))}
+                  onChange={(e) => setFilters(prev => ({ ...prev, lastVisit: e.target.value as Filters['lastVisit'] }))}
                 >
                   <option value="all">Any Time</option>
                   <option value="last_week">Last Week</option>
@@ -869,12 +920,9 @@ const PatientManagement = () => {
               </AdvancedFilters>
             )}
 
-            {searchQuery.length >= 2 && (
+            {searchQuery.trim() && (
               <SearchInfo>
-                <span>
-                  Showing results for "{searchQuery}"
-                  {searching && <LoadingSpinner size="small" />}
-                </span>
+                <span>Showing results for "{searchQuery}"</span>
                 <ClearSearchButton onClick={() => setSearchQuery('')}>
                   Clear Search
                 </ClearSearchButton>
@@ -894,15 +942,9 @@ const PatientManagement = () => {
                 <EmptyMessage>
                   {searchQuery 
                     ? "Try adjusting your search terms or filters"
-                    : "Add your first patient to get started with patient management"
+                    : "No patients match the current filters"
                   }
                 </EmptyMessage>
-                {!searchQuery && (
-                  <AddPatientButton>
-                    <FiPlus size={16} />
-                    Add First Patient
-                  </AddPatientButton>
-                )}
               </EmptyState>
             ) : (
               <>
@@ -947,36 +989,38 @@ const PatientManagement = () => {
                               <PatientAvatar small>
                                 <img 
                                   src={patient.profilePicture || 'https://avatar.iran.liara.run/public'} 
-                                  alt={patient.name}
+                                  alt={patient.name || 'Patient'}
                                   onError={(e) => {
-                                    e.target.style.display = 'none';
-                                    e.target.nextSibling.style.display = 'flex';
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    const fallback = target.nextSibling as HTMLElement;
+                                    if (fallback) fallback.style.display = 'flex';
                                   }}
                                 />
                                 <div className="avatar-fallback">
-                                  {patient.name.split(' ').map(n => n[0]).join('')}
+                                  {(patient.name || '').split(' ').map(n => n[0]).join('').toUpperCase()}
                                 </div>
                               </PatientAvatar>
                               <div>
-                                <PatientName>{patient.name}</PatientName>
-                                <PatientId>#{patient.patientId}</PatientId>
+                                <PatientName>{patient.name || 'Unknown Patient'}</PatientName>
+                                <PatientId>#{patient.patientId || 'N/A'}</PatientId>
                               </div>
                             </TablePatientInfo>
                           </TableCell>
-                          <TableCell>{patient.age} • {patient.gender}</TableCell>
+                          <TableCell>{patient.age || 0} • {patient.gender || 'unknown'}</TableCell>
                           <TableCell>
-                            <div>{patient.phone}</div>
+                            <div>{patient.phone || 'N/A'}</div>
                             <div style={{ fontSize: '12px', color: theme.colors.gray[500] }}>
-                              {patient.email}
+                              {patient.email || 'N/A'}
                             </div>
                           </TableCell>
                           <TableCell>
-                            {patient.lastVisit ? formatDate(patient.lastVisit) : 'Never'}
+                            {patient.lastVisit && patient.lastVisit !== 'null' ? formatDate(patient.lastVisit) : 'Never'}
                           </TableCell>
-                          <TableCell>{patient.totalVisits}</TableCell>
+                          <TableCell>{patient.totalVisits || 0}</TableCell>
                           <TableCell>
-                            <StatusBadge status={patient.status}>
-                              {patient.status}
+                            <StatusBadge status={patient.status === 'active' ? 'success' : 'danger'}>
+                              {patient.status || 'inactive'}
                             </StatusBadge>
                             {patient.needsFollowUp && (
                               <FollowUpBadge>Follow-up</FollowUpBadge>
@@ -1025,198 +1069,153 @@ const PatientManagement = () => {
 };
 
 // Utility function for debouncing
-function debounce(func, wait) {
-  let timeout;
-  return function executedFunction(...args) {
+function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T {
+  let timeout: NodeJS.Timeout;
+  return ((...args: Parameters<T>) => {
     const later = () => {
       clearTimeout(timeout);
       func(...args);
     };
     clearTimeout(timeout);
     timeout = setTimeout(later, wait);
-  };
+  }) as T;
 }
 
 // Utility function for date formatting
-const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+const formatDate = (dateString: string): string => {
+  try {
+    return new Date(dateString).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return 'Invalid Date';
+  }
 };
 
 // Styled Components
 const Container = styled.div`
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
-  margin-bottom: 24px;
-  height: calc(100vh - 100px);
   display: flex;
   flex-direction: column;
+  height: 100vh;
+  background-color: ${theme.colors.gray[50]};
 `;
 
-const Header = styled.div`
+const Header = styled.header`
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 24px;
-  background: linear-gradient(135deg, ${theme.colors.primary} 0%, #6366f1 100%);
-  color: white;
-  flex-shrink: 0;
-
-  @media (max-width: 768px) {
-    flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
-  }
+  padding: 24px 32px;
+  background: white;
+  border-bottom: 1px solid ${theme.colors.gray[200]};
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
 `;
 
-const HeaderContent = styled.div``;
+const HeaderContent = styled.div`
+  flex: 1;
+`;
 
 const Title = styled.h1`
-  font-size: 24px;
-  font-weight: 600;
-  margin: 0 0 4px 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: ${theme.colors.gray[900]};
+  margin: 0 0 8px 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-
-  @media (max-width: 768px) {
-    font-size: 20px;
-  }
+  gap: 12px;
 `;
 
 const TotalCount = styled.span`
   font-size: 16px;
-  font-weight: 400;
-  opacity: 0.8;
+  font-weight: 500;
+  color: ${theme.colors.gray[500]};
 `;
 
 const Subtitle = styled.p`
-  font-size: 14px;
-  margin: 0 0 16px 0;
-  opacity: 0.9;
+  font-size: 16px;
+  color: ${theme.colors.gray[600]};
+  margin: 0 0 24px 0;
 `;
 
 const StatsContainer = styled.div`
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-
-  @media (max-width: 768px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  max-width: 600px;
 `;
 
 const StatCard = styled.div`
-  background: rgba(255, 255, 255, 0.1);
-  padding: 12px 16px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  min-width: 120px;
   display: flex;
   align-items: center;
   gap: 8px;
-
+  padding: 12px 16px;
+  background: ${theme.colors.gray[100]};
+  border-radius: 8px;
+  color: ${theme.colors.gray[700]};
+  
   svg {
-    opacity: 0.8;
+    color: ${theme.colors.primary};
   }
 `;
 
 const StatValue = styled.div`
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 2px;
+  font-size: 20px;
+  font-weight: 700;
+  color: ${theme.colors.gray[900]};
 `;
 
 const StatLabel = styled.div`
-  font-size: 11px;
-  opacity: 0.8;
+  font-size: 12px;
+  color: ${theme.colors.gray[600]};
+  margin-top: 2px;
 `;
 
 const HeaderActions = styled.div`
   display: flex;
   gap: 12px;
-  flex-wrap: wrap;
 `;
 
-const Button = styled.button`
+const RefreshButton = styled.button`
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 13px;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid ${theme.colors.gray[300]};
+  background: white;
+  color: ${theme.colors.gray[700]};
+  border-radius: 8px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-`;
-
-const RefreshButton = styled(Button)`
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: ${theme.colors.gray[50]};
+    border-color: ${theme.colors.gray[400]};
   }
 `;
 
-const ExportButton = styled(Button)`
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.2);
-  }
-`;
-
-const AddPatientButton = styled(Button)`
-  background: rgba(255, 255, 255, 0.15);
-  color: white;
-  padding: 10px 16px;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.25);
-    transform: translateY(-1px);
-  }
-`;
+const ExportButton = styled(RefreshButton)``;
 
 const Content = styled.div`
-  display: flex;
   flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 0;
   overflow: hidden;
 `;
 
 const PatientListPanel = styled.div`
-  width: 60%;
-  border-right: 1px solid ${theme.colors.gray[200]};
   display: flex;
   flex-direction: column;
-
-  @media (max-width: 768px) {
-    width: 100%;
-    border-right: none;
-  }
-`;
-
-const PatientDetailPanel = styled.div`
-  width: 40%;
-  background: ${theme.colors.gray[50]};
-
-  @media (max-width: 768px) {
-    display: none;
-  }
+  background: white;
+  border-right: 1px solid ${theme.colors.gray[200]};
 `;
 
 const SearchAndFilters = styled.div`
-  padding: 20px;
+  padding: 24px;
   border-bottom: 1px solid ${theme.colors.gray[200]};
-  background: white;
-  flex-shrink: 0;
 `;
 
 const SearchContainer = styled.div`
@@ -1226,22 +1225,25 @@ const SearchContainer = styled.div`
 
 const SearchInput = styled.input`
   width: 100%;
-  padding: 12px 40px 12px 16px;
+  padding: 12px 16px 12px 44px;
   border: 1px solid ${theme.colors.gray[300]};
   border-radius: 8px;
   font-size: 14px;
-  transition: all 0.2s;
+  outline: none;
+  transition: border-color 0.2s;
 
   &:focus {
-    outline: none;
     border-color: ${theme.colors.primary};
-    box-shadow: 0 0 0 3px ${theme.colors.primary}20;
+  }
+
+  &::placeholder {
+    color: ${theme.colors.gray[500]};
   }
 `;
 
 const SearchIcon = styled.div`
   position: absolute;
-  right: 12px;
+  left: 16px;
   top: 50%;
   transform: translateY(-50%);
   color: ${theme.colors.gray[400]};
@@ -1249,15 +1251,16 @@ const SearchIcon = styled.div`
 
 const ClearSearchButton = styled.button`
   position: absolute;
-  right: 40px;
+  right: 12px;
   top: 50%;
   transform: translateY(-50%);
-  background: none;
+  padding: 4px;
   border: none;
+  background: none;
   color: ${theme.colors.gray[400]};
   cursor: pointer;
-  padding: 4px;
   border-radius: 4px;
+  transition: all 0.2s;
 
   &:hover {
     background: ${theme.colors.gray[100]};
@@ -1269,7 +1272,6 @@ const FilterControls = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
 `;
 
 const ViewModeToggle = styled.div`
@@ -1279,7 +1281,7 @@ const ViewModeToggle = styled.div`
   overflow: hidden;
 `;
 
-const ViewModeButton = styled.button`
+const ViewModeButton = styled.button<{ active: boolean }>`
   padding: 8px 12px;
   border: none;
   background: ${props => props.active ? theme.colors.primary : 'white'};
@@ -1298,11 +1300,11 @@ const SortSelect = styled.select`
   border-radius: 6px;
   font-size: 14px;
   background: white;
+  color: ${theme.colors.gray[700]};
   cursor: pointer;
-  min-width: 140px;
+  outline: none;
 
   &:focus {
-    outline: none;
     border-color: ${theme.colors.primary};
   }
 `;
@@ -1310,12 +1312,13 @@ const SortSelect = styled.select`
 const FilterButton = styled.button`
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 8px 12px;
   border: 1px solid ${theme.colors.gray[300]};
-  border-radius: 6px;
   background: white;
   color: ${theme.colors.gray[700]};
+  border-radius: 6px;
+  font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
 
@@ -1325,37 +1328,39 @@ const FilterButton = styled.button`
 `;
 
 const AdvancedFilters = styled.div`
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr) auto;
   gap: 12px;
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid ${theme.colors.gray[200]};
-  flex-wrap: wrap;
 `;
 
 const FilterSelect = styled.select`
   padding: 8px 12px;
   border: 1px solid ${theme.colors.gray[300]};
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 14px;
   background: white;
+  color: ${theme.colors.gray[700]};
   cursor: pointer;
-  min-width: 120px;
+  outline: none;
 
   &:focus {
-    outline: none;
     border-color: ${theme.colors.primary};
   }
 `;
 
 const ClearFiltersButton = styled.button`
-  padding: 8px 12px;
+  padding: 8px 16px;
   border: 1px solid ${theme.colors.gray[300]};
-  border-radius: 6px;
   background: white;
-  color: ${theme.colors.gray[600]};
+  color: ${theme.colors.gray[700]};
+  border-radius: 6px;
+  font-size: 14px;
   cursor: pointer;
-  font-size: 13px;
+  transition: all 0.2s;
+  white-space: nowrap;
 
   &:hover {
     background: ${theme.colors.gray[50]};
@@ -1366,9 +1371,10 @@ const SearchInfo = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid ${theme.colors.gray[200]};
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: ${theme.colors.gray[50]};
+  border-radius: 6px;
   font-size: 14px;
   color: ${theme.colors.gray[600]};
 `;
@@ -1376,58 +1382,55 @@ const SearchInfo = styled.div`
 const PatientListContent = styled.div`
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
 `;
 
 const ResultsInfo = styled.div`
-  font-size: 13px;
+  padding: 16px 24px;
+  font-size: 14px;
   color: ${theme.colors.gray[600]};
-  margin-bottom: 16px;
+  border-bottom: 1px solid ${theme.colors.gray[200]};
 `;
 
 const PatientsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 16px;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
+  padding: 24px;
 `;
 
-const PatientCardContainer = styled.div`
-  border: 1px solid ${props => props.selected ? theme.colors.primary : theme.colors.gray[200]};
-  border-radius: 12px;
-  padding: 16px;
+const PatientCardContainer = styled.div<{ selected: boolean }>`
   background: white;
+  border: 2px solid ${props => props.selected ? theme.colors.primary : theme.colors.gray[200]};
+  border-radius: 12px;
+  padding: 20px;
   cursor: pointer;
   transition: all 0.2s;
-  ${props => props.selected && `box-shadow: 0 0 0 1px ${theme.colors.primary}20;`}
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 
   &:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    transform: translateY(-2px);
+    border-color: ${props => props.selected ? theme.colors.primary : theme.colors.gray[300]};
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   }
 `;
 
 const PatientCardHeader = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 16px;
+  margin-bottom: 16px;
 `;
 
-const PatientAvatar = styled.div`
-  width: ${props => props.small ? '32px' : '40px'};
-  height: ${props => props.small ? '32px' : '40px'};
-  border-radius: 50%;
+const PatientAvatar = styled.div<{ small?: boolean }>`
   position: relative;
-  flex-shrink: 0;
+  width: ${props => props.small ? '40px' : '60px'};
+  height: ${props => props.small ? '40px' : '60px'};
+  border-radius: 50%;
+  overflow: hidden;
+  background: ${theme.colors.gray[200]};
 
   img {
     width: 100%;
     height: 100%;
-    border-radius: 50%;
     object-fit: cover;
   }
 
@@ -1435,20 +1438,19 @@ const PatientAvatar = styled.div`
     display: none;
     width: 100%;
     height: 100%;
-    border-radius: 50%;
-    background: linear-gradient(135deg, ${theme.colors.primary}, #6366f1);
-    color: white;
     align-items: center;
     justify-content: center;
-    font-size: ${props => props.small ? '12px' : '14px'};
+    background: ${theme.colors.primary};
+    color: white;
     font-weight: 600;
+    font-size: ${props => props.small ? '14px' : '18px'};
   }
 `;
 
-const StatusIndicator = styled.div`
+const StatusIndicator = styled.div<{ status: PatientStatus }>`
   position: absolute;
-  bottom: -2px;
-  right: -2px;
+  bottom: 2px;
+  right: 2px;
   width: 12px;
   height: 12px;
   border-radius: 50%;
@@ -1458,40 +1460,39 @@ const StatusIndicator = styled.div`
 
 const FollowUpIndicator = styled.div`
   position: absolute;
-  top: -4px;
-  right: -4px;
-  width: 12px;
-  height: 12px;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: ${theme.colors.warning};
-  border: 2px solid white;
+  border: 1px solid white;
 `;
 
 const PatientBasicInfo = styled.div`
   flex: 1;
-  min-width: 0;
 `;
 
-const PatientName = styled.div`
+const PatientName = styled.h3`
+  font-size: 18px;
   font-weight: 600;
   color: ${theme.colors.gray[900]};
-  margin-bottom: 2px;
-  font-size: 14px;
+  margin: 0 0 4px 0;
 `;
 
 const PatientId = styled.div`
-  font-size: 11px;
+  font-size: 12px;
   color: ${theme.colors.gray[500]};
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 `;
 
 const PatientMeta = styled.div`
-  font-size: 12px;
+  font-size: 14px;
   color: ${theme.colors.gray[600]};
 `;
 
 const PatientCardContent = styled.div`
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 `;
 
 const ContactInfo = styled.div`
@@ -1501,48 +1502,48 @@ const ContactInfo = styled.div`
 const ContactItem = styled.div`
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 12px;
   color: ${theme.colors.gray[600]};
   margin-bottom: 4px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
 `;
 
 const VisitInfo = styled.div`
-  margin-bottom: 12px;
   font-size: 12px;
+  color: ${theme.colors.gray[600]};
+  margin-bottom: 12px;
 
   > div {
     margin-bottom: 4px;
-  }
 
-  strong {
-    color: ${theme.colors.gray[700]};
+    &:last-child {
+      margin-bottom: 0;
+    }
   }
 `;
 
 const ConditionsInfo = styled.div`
   font-size: 12px;
-
-  strong {
-    color: ${theme.colors.gray[700]};
-    display: block;
-    margin-bottom: 4px;
-  }
+  color: ${theme.colors.gray[600]};
 `;
 
 const ConditionTags = styled.div`
   display: flex;
-  gap: 4px;
   flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
 `;
 
 const ConditionTag = styled.span`
   padding: 2px 6px;
-  background: ${theme.colors.primary}10;
-  color: ${theme.colors.primary};
-  border-radius: 8px;
+  background: ${theme.colors.gray[100]};
+  color: ${theme.colors.gray[700]};
+  border-radius: 4px;
   font-size: 10px;
-  font-weight: 500;
 `;
 
 const PatientCardActions = styled.div`
@@ -1550,53 +1551,55 @@ const PatientCardActions = styled.div`
   gap: 8px;
 `;
 
-const ActionButton = styled.button`
+const ActionButton = styled.button<{ 
+  variant?: 'primary' | 'secondary' | 'ghost';
+  size?: 'sm' | 'md';
+}>`
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: ${props => props.size === 'sm' ? '4px 8px' : '6px 12px'};
-  border: 1px solid;
+  gap: 6px;
+  padding: ${props => props.size === 'sm' ? '6px 8px' : '8px 12px'};
+  border: 1px solid ${props => {
+    switch (props.variant) {
+      case 'primary': return theme.colors.primary;
+      case 'ghost': return 'transparent';
+      default: return theme.colors.gray[300];
+    }
+  }};
+  background: ${props => {
+    switch (props.variant) {
+      case 'primary': return theme.colors.primary;
+      case 'ghost': return 'transparent';
+      default: return 'white';
+    }
+  }};
+  color: ${props => {
+    switch (props.variant) {
+      case 'primary': return 'white';
+      case 'ghost': return theme.colors.gray[600];
+      default: return theme.colors.gray[700];
+    }
+  }};
   border-radius: 6px;
-  font-size: ${props => props.size === 'sm' ? '11px' : '12px'};
+  font-size: ${props => props.size === 'sm' ? '12px' : '14px'};
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  
-  ${props => {
-    switch (props.variant) {
-      case 'primary':
-        return `
-          background: ${theme.colors.primary}10;
-          border-color: ${theme.colors.primary}30;
-          color: ${theme.colors.primary};
-          &:hover { background: ${theme.colors.primary}20; }
-        `;
-      case 'secondary':
-        return `
-          background: ${theme.colors.gray[100]};
-          border-color: ${theme.colors.gray[300]};
-          color: ${theme.colors.gray[700]};
-          &:hover { background: ${theme.colors.gray[200]}; }
-        `;
-      case 'ghost':
-        return `
-          background: transparent;
-          border-color: ${theme.colors.gray[300]};
-          color: ${theme.colors.gray[600]};
-          &:hover { background: ${theme.colors.gray[100]}; }
-        `;
-      default:
-        return `
-          background: ${theme.colors.gray[100]};
-          border-color: ${theme.colors.gray[300]};
-          color: ${theme.colors.gray[700]};
-          &:hover { background: ${theme.colors.gray[200]}; }
-        `;
-    }
-  }}
+  flex: 1;
+  justify-content: center;
+
+  &:hover {
+    background: ${props => {
+      switch (props.variant) {
+        case 'primary': return `${theme.colors.primary}dd`;
+        case 'ghost': return theme.colors.gray[50];
+        default: return theme.colors.gray[50];
+      }
+    }};
+  }
 `;
 
-// Table Components
+// Table Styles
 const PatientsTable = styled.table`
   width: 100%;
   border-collapse: collapse;
@@ -1604,108 +1607,115 @@ const PatientsTable = styled.table`
 
 const TableHeader = styled.thead`
   background: ${theme.colors.gray[50]};
+  border-bottom: 1px solid ${theme.colors.gray[200]};
+`;
+
+const TableRow = styled.tr<{ selected?: boolean }>`
+  background: ${props => props.selected ? `${theme.colors.primary}10` : 'white'};
+  border-bottom: 1px solid ${theme.colors.gray[200]};
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background: ${props => props.selected ? `${theme.colors.primary}20` : theme.colors.gray[50]};
+  }
 `;
 
 const TableHeaderCell = styled.th`
-  padding: 12px;
+  padding: 12px 16px;
   text-align: left;
   font-size: 12px;
   font-weight: 600;
   color: ${theme.colors.gray[700]};
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.5px;
+`;
+
+const TableCell = styled.td`
+  padding: 12px 16px;
+  font-size: 14px;
+  color: ${theme.colors.gray[900]};
 `;
 
 const TableBody = styled.tbody``;
 
-const TableRow = styled.tr`
-  border-bottom: 1px solid ${theme.colors.gray[200]};
-  cursor: pointer;
-  transition: background-color 0.2s;
-  ${props => props.selected && `background: ${theme.colors.primary}05;`}
-
-  &:hover {
-    background: ${theme.colors.gray[50]};
-  }
-`;
-
-const TableCell = styled.td`
-  padding: 12px;
-  font-size: 13px;
-  color: ${theme.colors.gray[700]};
-  vertical-align: middle;
-`;
-
 const TablePatientInfo = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 `;
 
 const TableActions = styled.div`
   display: flex;
-  gap: 4px;
+  gap: 8px;
 `;
 
-const StatusBadge = styled.span`
-  padding: 2px 6px;
-  border-radius: 8px;
+const StatusBadge = styled.span<{ status: StatusBadgeStatus }>`
+  padding: 4px 8px;
+  border-radius: 12px;
   font-size: 10px;
-  font-weight: 500;
-  text-transform: capitalize;
-  
-  ${props => {
+  font-weight: 600;
+  text-transform: uppercase;
+  background: ${props => {
     switch (props.status) {
-      case 'active':
-        return `background: ${theme.colors.success}20; color: ${theme.colors.success};`;
-      case 'inactive':
-        return `background: ${theme.colors.gray[200]}; color: ${theme.colors.gray[600]};`;
-      case 'warning':
-        return `background: ${theme.colors.warning}20; color: ${theme.colors.warning};`;
-      case 'success':
-        return `background: ${theme.colors.success}20; color: ${theme.colors.success};`;
-      default:
-        return `background: ${theme.colors.gray[200]}; color: ${theme.colors.gray[600]};`;
+      case 'success': return `${theme.colors.success}20`;
+      case 'warning': return `${theme.colors.warning}20`;
+      case 'danger': return `${theme.colors.danger}20`;
+      default: return theme.colors.gray[100];
     }
-  }}
+  }};
+  color: ${props => {
+    switch (props.status) {
+      case 'success': return theme.colors.success;
+      case 'warning': return theme.colors.warning;
+      case 'danger': return theme.colors.danger;
+      default: return theme.colors.gray[700];
+    }
+  }};
 `;
 
 const FollowUpBadge = styled.span`
-  margin-left: 4px;
   padding: 2px 6px;
-  background: ${theme.colors.warning}20;
-  color: ${theme.colors.warning};
   border-radius: 8px;
   font-size: 9px;
-  font-weight: 500;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: ${theme.colors.warning}20;
+  color: ${theme.colors.warning};
+  margin-left: 4px;
 `;
 
-// Patient Details Components
+// Patient Detail Panel Styles
+const PatientDetailPanel = styled.div`
+  background: white;
+  overflow-y: auto;
+`;
+
 const EmptyPatientSelection = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 20px;
-  text-align: center;
   height: 100%;
+  padding: 40px;
+  text-align: center;
 `;
 
 const EmptyIcon = styled.div`
-  color: ${theme.colors.gray[400]};
+  color: ${theme.colors.gray[300]};
   margin-bottom: 16px;
 `;
 
 const EmptyTitle = styled.h3`
   font-size: 18px;
   font-weight: 600;
-  color: ${theme.colors.gray[700]};
+  color: ${theme.colors.gray[900]};
   margin: 0 0 8px 0;
 `;
 
 const EmptyMessage = styled.p`
   font-size: 14px;
-  color: ${theme.colors.gray[500]};
+  color: ${theme.colors.gray[600]};
   margin: 0 0 24px 0;
   max-width: 300px;
   line-height: 1.5;
@@ -1720,10 +1730,9 @@ const PatientDetailContainer = styled.div`
 const PatientDetailHeader = styled.div`
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 20px;
+  align-items: flex-start;
+  padding: 24px;
   border-bottom: 1px solid ${theme.colors.gray[200]};
-  background: white;
 `;
 
 const PatientDetailBasicInfo = styled.div`
@@ -1733,16 +1742,16 @@ const PatientDetailBasicInfo = styled.div`
 `;
 
 const PatientAvatarLarge = styled.div`
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
   position: relative;
-  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: ${theme.colors.gray[200]};
 
   img {
     width: 100%;
     height: 100%;
-    border-radius: 50%;
     object-fit: cover;
   }
 
@@ -1750,70 +1759,74 @@ const PatientAvatarLarge = styled.div`
     display: none;
     width: 100%;
     height: 100%;
-    border-radius: 50%;
-    background: linear-gradient(135deg, ${theme.colors.primary}, #6366f1);
-    color: white;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
+    background: ${theme.colors.primary};
+    color: white;
     font-weight: 600;
+    font-size: 24px;
   }
 `;
 
 const PatientDetailInfo = styled.div`
   h2 {
-    margin: 0 0 4px 0;
-    font-size: 20px;
+    font-size: 24px;
+    font-weight: 700;
     color: ${theme.colors.gray[900]};
+    margin: 0 0 8px 0;
   }
 
   p {
-    margin: 2px 0;
-    font-size: 13px;
+    font-size: 14px;
     color: ${theme.colors.gray[600]};
+    margin: 0 0 4px 0;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
   }
 `;
 
 const PatientDetailActions = styled.div`
   display: flex;
-  gap: 8px;
+  gap: 12px;
 `;
 
 const PatientTabNavigation = styled.div`
   display: flex;
   border-bottom: 1px solid ${theme.colors.gray[200]};
-  background: white;
+  background: ${theme.colors.gray[50]};
 `;
 
-const TabButton = styled.button`
-  padding: 12px 16px;
+const TabButton = styled.button<{ active: boolean }>`
+  padding: 16px 20px;
   border: none;
   background: ${props => props.active ? 'white' : 'transparent'};
   color: ${props => props.active ? theme.colors.primary : theme.colors.gray[600]};
-  font-weight: ${props => props.active ? '600' : '500'};
-  border-bottom: 2px solid ${props => props.active ? theme.colors.primary : 'transparent'};
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
+  border-bottom: 2px solid ${props => props.active ? theme.colors.primary : 'transparent'};
   transition: all 0.2s;
-  font-size: 13px;
 
   &:hover {
-    background: ${props => props.active ? 'white' : theme.colors.gray[50]};
+    background: ${props => props.active ? 'white' : theme.colors.gray[100]};
+    color: ${props => props.active ? theme.colors.primary : theme.colors.gray[700]};
   }
 `;
 
 const PatientTabContent = styled.div`
   flex: 1;
   overflow-y: auto;
-  background: white;
 `;
 
-// Overview Tab Components
+// Overview Tab Styles
 const OverviewContent = styled.div`
-  padding: 20px;
+  padding: 24px;
 `;
 
 const OverviewSection = styled.div`
-  margin-bottom: 24px;
+  margin-bottom: 32px;
 
   &:last-child {
     margin-bottom: 0;
@@ -1821,36 +1834,31 @@ const OverviewSection = styled.div`
 `;
 
 const SectionTitle = styled.h3`
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: ${theme.colors.gray[900]};
-  margin: 0 0 12px 0;
-  padding-bottom: 8px;
-  border-bottom: 1px solid ${theme.colors.gray[200]};
+  margin: 0 0 16px 0;
 `;
 
 const InfoGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
 `;
 
-const InfoItem = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-`;
+const InfoItem = styled.div``;
 
-const InfoLabel = styled.span`
-  font-size: 11px;
+const InfoLabel = styled.div`
+  font-size: 12px;
   font-weight: 500;
-  color: ${theme.colors.gray[600]};
+  color: ${theme.colors.gray[500]};
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
 `;
 
-const InfoValue = styled.span`
-  font-size: 13px;
+const InfoValue = styled.div`
+  font-size: 14px;
   color: ${theme.colors.gray[900]};
   font-weight: 500;
 `;
@@ -1865,49 +1873,47 @@ const ConditionItem = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
+  padding: 12px 16px;
   background: ${theme.colors.gray[50]};
-  border-radius: 6px;
-`;
-
-const ConditionName = styled.span`
-  font-size: 13px;
-  color: ${theme.colors.gray[900]};
-  font-weight: 500;
-`;
-
-const ConditionStatus = styled.span`
-  font-size: 11px;
-  padding: 2px 6px;
-  background: ${theme.colors.success}20;
-  color: ${theme.colors.success};
   border-radius: 8px;
+`;
+
+const ConditionName = styled.div`
+  font-size: 14px;
+  font-weight: 500;
+  color: ${theme.colors.gray[900]};
+`;
+
+const ConditionStatus = styled.div`
+  font-size: 12px;
+  color: ${theme.colors.success};
   font-weight: 500;
 `;
 
-// History Tab Components
+// History Tab Styles
 const HistoryContent = styled.div`
-  padding: 20px;
+  padding: 24px;
 `;
 
 const HistoryHeader = styled.div`
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
+  align-items: flex-start;
+  margin-bottom: 32px;
 `;
 
 const HistoryStats = styled.div`
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
+  flex: 1;
+  margin-right: 24px;
 `;
 
-const HistoryTimeline = styled.div`
-  margin-top: 24px;
-`;
+const HistoryTimeline = styled.div``;
 
-const TimelineTitle = styled.h4`
-  font-size: 14px;
+const TimelineTitle = styled.h3`
+  font-size: 16px;
   font-weight: 600;
   color: ${theme.colors.gray[900]};
   margin: 0 0 16px 0;
@@ -1916,22 +1922,23 @@ const TimelineTitle = styled.h4`
 const TimelineItem = styled.div`
   display: flex;
   gap: 16px;
-  margin-bottom: 16px;
-  padding-bottom: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 24px;
   border-bottom: 1px solid ${theme.colors.gray[200]};
 
   &:last-child {
-    border-bottom: none;
     margin-bottom: 0;
     padding-bottom: 0;
+    border-bottom: none;
   }
 `;
 
 const TimelineDate = styled.div`
-  min-width: 80px;
+  flex-shrink: 0;
+  width: 80px;
   font-size: 12px;
-  color: ${theme.colors.gray[600]};
   font-weight: 500;
+  color: ${theme.colors.gray[500]};
 `;
 
 const TimelineContent = styled.div`
@@ -1939,29 +1946,30 @@ const TimelineContent = styled.div`
 `;
 
 const TimelineDescription = styled.div`
-  font-size: 12px;
-  color: ${theme.colors.gray[600]};
+  font-size: 14px;
+  color: ${theme.colors.gray[700]};
   margin-bottom: 4px;
 
-  strong {
-    color: ${theme.colors.gray[700]};
+  &:last-child {
+    margin-bottom: 0;
   }
 `;
 
-// Loading and Empty States
+// Loading and Error States
 const LoadingContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 20px;
+  height: 200px;
+  gap: 16px;
 `;
 
-const LoadingSpinner = styled.div`
+const LoadingSpinner = styled.div<{ size?: 'small' | 'medium' }>`
   width: ${props => props.size === 'small' ? '16px' : '32px'};
   height: ${props => props.size === 'small' ? '16px' : '32px'};
-  border: ${props => props.size === 'small' ? '2px' : '3px'} solid ${theme.colors.gray[200]};
-  border-top: ${props => props.size === 'small' ? '2px' : '3px'} solid ${theme.colors.primary};
+  border: 2px solid ${theme.colors.gray[200]};
+  border-top: 2px solid ${theme.colors.primary};
   border-radius: 50%;
   animation: spin 1s linear infinite;
 
@@ -1972,9 +1980,23 @@ const LoadingSpinner = styled.div`
 `;
 
 const LoadingText = styled.div`
-  margin-top: 12px;
-  color: ${theme.colors.gray[600]};
   font-size: 14px;
+  color: ${theme.colors.gray[600]};
+`;
+
+const ErrorContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  gap: 16px;
+`;
+
+const ErrorMessage = styled.div`
+  font-size: 16px;
+  color: ${theme.colors.danger};
+  text-align: center;
 `;
 
 const EmptyState = styled.div`
@@ -1982,7 +2004,7 @@ const EmptyState = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 20px;
+  padding: 60px 40px;
   text-align: center;
 `;
 
@@ -1991,47 +2013,50 @@ const EmptyHistoryState = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 20px;
+  padding: 60px 40px;
   text-align: center;
 
   p {
-    margin-bottom: 16px;
+    font-size: 16px;
     color: ${theme.colors.gray[600]};
+    margin: 0 0 24px 0;
   }
 `;
 
-// Appointments and Documents Tab Components
+// Appointments and Documents Tab Styles
 const AppointmentsContent = styled.div`
-  padding: 20px;
+  padding: 24px;
 `;
 
 const AppointmentsHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 
   h3 {
-    margin: 0;
-    font-size: 16px;
+    font-size: 18px;
+    font-weight: 600;
     color: ${theme.colors.gray[900]};
+    margin: 0;
   }
 `;
 
 const DocumentsContent = styled.div`
-  padding: 20px;
+  padding: 24px;
 `;
 
 const DocumentsHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 
   h3 {
-    margin: 0;
-    font-size: 16px;
+    font-size: 18px;
+    font-weight: 600;
     color: ${theme.colors.gray[900]};
+    margin: 0;
   }
 `;
 

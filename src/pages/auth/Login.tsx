@@ -69,7 +69,6 @@ const Form = () => {
       } as LoginCredentials;
 
       const response = await login(credentials);
-      console.log("response", response);
       if (response.requiresPasswordChange && response.tempToken) {
         toast.error("Password change required for security reasons.");
 

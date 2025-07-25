@@ -12,7 +12,21 @@ import {
   UnavailableDateSummaryApiResponse,
   UpdateFeesBody,
   UpdateFeesApiResponse,
+  AddBreakPayload,
+  Availability,
+  Schedule,
+  ProfessionalInfoPayload,
+  PersonalInfoPayload,
+  CompleteUpdateProfilePayload,
+  ApiResponse,
+  AddConsultationPayload,
+  PatientConsultationHistoryResponse,
 } from "@/api/doctor/doctorTypes";
+import {
+  GetAllDoctorAppointmentsResponse,
+  GetDoctorAppointmentByIdResponse,
+  UpdateAppointmentStatusPayload,
+} from "@/api/appointment/appointmentTypes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { toast } from "react-hot-toast";
@@ -141,45 +155,163 @@ export const useBulkDeleteUnavailableDate = () =>
 
 export const useDeleteUnavailableDates = () =>
   useCustomMutation(
-    (dateId: string) =>
-      doctorApi.deleteUnavailableDates(dateId),
+    (dateId: string) => doctorApi.deleteUnavailableDates(dateId),
     ["unavailable-dates"],
     "Unavailable dates removed successfully!"
   );
 
-  export const useDoctorFees = () =>
+export const useDoctorFees = () =>
   useQuery<UpdateFeesApiResponse, Error>({
     queryKey: ["doctor"],
     queryFn: () => doctorApi.getDoctorFees(),
     select: (response) => response,
   });
 
-  export const useUpdateDoctorFees = () =>
+export const useUpdateDoctorFees = () =>
   useCustomMutation(
     (data: UpdateFeesBody) => doctorApi.updateDoctorFees(data),
     ["doctor"],
     "Doctor fees updated successfully!"
   );
 
-    export const useUpdateDoctorProfile = () =>
+export const useUpdateDoctorProfile = () =>
   useCustomMutation(
-    (data: UpdateFeesBody) => doctorApi.updateDoctorFees(data),
+    (data: CompleteUpdateProfilePayload) =>
+      doctorApi.updateDoctorProfileComplete(data),
     ["doctor"],
-    "Doctor fees updated successfully!"
+    "Doctor profile updated successfully!"
   );
-        export const useUpdateDoctorProfessionalInfo = () =>
-  useCustomMutation(
-    (data: UpdateFeesBody) => doctorApi.updateDoctorFees(data),
-    ["doctor"],
-    "Doctor fees updated successfully!"
-  );
-  
-          export const useUpdateDoctorContactInfo = () =>
-  useCustomMutation(
-    (data: UpdateFeesBody) => doctorApi.updateDoctorFees(data),
-    ["doctor"],
-    "Doctor fees updated successfully!"
-  );
-  
 
-   
+export const useUpdateDoctorContactInfo = () =>
+  useCustomMutation(
+    (contactData: PersonalInfoPayload) =>
+      doctorApi.updateDoctorProfileContact(contactData),
+    ["doctorProfile"],
+    "Contact profile updated successfully!"
+  );
+
+export const useUpdateDoctorProfessionalInfo = () =>
+  useCustomMutation(
+    (professionalData: ProfessionalInfoPayload) =>
+      doctorApi.updateDoctorProfileProfessional(professionalData),
+    ["doctorProfile"],
+    "Professional profile updated successfully!"
+  );
+
+export const useAddBreakTime = () =>
+  useCustomMutation(
+    (breakData: AddBreakPayload) => doctorApi.addBreakTime(breakData),
+    ["doctorSchedule"],
+    "Break time added successfully!"
+  );
+
+export const useRemoveBreakTime = () =>
+  useCustomMutation(
+    (breakId: string) => doctorApi.removeBreakTime(breakId),
+    ["doctorSchedule"],
+    "Break time removed successfully!"
+  );
+
+export const useDoctorSchedule = () =>
+  useQuery({
+    queryKey: ["doctorSchedule"],
+    queryFn: () => doctorApi.getSchedule(),
+    enabled: true,
+    select: (data) => data,
+  });
+
+export const useUpdateAvailability = () =>
+  useCustomMutation(
+    (availabilityData: Availability) =>
+      doctorApi.updateAvailability(availabilityData),
+    ["doctorSchedule"],
+    "Availability updated successfully!"
+  );
+
+export const useUpdateSchedule = () =>
+  useCustomMutation(
+    (scheduleData: Schedule) => doctorApi.updateDoctorSchedule(scheduleData),
+    ["doctorSchedule"],
+    "Schedule updated successfully!"
+  );
+
+export const useDoctorDashboard = () =>
+  useQuery({
+    queryKey: ["doctorDashboard"],
+    queryFn: () => doctorApi.getDashboard(),
+    enabled: true,
+    select: (data) => data,
+  });
+
+export const useDoctorAnalytics = () =>
+  useQuery({
+    queryKey: ["doctorAnalytics"],
+    queryFn: () => doctorApi.getAnalytics(),
+    enabled: true,
+    select: (data) => data,
+  });
+
+export const useDoctorAppointments = () =>
+  useQuery<GetAllDoctorAppointmentsResponse, Error>({
+    queryKey: ["doctorAppointments"],
+    queryFn: () => doctorApi.getDoctorAppointments(),
+    select: (data) => data,
+  });
+
+export const useDoctorAppointmentById = (id: string) =>
+  useQuery<GetDoctorAppointmentByIdResponse, Error>({
+    queryKey: ["doctorAppointments", id],
+    queryFn: () => doctorApi.getDoctorAppointmentById(id),
+    enabled: !!id,
+  });
+
+export const useDoctorTodayAppointments = () =>
+  useQuery<GetAllDoctorAppointmentsResponse, Error>({
+    queryKey: ["doctorAppointments"],
+    queryFn: () => doctorApi.getDoctorTodayAppointments(),
+    select: (response) => response,
+  });
+
+export const useDoctorUpcomingAppointments = () =>
+  useQuery<GetAllDoctorAppointmentsResponse, Error>({
+    queryKey: ["doctorAppointments"],
+    queryFn: () => doctorApi.getDoctorUpcomingAppointments(),
+    select: (response) => response,
+  });
+
+export const useUpdateAppointmentConsultation = (id: string) =>
+  useCustomMutation<
+    ApiResponse<{ consultation: AddConsultationPayload }>,
+    AddConsultationPayload
+  >(
+    (data: AddConsultationPayload) =>
+      doctorApi.updateDoctorAppointmentConsultation(id, data),
+    ["doctorAppointments", id],
+    "Consultation updated successfully!"
+  );
+
+export const useUpdateAppointmentStatus = (id: string) =>
+  useCustomMutation<
+    ApiResponse<{ consultation: UpdateAppointmentStatusPayload }>,
+    UpdateAppointmentStatusPayload
+  >(
+    (data: UpdateAppointmentStatusPayload) =>
+      doctorApi.updateDoctorAppointmentStatus(id, data),
+    ["doctorAppointments", id],
+    "Appointment status updated successfully!"
+  );
+
+export const useDoctorPatients = () =>
+  useQuery({
+    queryKey: ["doctorPatients"],
+    queryFn: () => doctorApi.getAllDoctorPatients(),
+    select: (data) => data,
+  });
+
+export const useDoctorPatientConsultationHistory = (patientId: string) =>
+  useQuery<PatientConsultationHistoryResponse, Error>({
+    queryKey: ["doctorPatientConsultationHistory", patientId],
+    queryFn: () => doctorApi.getDoctorPatientConsultationHistory(patientId),
+    enabled: !!patientId,
+    select: (data) => data,
+  });

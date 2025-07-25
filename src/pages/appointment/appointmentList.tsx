@@ -1,192 +1,296 @@
-import { useState } from 'react';
-import styled from 'styled-components';
+import { useState } from "react";
+import styled from "styled-components";
+import { useAllAppointments } from "@/hooks/useAppointment"; // Adjust import path as needed
+import { useNavigate } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 
 const theme = {
   colors: {
-    primary: '#6366f1',
-    success: '#10b981',
-    danger: '#ef4444',
-    warning: '#f59e0b',
-    info: '#3b82f6'
-  }
+    primary: "#6366f1",
+    success: "#10b981",
+    danger: "#ef4444",
+    warning: "#f59e0b",
+    info: "#3b82f6",
+  },
 };
 
 interface Appointment {
-  id: string;
+  _id: string;
   appointmentId: string;
   patient: {
-    name: string;
-    phone: string;
+    _id: string;
+    personalInfo: {
+      firstName: string;
+      lastName: string;
+      dateOfBirth: string;
+      gender: string;
+      bloodGroup: string;
+    };
+    contactInfo: {
+      email: string;
+      phone: string;
+      alternatePhone: string;
+      address: {
+        street: string;
+        city: string;
+        state: string;
+        zipCode: string;
+        country: string;
+      };
+    };
     patientId: string;
   };
   doctor: {
-    name: string;
-    specialization: string;
+    _id: string;
+    personalInfo: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string;
+    };
+    professionalInfo: {
+      specialization: string;
+      qualifications: string[];
+      experience: number;
+      licenseNumber: string;
+      department: string;
+    };
+    doctorId: string;
   };
   appointmentDateTime: string;
   duration: number;
-  appointmentType: 'consultation' | 'follow-up' | 'emergency' | 'routine-checkup' | 'procedure';
-  status: 'scheduled' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled' | 'no-show';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
+  appointmentType:
+    | "consultation"
+    | "follow-up"
+    | "emergency"
+    | "routine-checkup"
+    | "procedure";
+  status:
+    | "scheduled"
+    | "confirmed"
+    | "in-progress"
+    | "completed"
+    | "cancelled"
+    | "no-show";
+  priority: "low" | "medium" | "high" | "urgent";
+  paymentStatus: "pending" | "paid" | "failed" | "refunded";
   paymentAmount?: number;
+  bookingSource: string;
+  symptoms: string[];
+  notes: string;
+  specialRequirements: string;
+  remindersSent: number;
+  metadata: {
+    ipAddress: string;
+    userAgent: string;
+  };
+  createdAt: string;
+  updatedAt: string;
 }
 
 const AppointmentListPage = () => {
-  const [selectedAppointment, setSelectedAppointment] = useState<string | null>(null);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [filterType, setFilterType] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedAppointment, setSelectedAppointment] = useState<string | null>(
+    null
+  );
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterType, setFilterType] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const navigate = useNavigate();
 
-  // Mock data
-  const appointments: Appointment[] = [
-    {
-      id: '1',
-      appointmentId: 'APT-2025-001',
-      patient: { name: 'John Doe', phone: '+91 9876543210', patientId: 'PAT001' },
-      doctor: { name: 'Dr. Sarah Wilson', specialization: 'Cardiology' },
-      appointmentDateTime: '2025-07-05T10:30:00',
-      duration: 30,
-      appointmentType: 'consultation',
-      status: 'scheduled',
-      priority: 'medium',
-      paymentStatus: 'pending',
-      paymentAmount: 500
-    },
-    {
-      id: '2',
-      appointmentId: 'APT-2025-002',
-      patient: { name: 'Jane Smith', phone: '+91 9876543211', patientId: 'PAT002' },
-      doctor: { name: 'Dr. Michael Brown', specialization: 'Neurology' },
-      appointmentDateTime: '2025-07-05T14:00:00',
-      duration: 45,
-      appointmentType: 'follow-up',
-      status: 'confirmed',
-      priority: 'high',
-      paymentStatus: 'paid',
-      paymentAmount: 750
-    },
-    {
-      id: '3',
-      appointmentId: 'APT-2025-003',
-      patient: { name: 'Robert Johnson', phone: '+91 9876543212', patientId: 'PAT003' },
-      doctor: { name: 'Dr. Emily Davis', specialization: 'Pediatrics' },
-      appointmentDateTime: '2025-07-05T16:30:00',
-      duration: 30,
-      appointmentType: 'routine-checkup',
-      status: 'in-progress',
-      priority: 'low',
-      paymentStatus: 'paid',
-      paymentAmount: 400
-    },
-    {
-      id: '4',
-      appointmentId: 'APT-2025-004',
-      patient: { name: 'Emily Davis', phone: '+91 9876543213', patientId: 'PAT004' },
-      doctor: { name: 'Dr. David Miller', specialization: 'Orthopedics' },
-      appointmentDateTime: '2025-07-04T09:00:00',
-      duration: 60,
-      appointmentType: 'procedure',
-      status: 'completed',
-      priority: 'urgent',
-      paymentStatus: 'paid',
-      paymentAmount: 1200
-    },
-    {
-      id: '5',
-      appointmentId: 'APT-2025-005',
-      patient: { name: 'Michael Wilson', phone: '+91 9876543214', patientId: 'PAT005' },
-      doctor: { name: 'Dr. Sarah Wilson', specialization: 'Cardiology' },
-      appointmentDateTime: '2025-07-03T11:00:00',
-      duration: 30,
-      appointmentType: 'emergency',
-      status: 'cancelled',
-      priority: 'urgent',
-      paymentStatus: 'refunded',
-      paymentAmount: 0
-    }
-  ];
+  // Fetch appointments from backend
+  const { data, isLoading, error, refetch } = useAllAppointments();
+  console.log("Appointments Data:", data);
+
+  // Extract appointments array from the response
+  const appointments = data?.data?.appointments || [];
+
+  // Helper function to get patient name
+  const getPatientName = (appointment: Appointment) => {
+    return `${appointment.patient.personalInfo.firstName} ${appointment.patient.personalInfo.lastName}`;
+  };
+
+  // Helper function to get doctor name
+  const getDoctorName = (appointment: Appointment) => {
+    return `Dr. ${appointment.doctor.personalInfo.firstName} ${appointment.doctor.personalInfo.lastName}`;
+  };
 
   // Filter and search logic
-  const filteredAppointments = appointments.filter(appointment => {
-    const matchesSearch = appointment.patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         appointment.doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         appointment.appointmentId.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = filterStatus === 'all' || appointment.status === filterStatus;
-    const matchesType = filterType === 'all' || appointment.appointmentType === filterType;
-    
-    return matchesSearch && matchesStatus && matchesType;
-  });
+  const filteredAppointments = appointments.filter(
+    (appointment: Appointment) => {
+      const patientName = getPatientName(appointment);
+      const doctorName = getDoctorName(appointment);
+      const patientPhone = appointment.patient.contactInfo.phone;
+
+      const matchesSearch =
+        patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        doctorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        appointment.appointmentId
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        patientPhone.includes(searchTerm);
+
+      const matchesStatus =
+        filterStatus === "all" || appointment.status === filterStatus;
+      const matchesType =
+        filterType === "all" || appointment.appointmentType === filterType;
+
+      return matchesSearch && matchesStatus && matchesType;
+    }
+  );
 
   // Pagination
   const totalPages = Math.ceil(filteredAppointments.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedAppointments = filteredAppointments.slice(startIndex, startIndex + itemsPerPage);
+  const paginatedAppointments = filteredAppointments.slice(
+    startIndex,
+    startIndex + itemsPerPage
+  );
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'scheduled': return '#6b7280';
-      case 'confirmed': return theme.colors.info;
-      case 'in-progress': return theme.colors.warning;
-      case 'completed': return theme.colors.success;
-      case 'cancelled': return theme.colors.danger;
-      case 'no-show': return '#9333ea';
-      default: return '#6b7280';
+      case "scheduled":
+        return "#6b7280";
+      case "confirmed":
+        return theme.colors.info;
+      case "in-progress":
+        return theme.colors.warning;
+      case "completed":
+        return theme.colors.success;
+      case "cancelled":
+        return theme.colors.danger;
+      case "no-show":
+        return "#9333ea";
+      default:
+        return "#6b7280";
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'low': return theme.colors.success;
-      case 'medium': return theme.colors.warning;
-      case 'high': return '#f97316';
-      case 'urgent': return theme.colors.danger;
-      default: return theme.colors.warning;
+      case "low":
+        return theme.colors.success;
+      case "medium":
+        return theme.colors.warning;
+      case "high":
+        return "#f97316";
+      case "urgent":
+        return theme.colors.danger;
+      default:
+        return theme.colors.warning;
     }
   };
 
   const getPaymentStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return theme.colors.warning;
-      case 'paid': return theme.colors.success;
-      case 'failed': return theme.colors.danger;
-      case 'refunded': return '#6b7280';
-      default: return theme.colors.warning;
+      case "pending":
+        return theme.colors.warning;
+      case "paid":
+        return theme.colors.success;
+      case "failed":
+        return theme.colors.danger;
+      case "refunded":
+        return "#6b7280";
+      default:
+        return theme.colors.warning;
     }
   };
 
   const formatDateTime = (dateTime: string) => {
     const date = new Date(dateTime);
     return {
-      date: date.toLocaleDateString('en-IN', { 
-        day: 'numeric', 
-        month: 'short', 
-        year: 'numeric' 
+      date: date.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
       }),
-      time: date.toLocaleTimeString('en-IN', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: true 
-      })
+      time: date.toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      }),
     };
   };
 
   const handleViewDetails = (appointmentId: string) => {
     setSelectedAppointment(appointmentId);
-    // In a real app, this would navigate to the detail page
-    console.log('View details for appointment:', appointmentId);
+    navigate(`/admin/appointments/details/${appointmentId}`);
   };
 
   const handleEditAppointment = (appointmentId: string) => {
-    console.log('Edit appointment:', appointmentId);
+    console.log("Edit appointment:", appointmentId);
   };
 
   const handleCancelAppointment = (appointmentId: string) => {
-    console.log('Cancel appointment:', appointmentId);
+    console.log("Cancel appointment:", appointmentId);
   };
+
+  const handleRefresh = () => {
+    refetch();
+  };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <PageContainer>
+        <LoadingContainer>
+          <LoadingSpinner />
+          <LoadingText>Loading appointments...</LoadingText>
+        </LoadingContainer>
+      </PageContainer>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <PageContainer>
+        <ErrorContainer>
+          <ErrorIcon>⚠️</ErrorIcon>
+          <ErrorTitle>Failed to load appointments</ErrorTitle>
+          <ErrorMessage>
+            {error.message ||
+              "Something went wrong while fetching appointments."}
+          </ErrorMessage>
+          <RetryButton onClick={handleRefresh}>Try Again</RetryButton>
+        </ErrorContainer>
+      </PageContainer>
+    );
+  }
+
+  // Empty state
+  if (appointments.length === 0) {
+    return (
+      <PageContainer>
+        <Toaster position="top-right" />
+        <PageHeader>
+          <HeaderContent>
+            <Title>Appointments</Title>
+            <Subtitle>Manage and view all patient appointments</Subtitle>
+          </HeaderContent>
+          <HeaderActions>
+            <CreateButton>
+              <span>➕</span>
+              Create New Appointment
+            </CreateButton>
+          </HeaderActions>
+        </PageHeader>
+
+        <EmptyContainer>
+          <EmptyIcon>📅</EmptyIcon>
+          <EmptyTitle>No appointments found</EmptyTitle>
+          <EmptyMessage>
+            Get started by creating your first appointment.
+          </EmptyMessage>
+          <CreateButton>
+            <span>➕</span>
+            Create New Appointment
+          </CreateButton>
+        </EmptyContainer>
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer>
@@ -197,6 +301,10 @@ const AppointmentListPage = () => {
           <Subtitle>Manage and view all patient appointments</Subtitle>
         </HeaderContent>
         <HeaderActions>
+          <RefreshButton onClick={handleRefresh}>
+            <span>🔄</span>
+            Refresh
+          </RefreshButton>
           <CreateButton>
             <span>➕</span>
             Create New Appointment
@@ -215,7 +323,7 @@ const AppointmentListPage = () => {
           />
           <SearchIcon>🔍</SearchIcon>
         </SearchContainer>
-        
+
         <FiltersContainer>
           <FilterGroup>
             <FilterLabel>Status:</FilterLabel>
@@ -232,7 +340,7 @@ const AppointmentListPage = () => {
               <option value="no-show">No Show</option>
             </FilterSelect>
           </FilterGroup>
-          
+
           <FilterGroup>
             <FilterLabel>Type:</FilterLabel>
             <FilterSelect
@@ -252,116 +360,159 @@ const AppointmentListPage = () => {
 
       {/* Results Summary */}
       <ResultsSummary>
-        Showing {paginatedAppointments.length} of {filteredAppointments.length} appointments
+        Showing {paginatedAppointments.length} of {filteredAppointments.length}{" "}
+        appointments
+        {filteredAppointments.length !== appointments.length && (
+          <span> (filtered from {appointments.length} total)</span>
+        )}
       </ResultsSummary>
 
       {/* Appointments List */}
-      <AppointmentsList>
-        {paginatedAppointments.map((appointment) => {
-          const { date, time } = formatDateTime(appointment.appointmentDateTime);
-          
-          return (
-            <AppointmentCard key={appointment.id}>
-              <CardHeader>
-                <AppointmentInfo>
-                  <AppointmentId>{appointment.appointmentId}</AppointmentId>
-                  <DateTime>
-                    <DateText>{date}</DateText>
-                    <TimeText>{time}</TimeText>
-                  </DateTime>
-                </AppointmentInfo>
-                <StatusBadge color={getStatusColor(appointment.status)}>
-                  {appointment.status.replace('-', ' ')}
-                </StatusBadge>
-              </CardHeader>
+      {filteredAppointments.length === 0 ? (
+        <NoResultsContainer>
+          <NoResultsIcon>🔍</NoResultsIcon>
+          <NoResultsTitle>No appointments match your search</NoResultsTitle>
+          <NoResultsMessage>
+            Try adjusting your filters or search terms.
+          </NoResultsMessage>
+          <ClearFiltersButton
+            onClick={() => {
+              setSearchTerm("");
+              setFilterStatus("all");
+              setFilterType("all");
+            }}
+          >
+            Clear All Filters
+          </ClearFiltersButton>
+        </NoResultsContainer>
+      ) : (
+        <AppointmentsList>
+          {paginatedAppointments.map((appointment) => {
+            const { date, time } = formatDateTime(
+              appointment.appointmentDateTime
+            );
+            const patientName = getPatientName(appointment);
+            const doctorName = getDoctorName(appointment);
 
-              <CardBody>
-                <MainInfo>
-                  <PatientInfo>
-                    <PatientName>{appointment.patient.name}</PatientName>
-                    <PatientDetails>
-                      {appointment.patient.patientId} • {appointment.patient.phone}
-                    </PatientDetails>
-                  </PatientInfo>
-                  
-                  <DoctorInfo>
-                    <DoctorName>{appointment.doctor.name}</DoctorName>
-                    <Specialization>{appointment.doctor.specialization}</Specialization>
-                  </DoctorInfo>
-                </MainInfo>
+            return (
+              <AppointmentCard key={appointment._id}>
+                <CardHeader>
+                  <AppointmentInfo>
+                    <AppointmentId>{appointment.appointmentId}</AppointmentId>
+                    <DateTime>
+                      <DateText>{date}</DateText>
+                      <TimeText>{time}</TimeText>
+                    </DateTime>
+                  </AppointmentInfo>
+                  <StatusBadge color={getStatusColor(appointment.status)}>
+                    {appointment.status.replace("-", " ")}
+                  </StatusBadge>
+                </CardHeader>
 
-                <AppointmentMeta>
-                  <MetaItem>
-                    <MetaLabel>Type:</MetaLabel>
-                    <MetaValue>{appointment.appointmentType.replace('-', ' ')}</MetaValue>
-                  </MetaItem>
-                  <MetaItem>
-                    <MetaLabel>Duration:</MetaLabel>
-                    <MetaValue>{appointment.duration} min</MetaValue>
-                  </MetaItem>
-                  <MetaItem>
-                    <MetaLabel>Priority:</MetaLabel>
-                    <PriorityBadge color={getPriorityColor(appointment.priority)}>
-                      {appointment.priority}
-                    </PriorityBadge>
-                  </MetaItem>
-                  <MetaItem>
-                    <MetaLabel>Payment:</MetaLabel>
-                    <PaymentInfo>
-                      <PaymentBadge color={getPaymentStatusColor(appointment.paymentStatus)}>
-                        {appointment.paymentStatus}
-                      </PaymentBadge>
-                      {appointment.paymentAmount && (
-                        <PaymentAmount>₹{appointment.paymentAmount}</PaymentAmount>
-                      )}
-                    </PaymentInfo>
-                  </MetaItem>
-                </AppointmentMeta>
-              </CardBody>
+                <CardBody>
+                  <MainInfo>
+                    <PatientInfo>
+                      <PatientName>{patientName}</PatientName>
+                      <PatientDetails>
+                        {appointment.patient.patientId} •{" "}
+                        {appointment.patient.contactInfo.phone}
+                      </PatientDetails>
+                    </PatientInfo>
 
-              <CardActions>
-                <ActionButton 
-                  variant="primary"
-                  onClick={() => handleViewDetails(appointment.id)}
-                >
-                  View Details
-                </ActionButton>
-                <ActionButton 
-                  variant="secondary"
-                  onClick={() => handleEditAppointment(appointment.id)}
-                >
-                  Edit
-                </ActionButton>
-                {appointment.status === 'scheduled' || appointment.status === 'confirmed' ? (
-                  <ActionButton 
-                    variant="danger"
-                    onClick={() => handleCancelAppointment(appointment.id)}
+                    <DoctorInfo>
+                      <DoctorName>{doctorName}</DoctorName>
+                      <Specialization>
+                        {appointment.doctor.professionalInfo.specialization}
+                      </Specialization>
+                    </DoctorInfo>
+                  </MainInfo>
+
+                  <AppointmentMeta>
+                    <MetaItem>
+                      <MetaLabel>Type:</MetaLabel>
+                      <MetaValue>
+                        {appointment.appointmentType.replace("-", " ")}
+                      </MetaValue>
+                    </MetaItem>
+                    <MetaItem>
+                      <MetaLabel>Duration:</MetaLabel>
+                      <MetaValue>{appointment.duration} min</MetaValue>
+                    </MetaItem>
+                    <MetaItem>
+                      <MetaLabel>Priority:</MetaLabel>
+                      <PriorityBadge
+                        color={getPriorityColor(appointment.priority)}
+                      >
+                        {appointment.priority}
+                      </PriorityBadge>
+                    </MetaItem>
+                    <MetaItem>
+                      <MetaLabel>Payment:</MetaLabel>
+                      <PaymentInfo>
+                        <PaymentBadge
+                          color={getPaymentStatusColor(
+                            appointment.paymentStatus
+                          )}
+                        >
+                          {appointment.paymentStatus}
+                        </PaymentBadge>
+                        {appointment.paymentAmount && (
+                          <PaymentAmount>
+                            ₹{appointment.paymentAmount}
+                          </PaymentAmount>
+                        )}
+                      </PaymentInfo>
+                    </MetaItem>
+                  </AppointmentMeta>
+                </CardBody>
+
+                <CardActions>
+                  <ActionButton
+                    variant="primary"
+                    onClick={() => handleViewDetails(appointment._id)}
                   >
-                    Cancel
+                    View Details
                   </ActionButton>
-                ) : null}
-              </CardActions>
-            </AppointmentCard>
-          );
-        })}
-      </AppointmentsList>
+                  <ActionButton
+                    variant="secondary"
+                    onClick={() => handleEditAppointment(appointment._id)}
+                  >
+                    Edit
+                  </ActionButton>
+                  {appointment.status === "scheduled" ||
+                  appointment.status === "confirmed" ? (
+                    <ActionButton
+                      variant="danger"
+                      onClick={() => handleCancelAppointment(appointment._id)}
+                    >
+                      Cancel
+                    </ActionButton>
+                  ) : null}
+                </CardActions>
+              </AppointmentCard>
+            );
+          })}
+        </AppointmentsList>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (
         <Pagination>
-          <PageButton 
-            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+          <PageButton
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
           >
             ← Previous
           </PageButton>
-          
+
           <PageInfo>
             Page {currentPage} of {totalPages}
           </PageInfo>
-          
-          <PageButton 
-            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+
+          <PageButton
+            onClick={() =>
+              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+            }
             disabled={currentPage === totalPages}
           >
             Next →
@@ -372,12 +523,183 @@ const AppointmentListPage = () => {
   );
 };
 
-// Styled Components
+// Additional Styled Components for new states
+const LoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+`;
+
+const LoadingSpinner = styled.div`
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e5e7eb;
+  border-top: 4px solid ${theme.colors.primary};
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+`;
+
+const LoadingText = styled.div`
+  font-size: 16px;
+  color: #6b7280;
+  font-weight: 500;
+`;
+
+const ErrorContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+`;
+
+const ErrorIcon = styled.div`
+  font-size: 48px;
+  margin-bottom: 16px;
+`;
+
+const ErrorTitle = styled.h3`
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 8px 0;
+`;
+
+const ErrorMessage = styled.p`
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0 0 24px 0;
+  max-width: 400px;
+`;
+
+const RetryButton = styled.button`
+  padding: 10px 20px;
+  background: ${theme.colors.primary};
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: ${theme.colors.primary}dd;
+  }
+`;
+
+const EmptyContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+`;
+
+const EmptyIcon = styled.div`
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.6;
+`;
+
+const EmptyTitle = styled.h3`
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 8px 0;
+`;
+
+const EmptyMessage = styled.p`
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0 0 24px 0;
+`;
+
+const NoResultsContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+`;
+
+const NoResultsIcon = styled.div`
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.6;
+`;
+
+const NoResultsTitle = styled.h3`
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 8px 0;
+`;
+
+const NoResultsMessage = styled.p`
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0 0 24px 0;
+`;
+
+const ClearFiltersButton = styled.button`
+  padding: 8px 16px;
+  background: white;
+  color: ${theme.colors.primary};
+  border: 1px solid ${theme.colors.primary};
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: ${theme.colors.primary}10;
+  }
+`;
+
+const RefreshButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: white;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #f9fafb;
+    border-color: ${theme.colors.primary};
+  }
+`;
+
+// Original styled components (keeping the same ones from your original code)
 const PageContainer = styled.div`
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
-  
+
   @media (max-width: 768px) {
     padding: 16px;
   }
@@ -388,7 +710,7 @@ const PageHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
-  
+
   @media (max-width: 768px) {
     flex-direction: column;
     gap: 16px;
@@ -403,7 +725,7 @@ const Title = styled.h1`
   font-weight: 700;
   color: #1f2937;
   margin: 0 0 4px 0;
-  
+
   @media (max-width: 768px) {
     font-size: 24px;
   }
@@ -433,12 +755,12 @@ const CreateButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: ${theme.colors.primary}dd;
     transform: translateY(-1px);
   }
-  
+
   @media (max-width: 768px) {
     width: 100%;
     justify-content: center;
@@ -466,13 +788,13 @@ const SearchInput = styled.input`
   border-radius: 6px;
   font-size: 14px;
   transition: border-color 0.2s ease;
-  
+
   &:focus {
     outline: none;
     border-color: ${theme.colors.primary};
     box-shadow: 0 0 0 3px ${theme.colors.primary}20;
   }
-  
+
   &::placeholder {
     color: #9ca3af;
   }
@@ -491,7 +813,7 @@ const FiltersContainer = styled.div`
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
-  
+
   @media (max-width: 768px) {
     flex-direction: column;
     gap: 12px;
@@ -518,7 +840,7 @@ const FilterSelect = styled.select`
   font-size: 13px;
   background: white;
   cursor: pointer;
-  
+
   &:focus {
     outline: none;
     border-color: ${theme.colors.primary};
@@ -543,7 +865,7 @@ const AppointmentCard = styled.div`
   border: 1px solid #e5e7eb;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   transition: all 0.2s ease;
-  
+
   &:hover {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     transform: translateY(-1px);
@@ -592,9 +914,9 @@ const StatusBadge = styled.span<{ color: string }>`
   font-size: 11px;
   font-weight: 500;
   text-transform: capitalize;
-  background: ${props => props.color}15;
-  color: ${props => props.color};
-  border: 1px solid ${props => props.color}30;
+  background: ${(props) => props.color}15;
+  color: ${(props) => props.color};
+  border: 1px solid ${(props) => props.color}30;
 `;
 
 const CardBody = styled.div`
@@ -606,7 +928,7 @@ const MainInfo = styled.div`
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   margin-bottom: 12px;
-  
+
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
     gap: 12px;
@@ -648,7 +970,7 @@ const AppointmentMeta = styled.div`
   padding: 12px;
   background: #f8fafc;
   border-radius: 6px;
-  
+
   @media (max-width: 768px) {
     grid-template-columns: 1fr 1fr;
   }
@@ -679,9 +1001,9 @@ const PriorityBadge = styled.span<{ color: string }>`
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  background: ${props => props.color}15;
-  color: ${props => props.color};
-  border: 1px solid ${props => props.color}30;
+  background: ${(props) => props.color}15;
+  color: ${(props) => props.color};
+  border: 1px solid ${(props) => props.color}30;
   width: fit-content;
 `;
 
@@ -697,9 +1019,9 @@ const PaymentBadge = styled.span<{ color: string }>`
   font-size: 10px;
   font-weight: 600;
   text-transform: capitalize;
-  background: ${props => props.color}15;
-  color: ${props => props.color};
-  border: 1px solid ${props => props.color}30;
+  background: ${(props) => props.color}15;
+  color: ${(props) => props.color};
+  border: 1px solid ${(props) => props.color}30;
   width: fit-content;
 `;
 
@@ -713,13 +1035,15 @@ const CardActions = styled.div`
   display: flex;
   gap: 8px;
   padding: 0 16px 16px 16px;
-  
+
   @media (max-width: 768px) {
     flex-wrap: wrap;
   }
 `;
 
-const ActionButton = styled.button<{ variant: 'primary' | 'secondary' | 'danger' }>`
+const ActionButton = styled.button<{
+  variant: "primary" | "secondary" | "danger";
+}>`
   padding: 6px 12px;
   border-radius: 4px;
   font-size: 12px;
@@ -727,10 +1051,10 @@ const ActionButton = styled.button<{ variant: 'primary' | 'secondary' | 'danger'
   cursor: pointer;
   transition: all 0.2s ease;
   border: 1px solid;
-  
-  ${props => {
+
+  ${(props) => {
     switch (props.variant) {
-      case 'primary':
+      case "primary":
         return `
           background: ${theme.colors.primary};
           color: white;
@@ -740,7 +1064,7 @@ const ActionButton = styled.button<{ variant: 'primary' | 'secondary' | 'danger'
             background: ${theme.colors.primary}dd;
           }
         `;
-      case 'secondary':
+      case "secondary":
         return `
           background: white;
           color: #374151;
@@ -750,7 +1074,7 @@ const ActionButton = styled.button<{ variant: 'primary' | 'secondary' | 'danger'
             background: #f9fafb;
           }
         `;
-      case 'danger':
+      case "danger":
         return `
           background: white;
           color: ${theme.colors.danger};
@@ -761,10 +1085,10 @@ const ActionButton = styled.button<{ variant: 'primary' | 'secondary' | 'danger'
           }
         `;
       default:
-        return '';
+        return "";
     }
   }}
-  
+
   @media (max-width: 768px) {
     flex: 1;
   }
@@ -789,12 +1113,12 @@ const PageButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  
+
   &:hover:not(:disabled) {
     background: #f9fafb;
     border-color: ${theme.colors.primary};
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import { useAppointmentById } from '@/hooks/useAppointment'; // Adjust import path as needed
+import { useParams } from 'react-router-dom'; // Assuming you're using React Router
 
 const theme = {
   colors: {
@@ -11,25 +13,102 @@ const theme = {
   }
 };
 
-interface AppointmentDetail {
+interface PersonalInfo {
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  gender: string;
+  bloodGroup: string;
+}
+
+interface ContactInfo {
+  email: string;
+  phone: string;
+  alternatePhone: string;
+  address: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    country: string;
+  };
+}
+
+interface PatientInfo {
+  personalInfo: PersonalInfo;
+  contactInfo: ContactInfo;
+  _id: string;
+  patientId: string;
+  fullName: string;
+  age: number;
   id: string;
-  appointmentId: string;
-  patient: {
-    name: string;
-    phone: string;
-    email: string;
-    patientId: string;
-    dateOfBirth: string;
-    gender: string;
-    bloodGroup: string;
+}
+
+interface DoctorPersonalInfo {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+}
+
+interface ProfessionalInfo {
+  specialization: string;
+  qualifications: string[];
+  experience: number;
+  licenseNumber: string;
+  department: string;
+}
+
+interface WorkingDay {
+  day: string;
+  startTime: string;
+  endTime: string;
+  isWorking: boolean;
+  _id: string;
+  id: string;
+}
+
+interface BreakTime {
+  startTime: string;
+  endTime: string;
+  description: string;
+  _id: string;
+  id: string;
+}
+
+interface Schedule {
+  workingDays: WorkingDay[];
+  slotDuration: number;
+  breakTimes: BreakTime[];
+}
+
+interface Fees {
+  consultationFee: number;
+  followUpFee: number;
+  emergencyFee: number;
+}
+
+interface DoctorInfo {
+  personalInfo: DoctorPersonalInfo;
+  professionalInfo: ProfessionalInfo;
+  schedule: Schedule;
+  fees: Fees;
+  _id: string;
+  doctorId: string;
+  fullName: string;
+  id: string;
+}
+
+interface AppointmentDetail {
+  metadata: {
+    ipAddress: string;
+    userAgent: string;
   };
-  doctor: {
-    name: string;
-    specialization: string;
-    experience: string;
-    qualification: string;
-  };
+  _id: string;
+  patient: PatientInfo;
+  doctor: DoctorInfo;
   appointmentDateTime: string;
+  endDateTime: string;
   duration: number;
   appointmentType: string;
   status: string;
@@ -38,67 +117,29 @@ interface AppointmentDetail {
   symptoms: string[];
   notes: string;
   specialRequirements: string;
+  remindersSent: number;
   paymentStatus: string;
   paymentAmount: number;
-  paymentMethod: string;
-  consultation?: {
-    diagnosis: string;
-    prescription: string;
-    nextAppointment: string;
-    followUpRequired: boolean;
-  };
-  remindersSent: number;
-  lastReminderSent: string;
+  appointmentId: string;
   createdAt: string;
   updatedAt: string;
+  __v: number;
+  id: string;
+}
+
+interface ApiResponse {
+  success: boolean;
+  data: {
+    appointment: AppointmentDetail;
+  };
 }
 
 const AppointmentDetail = () => {
+  const { appointmentId } = useParams<{ appointmentId: string }>(); // Get appointment ID from URL
+  const { data, isLoading, error, refetch } = useAppointmentById(appointmentId!);
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
-
-  // Mock data
-  const appointment: AppointmentDetail = {
-    id: '1',
-    appointmentId: 'APT-2025-001',
-    patient: {
-      name: 'John Doe',
-      phone: '+91 9876543210',
-      email: 'john.doe@email.com',
-      patientId: 'PAT001',
-      dateOfBirth: '1985-06-15',
-      gender: 'Male',
-      bloodGroup: 'O+'
-    },
-    doctor: {
-      name: 'Dr. Sarah Wilson',
-      specialization: 'Cardiology',
-      experience: '10+ years',
-      qualification: 'MD, DM Cardiology'
-    },
-    appointmentDateTime: '2025-07-05T10:30:00',
-    duration: 30,
-    appointmentType: 'consultation',
-    status: 'scheduled',
-    priority: 'medium',
-    bookingSource: 'website',
-    symptoms: ['Chest pain', 'Shortness of breath', 'Fatigue'],
-    notes: 'Patient reports experiencing chest pain for the past week, especially during physical activity.',
-    specialRequirements: 'Wheelchair accessible room required',
-    paymentStatus: 'pending',
-    paymentAmount: 500,
-    paymentMethod: 'UPI',
-    consultation: {
-      diagnosis: 'Mild angina, requires further investigation',
-      prescription: 'Aspirin 75mg daily, Atorvastatin 20mg at bedtime',
-      nextAppointment: '2025-07-12T10:30:00',
-      followUpRequired: true
-    },
-    remindersSent: 1,
-    lastReminderSent: '2025-07-04T18:00:00',
-    createdAt: '2025-07-03T14:30:00',
-    updatedAt: '2025-07-04T09:15:00'
-  };
+  console.log("appointment data", data);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -162,8 +203,21 @@ const AppointmentDetail = () => {
     return age;
   };
 
+  const getPatientName = (patient: PatientInfo) => {
+    return patient.fullName || `${patient.personalInfo.firstName} ${patient.personalInfo.lastName}`;
+  };
+
+  const getDoctorName = (doctor: DoctorInfo) => {
+    return doctor.fullName || `Dr. ${doctor.personalInfo.firstName} ${doctor.personalInfo.lastName}`;
+  };
+
+  const getFullAddress = (address: ContactInfo['address']) => {
+    return `${address.street}, ${address.city}, ${address.state} ${address.zipCode}, ${address.country}`;
+  };
+
   const handleStatusChange = (newStatus: string) => {
     console.log('Status changed to:', newStatus);
+    // Implement status update API call here
   };
 
   const handleEdit = () => {
@@ -173,6 +227,7 @@ const AppointmentDetail = () => {
   const handleSave = () => {
     setIsEditing(false);
     console.log('Appointment saved');
+    // Implement save API call here
   };
 
   const handleCancel = () => {
@@ -181,17 +236,53 @@ const AppointmentDetail = () => {
 
   const handleReschedule = () => {
     console.log('Reschedule appointment');
+    // Implement reschedule logic here
   };
 
   const handleCancelAppointment = () => {
     console.log('Cancel appointment');
+    // Implement cancel API call here
   };
 
   const handleSendReminder = () => {
     console.log('Send reminder');
+    // Implement send reminder API call here
   };
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <PageContainer>
+        <LoadingContainer>
+          <LoadingSpinner />
+          <LoadingText>Loading appointment details...</LoadingText>
+        </LoadingContainer>
+      </PageContainer>
+    );
+  }
+
+  // Error state
+  if (error || !data?.success) {
+    return (
+      <PageContainer>
+        <ErrorContainer>
+          <ErrorIcon>⚠️</ErrorIcon>
+          <ErrorTitle>Failed to load appointment</ErrorTitle>
+          <ErrorMessage>
+            {error instanceof Error ? error.message : 'Unable to fetch appointment details. Please try again.'}
+          </ErrorMessage>
+          <RetryButton onClick={() => refetch()}>
+            🔄 Retry
+          </RetryButton>
+        </ErrorContainer>
+      </PageContainer>
+    );
+  }
+
+  const appointment = data?.data.appointment;
   const { date, time } = formatDateTime(appointment.appointmentDateTime);
+  const patientName = getPatientName(appointment.patient);
+  const doctorName = getDoctorName(appointment.doctor);
 
   return (
     <PageContainer>
@@ -278,10 +369,10 @@ const AppointmentDetail = () => {
           Patient Info
         </TabButton>
         <TabButton 
-          active={activeTab === 'consultation'} 
-          onClick={() => setActiveTab('consultation')}
+          active={activeTab === 'doctor'} 
+          onClick={() => setActiveTab('doctor')}
         >
-          Consultation
+          Doctor Info
         </TabButton>
         <TabButton 
           active={activeTab === 'payment'} 
@@ -310,6 +401,10 @@ const AppointmentDetail = () => {
                   <InfoRow>
                     <InfoLabel>Date & Time:</InfoLabel>
                     <InfoValue>{date} at {time}</InfoValue>
+                  </InfoRow>
+                  <InfoRow>
+                    <InfoLabel>End Time:</InfoLabel>
+                    <InfoValue>{formatDateTime(appointment.endDateTime).time}</InfoValue>
                   </InfoRow>
                   <InfoRow>
                     <InfoLabel>Duration:</InfoLabel>
@@ -346,13 +441,13 @@ const AppointmentDetail = () => {
                 </CardHeader>
                 <CardBody>
                   <PatientSummary>
-                    <PatientName>{appointment.patient.name}</PatientName>
+                    <PatientName>{patientName}</PatientName>
                     <PatientDetails>
-                      {appointment.patient.patientId} • {calculateAge(appointment.patient.dateOfBirth)} years old
+                      {appointment.patient.patientId} • {calculateAge(appointment.patient.personalInfo.dateOfBirth)} years old
                     </PatientDetails>
                     <ContactInfo>
-                      📞 {appointment.patient.phone}<br/>
-                      ✉️ {appointment.patient.email}
+                      📞 {appointment.patient.contactInfo.phone}<br/>
+                      ✉️ {appointment.patient.contactInfo.email}
                     </ContactInfo>
                   </PatientSummary>
                 </CardBody>
@@ -366,10 +461,10 @@ const AppointmentDetail = () => {
                 </CardHeader>
                 <CardBody>
                   <DoctorSummary>
-                    <DoctorName>{appointment.doctor.name}</DoctorName>
+                    <DoctorName>{doctorName}</DoctorName>
                     <DoctorDetails>
-                      {appointment.doctor.qualification}<br/>
-                      {appointment.doctor.specialization} • {appointment.doctor.experience}
+                      {appointment.doctor.professionalInfo.qualifications.join(', ')}<br/>
+                      {appointment.doctor.professionalInfo.specialization} • {appointment.doctor.professionalInfo.experience} years experience
                     </DoctorDetails>
                   </DoctorSummary>
                 </CardBody>
@@ -386,7 +481,7 @@ const AppointmentDetail = () => {
                     <SymptomsSection>
                       <SectionTitle>Symptoms:</SectionTitle>
                       <SymptomsList>
-                        {appointment.symptoms.map((symptom, index) => (
+                        {appointment.symptoms.map((symptom: string, index: number) => (
                           <SymptomTag key={index}>{symptom}</SymptomTag>
                         ))}
                       </SymptomsList>
@@ -414,95 +509,187 @@ const AppointmentDetail = () => {
 
         {activeTab === 'patient' && (
           <PatientTab>
-            <InfoCard>
-              <CardHeader>
-                <CardIcon>👤</CardIcon>
-                <CardTitle>Patient Information</CardTitle>
-              </CardHeader>
-              <CardBody>
-                <PatientGrid>
-                  <InfoRow>
-                    <InfoLabel>Full Name:</InfoLabel>
-                    <InfoValue>{appointment.patient.name}</InfoValue>
-                  </InfoRow>
-                  <InfoRow>
-                    <InfoLabel>Patient ID:</InfoLabel>
-                    <InfoValue>{appointment.patient.patientId}</InfoValue>
-                  </InfoRow>
-                  <InfoRow>
-                    <InfoLabel>Date of Birth:</InfoLabel>
-                    <InfoValue>{new Date(appointment.patient.dateOfBirth).toLocaleDateString('en-IN')}</InfoValue>
-                  </InfoRow>
-                  <InfoRow>
-                    <InfoLabel>Age:</InfoLabel>
-                    <InfoValue>{calculateAge(appointment.patient.dateOfBirth)} years</InfoValue>
-                  </InfoRow>
-                  <InfoRow>
-                    <InfoLabel>Gender:</InfoLabel>
-                    <InfoValue>{appointment.patient.gender}</InfoValue>
-                  </InfoRow>
-                  <InfoRow>
-                    <InfoLabel>Blood Group:</InfoLabel>
-                    <InfoValue>{appointment.patient.bloodGroup}</InfoValue>
-                  </InfoRow>
-                  <InfoRow>
-                    <InfoLabel>Phone:</InfoLabel>
-                    <InfoValue>{appointment.patient.phone}</InfoValue>
-                  </InfoRow>
-                  <InfoRow>
-                    <InfoLabel>Email:</InfoLabel>
-                    <InfoValue>{appointment.patient.email}</InfoValue>
-                  </InfoRow>
-                </PatientGrid>
-              </CardBody>
-            </InfoCard>
+            <ContentGrid>
+              <InfoCard>
+                <CardHeader>
+                  <CardIcon>👤</CardIcon>
+                  <CardTitle>Personal Information</CardTitle>
+                </CardHeader>
+                <CardBody>
+                  <PatientGrid>
+                    <InfoRow>
+                      <InfoLabel>Full Name:</InfoLabel>
+                      <InfoValue>{patientName}</InfoValue>
+                    </InfoRow>
+                    <InfoRow>
+                      <InfoLabel>Patient ID:</InfoLabel>
+                      <InfoValue>{appointment.patient.patientId}</InfoValue>
+                    </InfoRow>
+                    <InfoRow>
+                      <InfoLabel>Date of Birth:</InfoLabel>
+                      <InfoValue>{new Date(appointment.patient.personalInfo.dateOfBirth).toLocaleDateString('en-IN')}</InfoValue>
+                    </InfoRow>
+                    <InfoRow>
+                      <InfoLabel>Age:</InfoLabel>
+                      <InfoValue>{calculateAge(appointment.patient.personalInfo.dateOfBirth)} years</InfoValue>
+                    </InfoRow>
+                    <InfoRow>
+                      <InfoLabel>Gender:</InfoLabel>
+                      <InfoValue>{appointment.patient.personalInfo.gender}</InfoValue>
+                    </InfoRow>
+                    <InfoRow>
+                      <InfoLabel>Blood Group:</InfoLabel>
+                      <InfoValue>{appointment.patient.personalInfo.bloodGroup}</InfoValue>
+                    </InfoRow>
+                  </PatientGrid>
+                </CardBody>
+              </InfoCard>
+
+              <InfoCard>
+                <CardHeader>
+                  <CardIcon>📞</CardIcon>
+                  <CardTitle>Contact Information</CardTitle>
+                </CardHeader>
+                <CardBody>
+                  <PatientGrid>
+                    <InfoRow>
+                      <InfoLabel>Primary Phone:</InfoLabel>
+                      <InfoValue>{appointment.patient.contactInfo.phone}</InfoValue>
+                    </InfoRow>
+                    <InfoRow>
+                      <InfoLabel>Alternate Phone:</InfoLabel>
+                      <InfoValue>{appointment.patient.contactInfo.alternatePhone}</InfoValue>
+                    </InfoRow>
+                    <InfoRow>
+                      <InfoLabel>Email:</InfoLabel>
+                      <InfoValue>{appointment.patient.contactInfo.email}</InfoValue>
+                    </InfoRow>
+                    <InfoRow>
+                      <InfoLabel>Address:</InfoLabel>
+                      <InfoValue>{getFullAddress(appointment.patient.contactInfo.address)}</InfoValue>
+                    </InfoRow>
+                  </PatientGrid>
+                </CardBody>
+              </InfoCard>
+            </ContentGrid>
           </PatientTab>
         )}
 
-        {activeTab === 'consultation' && (
-          <ConsultationTab>
-            {appointment.consultation ? (
+        {activeTab === 'doctor' && (
+          <DoctorTab>
+            <ContentGrid>
               <InfoCard>
                 <CardHeader>
-                  <CardIcon>🩺</CardIcon>
-                  <CardTitle>Consultation Details</CardTitle>
+                  <CardIcon>👨‍⚕️</CardIcon>
+                  <CardTitle>Doctor Information</CardTitle>
                 </CardHeader>
                 <CardBody>
-                  <ConsultationGrid>
-                    <ConsultationSection>
-                      <SectionTitle>Diagnosis:</SectionTitle>
-                      <ConsultationText>{appointment.consultation.diagnosis}</ConsultationText>
-                    </ConsultationSection>
-                    
-                    <ConsultationSection>
-                      <SectionTitle>Prescription:</SectionTitle>
-                      <ConsultationText>{appointment.consultation.prescription}</ConsultationText>
-                    </ConsultationSection>
-                    
+                  <DoctorGrid>
                     <InfoRow>
-                      <InfoLabel>Follow-up Required:</InfoLabel>
-                      <InfoValue>{appointment.consultation.followUpRequired ? 'Yes' : 'No'}</InfoValue>
+                      <InfoLabel>Full Name:</InfoLabel>
+                      <InfoValue>{doctorName}</InfoValue>
                     </InfoRow>
-                    
-                    {appointment.consultation.nextAppointment && (
-                      <InfoRow>
-                        <InfoLabel>Next Appointment:</InfoLabel>
-                        <InfoValue>
-                          {formatDateTime(appointment.consultation.nextAppointment).date} at {formatDateTime(appointment.consultation.nextAppointment).time}
-                        </InfoValue>
-                      </InfoRow>
-                    )}
-                  </ConsultationGrid>
+                    <InfoRow>
+                      <InfoLabel>Doctor ID:</InfoLabel>
+                      <InfoValue>{appointment.doctor.doctorId}</InfoValue>
+                    </InfoRow>
+                    <InfoRow>
+                      <InfoLabel>Email:</InfoLabel>
+                      <InfoValue>{appointment.doctor.personalInfo.email}</InfoValue>
+                    </InfoRow>
+                    <InfoRow>
+                      <InfoLabel>Phone:</InfoLabel>
+                      <InfoValue>{appointment.doctor.personalInfo.phone}</InfoValue>
+                    </InfoRow>
+                  </DoctorGrid>
                 </CardBody>
               </InfoCard>
-            ) : (
-              <EmptyState>
-                <EmptyIcon>🩺</EmptyIcon>
-                <EmptyTitle>No Consultation Data</EmptyTitle>
-                <EmptyText>Consultation details will appear here after the appointment is completed.</EmptyText>
-              </EmptyState>
-            )}
-          </ConsultationTab>
+
+              <InfoCard>
+                <CardHeader>
+                  <CardIcon>🎓</CardIcon>
+                  <CardTitle>Professional Information</CardTitle>
+                </CardHeader>
+                <CardBody>
+                  <DoctorGrid>
+                    <InfoRow>
+                      <InfoLabel>Specialization:</InfoLabel>
+                      <InfoValue>{appointment.doctor.professionalInfo.specialization}</InfoValue>
+                    </InfoRow>
+                    <InfoRow>
+                      <InfoLabel>Department:</InfoLabel>
+                      <InfoValue>{appointment.doctor.professionalInfo.department}</InfoValue>
+                    </InfoRow>
+                    <InfoRow>
+                      <InfoLabel>Experience:</InfoLabel>
+                      <InfoValue>{appointment.doctor.professionalInfo.experience} years</InfoValue>
+                    </InfoRow>
+                    <InfoRow>
+                      <InfoLabel>License Number:</InfoLabel>
+                      <InfoValue>{appointment.doctor.professionalInfo.licenseNumber}</InfoValue>
+                    </InfoRow>
+                    <InfoRow>
+                      <InfoLabel>Qualifications:</InfoLabel>
+                      <InfoValue>{appointment.doctor.professionalInfo.qualifications.join(', ')}</InfoValue>
+                    </InfoRow>
+                  </DoctorGrid>
+                </CardBody>
+              </InfoCard>
+
+              <InfoCard>
+                <CardHeader>
+                  <CardIcon>💰</CardIcon>
+                  <CardTitle>Fee Structure</CardTitle>
+                </CardHeader>
+                <CardBody>
+                  <DoctorGrid>
+                    <InfoRow>
+                      <InfoLabel>Consultation Fee:</InfoLabel>
+                      <InfoValue>₹{appointment.doctor.fees.consultationFee}</InfoValue>
+                    </InfoRow>
+                    <InfoRow>
+                      <InfoLabel>Follow-up Fee:</InfoLabel>
+                      <InfoValue>₹{appointment.doctor.fees.followUpFee}</InfoValue>
+                    </InfoRow>
+                    <InfoRow>
+                      <InfoLabel>Emergency Fee:</InfoLabel>
+                      <InfoValue>₹{appointment.doctor.fees.emergencyFee}</InfoValue>
+                    </InfoRow>
+                  </DoctorGrid>
+                </CardBody>
+              </InfoCard>
+
+              <InfoCard className="full-width">
+                <CardHeader>
+                  <CardIcon>📅</CardIcon>
+                  <CardTitle>Working Schedule</CardTitle>
+                </CardHeader>
+                <CardBody>
+                  <ScheduleGrid>
+                    {appointment.doctor.schedule.workingDays.map((day: any) => (
+                      <ScheduleItem key={day._id} isWorking={day.isWorking}>
+                        <ScheduleDay>{day.day.charAt(0).toUpperCase() + day.day.slice(1)}</ScheduleDay>
+                        <ScheduleTime>
+                          {day.isWorking ? `${day.startTime} - ${day.endTime}` : 'Off'}
+                        </ScheduleTime>
+                      </ScheduleItem>
+                    ))}
+                  </ScheduleGrid>
+                  
+                  {appointment.doctor.schedule.breakTimes.length > 0 && (
+                    <BreakTimesSection>
+                      <SectionTitle>Break Times:</SectionTitle>
+                      {appointment.doctor.schedule.breakTimes.map((breakTime: any) => (
+                        <BreakTimeItem key={breakTime._id}>
+                          <strong>{breakTime.startTime} - {breakTime.endTime}</strong>: {breakTime.description}
+                        </BreakTimeItem>
+                      ))}
+                    </BreakTimesSection>
+                  )}
+                </CardBody>
+              </InfoCard>
+            </ContentGrid>
+          </DoctorTab>
         )}
 
         {activeTab === 'payment' && (
@@ -525,12 +712,12 @@ const AppointmentDetail = () => {
                     <PaymentAmount>₹{appointment.paymentAmount}</PaymentAmount>
                   </InfoRow>
                   <InfoRow>
-                    <InfoLabel>Payment Method:</InfoLabel>
-                    <InfoValue>{appointment.paymentMethod}</InfoValue>
+                    <InfoLabel>Appointment Type:</InfoLabel>
+                    <InfoValue>{appointment.appointmentType}</InfoValue>
                   </InfoRow>
                   <InfoRow>
-                    <InfoLabel>Transaction Date:</InfoLabel>
-                    <InfoValue>{new Date(appointment.createdAt).toLocaleDateString('en-IN')}</InfoValue>
+                    <InfoLabel>Booking Source:</InfoLabel>
+                    <InfoValue>{appointment.bookingSource}</InfoValue>
                   </InfoRow>
                 </PaymentGrid>
               </CardBody>
@@ -565,12 +752,10 @@ const AppointmentDetail = () => {
             <MetadataLabel>Reminders Sent:</MetadataLabel>
             <MetadataValue>{appointment.remindersSent}</MetadataValue>
           </MetadataItem>
-          {appointment.lastReminderSent && (
-            <MetadataItem>
-              <MetadataLabel>Last Reminder:</MetadataLabel>
-              <MetadataValue>{formatDateTime(appointment.lastReminderSent).date} at {formatDateTime(appointment.lastReminderSent).time}</MetadataValue>
-            </MetadataItem>
-          )}
+          <MetadataItem>
+            <MetadataLabel>IP Address:</MetadataLabel>
+            <MetadataValue>{appointment.metadata.ipAddress}</MetadataValue>
+          </MetadataItem>
         </MetadataGrid>
       </MetadataSection>
     </PageContainer>
@@ -585,6 +770,82 @@ const PageContainer = styled.div`
   
   @media (max-width: 768px) {
     padding: 16px;
+  }
+`;
+
+const LoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 16px;
+`;
+
+const LoadingSpinner = styled.div`
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e2e8f0;
+  border-top: 3px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
+
+const LoadingText = styled.div`
+  font-size: 16px;
+  color: #6b7280;
+  font-weight: 500;
+`;
+
+const ErrorContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 12px;
+  text-align: center;
+`;
+
+const ErrorIcon = styled.div`
+  font-size: 48px;
+  margin-bottom: 8px;
+`;
+
+const ErrorTitle = styled.h3`
+  font-size: 20px;
+  font-weight: 600;
+  color: #ef4444;
+  margin: 0 0 8px 0;
+`;
+
+const ErrorMessage = styled.p`
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0 0 24px 0;
+  max-width: 400px;
+  line-height: 1.5;
+`;
+
+const RetryButton = styled.button`
+  padding: 10px 20px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
   }
 `;
 
@@ -799,7 +1060,7 @@ const TabContent = styled.div`
 
 const OverviewTab = styled.div``;
 const PatientTab = styled.div``;
-const ConsultationTab = styled.div``;
+const DoctorTab = styled.div``;
 const PaymentTab = styled.div``;
 
 const ContentGrid = styled.div`
@@ -871,6 +1132,8 @@ const InfoValue = styled.span`
   color: #1f2937;
   font-weight: 500;
   text-align: right;
+  max-width: 60%;
+  word-wrap: break-word;
 `;
 
 const StatusBadge = styled.span<{ color: string }>`
@@ -1005,24 +1268,10 @@ const PatientGrid = styled.div`
   gap: 8px;
 `;
 
-const ConsultationGrid = styled.div`
+const DoctorGrid = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 16px;
-`;
-
-const ConsultationSection = styled.div`
-  padding: 12px;
-  background: #f8fafc;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
-`;
-
-const ConsultationText = styled.p`
-  font-size: 13px;
-  color: #374151;
-  line-height: 1.5;
-  margin: 0;
+  gap: 8px;
 `;
 
 const PaymentGrid = styled.div`
@@ -1031,32 +1280,43 @@ const PaymentGrid = styled.div`
   gap: 12px;
 `;
 
-const EmptyState = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
+const ScheduleGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+`;
+
+const ScheduleItem = styled.div<{ isWorking: boolean }>`
+  padding: 8px;
+  border: 1px solid ${props => props.isWorking ? '#d1fae5' : '#fee2e2'};
+  border-radius: 6px;
+  background: ${props => props.isWorking ? '#f0fdf4' : '#fef2f2'};
   text-align: center;
 `;
 
-const EmptyIcon = styled.div`
-  font-size: 48px;
-  margin-bottom: 16px;
-  opacity: 0.5;
-`;
-
-const EmptyTitle = styled.h3`
-  font-size: 18px;
+const ScheduleDay = styled.div`
+  font-size: 12px;
   font-weight: 600;
   color: #374151;
-  margin: 0 0 8px 0;
+  margin-bottom: 2px;
 `;
 
-const EmptyText = styled.p`
-  font-size: 14px;
+const ScheduleTime = styled.div`
+  font-size: 10px;
   color: #6b7280;
-  margin: 0;
+`;
+
+const BreakTimesSection = styled.div`
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+`;
+
+const BreakTimeItem = styled.div`
+  font-size: 12px;
+  color: #374151;
+  margin-bottom: 4px;
 `;
 
 const ActionSection = styled.div`

@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import { usePatients, useDoctors } from '@/hooks/useAdmin'; 
+import { useBookAppointment } from '@/hooks/useAppointment'; 
+import { Toaster } from 'react-hot-toast';
 
 const theme = {
   colors: {
@@ -12,8 +15,8 @@ const theme = {
 
 interface FormData {
   // Basic Information
-  patientId: string;
-  doctorId: string;
+  patient: string;
+  doctor: string;
   appointmentDate: string;
   appointmentTime: string;
   duration: number;
@@ -37,12 +40,43 @@ interface FormData {
   prescription: string;
   nextAppointmentDate: string;
   followUpRequired: boolean;
+
+  // Metadata
+  referralSource: string;
+  campaignId: string;
+}
+
+interface PatientInfo {
+  personalInfo: {
+    firstName: string;
+    lastName: string;
+  };
+  contactInfo: {
+    phone: string;
+  };
+  _id: string;
+  patientId: string;
+  fullName: string;
+}
+
+interface DoctorInfo {
+  personalInfo: {
+    firstName: string;
+    lastName: string;
+  };
+  professionalInfo: {
+    specialization: string;
+    experience: number;
+  };
+  _id: string;
+  doctorId: string;
+  fullName: string;
 }
 
 const CreateAppointmentForm = () => {
   const [formData, setFormData] = useState<FormData>({
-    patientId: '',
-    doctorId: '',
+    patient: '',
+    doctor: '',
     appointmentDate: '',
     appointmentTime: '',
     duration: 30,
@@ -59,26 +93,20 @@ const CreateAppointmentForm = () => {
     diagnosis: '',
     prescription: '',
     nextAppointmentDate: '',
-    followUpRequired: false
+    followUpRequired: false,
+    referralSource: '',
+    campaignId: ''
   });
 
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Mock data for dropdowns
-  const patients = [
-    { id: '1', name: 'John Doe', phone: '+91 9876543210', patientId: 'PAT001' },
-    { id: '2', name: 'Jane Smith', phone: '+91 9876543211', patientId: 'PAT002' },
-    { id: '3', name: 'Robert Johnson', phone: '+91 9876543212', patientId: 'PAT003' },
-    { id: '4', name: 'Emily Davis', phone: '+91 9876543213', patientId: 'PAT004' }
-  ];
+  // Fetch patients and doctors from backend
+  const { data: patientsResponse, isLoading: patientsLoading, error: patientsError } = usePatients();
+  const { data: doctors, isLoading: doctorsLoading, error: doctorsError } = useDoctors();
+  const { mutate: bookAppointment, isLoading: isSubmitting } = useBookAppointment();
 
-  const doctors = [
-    { id: '1', name: 'Dr. Sarah Wilson', specialization: 'Cardiology', experience: '10+ years' },
-    { id: '2', name: 'Dr. Michael Brown', specialization: 'Neurology', experience: '8+ years' },
-    { id: '3', name: 'Dr. Emily Davis', specialization: 'Pediatrics', experience: '12+ years' },
-    { id: '4', name: 'Dr. David Miller', specialization: 'Orthopedics', experience: '15+ years' }
-  ];
+  // Extract patients array from paginated response
+  const patients = patientsResponse?.data?.patients || [];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -102,8 +130,8 @@ const CreateAppointmentForm = () => {
     const newErrors: Partial<Record<keyof FormData, string>> = {};
     
     // Required fields validation
-    if (!formData.patientId) newErrors.patientId = 'Patient is required';
-    if (!formData.doctorId) newErrors.doctorId = 'Doctor is required';
+    if (!formData.patient) newErrors.patient = 'Patient is required';
+    if (!formData.doctor) newErrors.doctor = 'Doctor is required';
     if (!formData.appointmentDate) newErrors.appointmentDate = 'Appointment date is required';
     if (!formData.appointmentTime) newErrors.appointmentTime = 'Appointment time is required';
     if (!formData.appointmentType) newErrors.appointmentType = 'Appointment type is required';
@@ -143,65 +171,10 @@ const CreateAppointmentForm = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async () => {
-    if (!validateForm()) {
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
-    try {
-      // Combine date and time for submission
-      const appointmentDateTime = new Date(`${formData.appointmentDate}T${formData.appointmentTime}`);
-      
-      const appointmentData = {
-        ...formData,
-        appointmentDateTime,
-        symptoms: formData.symptoms ? formData.symptoms.split(',').map(s => s.trim()).filter(Boolean) : [],
-        paymentAmount: formData.paymentAmount ? parseFloat(formData.paymentAmount) : undefined,
-        nextAppointment: formData.nextAppointmentDate ? new Date(formData.nextAppointmentDate) : undefined
-      };
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      console.log('Appointment data:', appointmentData);
-      alert('Appointment created successfully!');
-      
-      // Reset form on success
-      setFormData({
-        patientId: '',
-        doctorId: '',
-        appointmentDate: '',
-        appointmentTime: '',
-        duration: 30,
-        appointmentType: '',
-        status: 'scheduled',
-        priority: 'medium',
-        bookingSource: '',
-        symptoms: '',
-        notes: '',
-        specialRequirements: '',
-        paymentStatus: 'pending',
-        paymentAmount: '',
-        paymentMethod: '',
-        diagnosis: '',
-        prescription: '',
-        nextAppointmentDate: '',
-        followUpRequired: false
-      });
-    } catch (error) {
-      console.error('Error creating appointment:', error);
-      alert('Error creating appointment. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleCancel = () => {
-    // Reset form data
+  const resetForm = () => {
     setFormData({
-      patientId: '',
-      doctorId: '',
+      patient: '',
+      doctor: '',
       appointmentDate: '',
       appointmentTime: '',
       duration: 30,
@@ -218,16 +191,114 @@ const CreateAppointmentForm = () => {
       diagnosis: '',
       prescription: '',
       nextAppointmentDate: '',
-      followUpRequired: false
+      followUpRequired: false,
+      referralSource: '',
+      campaignId: ''
     });
     setErrors({});
+  };
+
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      return;
+    }
+    
+    try {
+      // Combine date and time for submission
+      const appointmentDateTime = new Date(`${formData.appointmentDate}T${formData.appointmentTime}`);
+      
+      // Prepare the payload according to your API structure
+      const appointmentPayload = {
+        patient: formData.patient,
+        doctor: formData.doctor,
+        appointmentDateTime: appointmentDateTime.toISOString(),
+        duration: formData.duration,
+        appointmentType: formData.appointmentType,
+        status: formData.status,
+        priority: formData.priority,
+        bookingSource: formData.bookingSource,
+        symptoms: formData.symptoms ? formData.symptoms.split(',').map(s => s.trim()).filter(Boolean) : [],
+        notes: formData.notes,
+        specialRequirements: formData.specialRequirements,
+        remindersSent: 0,
+        paymentStatus: formData.paymentStatus,
+        paymentAmount: formData.paymentAmount ? parseFloat(formData.paymentAmount) : undefined,
+        paymentMethod: formData.paymentMethod || undefined,
+        ...(formData.diagnosis || formData.prescription || formData.nextAppointmentDate || formData.followUpRequired ? {
+          consultation: {
+            diagnosis: formData.diagnosis || '',
+            prescription: formData.prescription || '',
+            nextAppointment: formData.nextAppointmentDate ? new Date(formData.nextAppointmentDate).toISOString() : undefined,
+            followUpRequired: formData.followUpRequired
+          }
+        } : {}),
+        metadata: {
+          ipAddress: '127.0.0.1', // This should ideally come from the client
+          userAgent: navigator.userAgent,
+          ...(formData.referralSource && { referralSource: formData.referralSource }),
+          ...(formData.campaignId && { campaignId: formData.campaignId })
+        }
+      };
+
+      // Remove undefined values
+      const cleanPayload = Object.fromEntries(
+        Object.entries(appointmentPayload).filter(([_, value]) => value !== undefined && value !== '')
+      );
+      
+      bookAppointment(cleanPayload, {
+        onSuccess: () => {
+          resetForm();
+        },
+        onError: (error) => {
+          console.error('Error creating appointment:', error);
+        }
+      });
+    } catch (error) {
+      console.error('Error creating appointment:', error);
+    }
+  };
+
+  const getPatientDisplayName = (patient: PatientInfo) => {
+    return patient.fullName || `${patient.personalInfo.firstName} ${patient.personalInfo.lastName}`;
+  };
+
+  const getDoctorDisplayName = (doctor: DoctorInfo) => {
+    return doctor.fullName || `Dr. ${doctor.personalInfo.firstName} ${doctor.personalInfo.lastName}`;
   };
 
   // Get today's date for min attribute
   const today = new Date().toISOString().split('T')[0];
 
+  // Loading state for dropdowns
+  if (patientsLoading || doctorsLoading) {
+    return (
+      <FormContainer>
+        <LoadingContainer>
+          <LoadingSpinner />
+          <LoadingText>Loading form data...</LoadingText>
+        </LoadingContainer>
+      </FormContainer>
+    );
+  }
+
+  // Error state for dropdowns
+  if (patientsError || doctorsError) {
+    return (
+      <FormContainer>
+        <ErrorContainer>
+          <ErrorIcon>⚠️</ErrorIcon>
+          <ErrorTitle>Failed to load form data</ErrorTitle>
+          <ErrorMessage>
+            {patientsError?.message || doctorsError?.message || 'Unable to load patients and doctors data.'}
+          </ErrorMessage>
+        </ErrorContainer>
+      </FormContainer>
+    );
+  }
+
   return (
     <FormContainer>
+      <Toaster position="top-right" />
       {/* Form Header */}
       <FormHeader>
         <HeaderContent>
@@ -248,41 +319,41 @@ const CreateAppointmentForm = () => {
           
           <FormGrid>
             <FormGroup>
-              <Label htmlFor="patientId">Patient *</Label>
+              <Label htmlFor="patient">Patient *</Label>
               <Select
-                id="patientId"
-                name="patientId"
-                value={formData.patientId}
+                id="patient"
+                name="patient"
+                value={formData.patient}
                 onChange={handleInputChange}
-                hasError={!!errors.patientId}
+                hasError={!!errors.patient}
               >
                 <option value="">Select patient</option>
-                {patients.map(patient => (
-                  <option key={patient.id} value={patient.id}>
-                    {patient.name} ({patient.patientId}) - {patient.phone}
+                {patients.map((patient: PatientInfo) => (
+                  <option key={patient._id} value={patient._id}>
+                    {getPatientDisplayName(patient)} ({patient.patientId}) - {patient.contactInfo.phone}
                   </option>
                 ))}
               </Select>
-              {errors.patientId && <ErrorText>{errors.patientId}</ErrorText>}
+              {errors.patient && <ErrorText>{errors.patient}</ErrorText>}
             </FormGroup>
 
             <FormGroup>
-              <Label htmlFor="doctorId">Doctor *</Label>
+              <Label htmlFor="doctor">Doctor *</Label>
               <Select
-                id="doctorId"
-                name="doctorId"
-                value={formData.doctorId}
+                id="doctor"
+                name="doctor"
+                value={formData.doctor}
                 onChange={handleInputChange}
-                hasError={!!errors.doctorId}
+                hasError={!!errors.doctor}
               >
                 <option value="">Select doctor</option>
-                {doctors.map(doctor => (
-                  <option key={doctor.id} value={doctor.id}>
-                    {doctor.name} - {doctor.specialization}
+                {doctors?.map((doctor: DoctorInfo) => (
+                  <option key={doctor._id} value={doctor._id}>
+                    {getDoctorDisplayName(doctor)} - {doctor.professionalInfo.specialization}
                   </option>
                 ))}
               </Select>
-              {errors.doctorId && <ErrorText>{errors.doctorId}</ErrorText>}
+              {errors.doctor && <ErrorText>{errors.doctor}</ErrorText>}
             </FormGroup>
 
             <FormGroup>
@@ -578,9 +649,45 @@ const CreateAppointmentForm = () => {
           </FormGrid>
         </Section>
 
+        {/* Metadata Section */}
+        <Section>
+          <SectionHeader>
+            <SectionIcon>📊</SectionIcon>
+            <SectionTitle>Marketing & Tracking (Optional)</SectionTitle>
+          </SectionHeader>
+          
+          <FormGrid>
+            <FormGroup>
+              <Label htmlFor="referralSource">Referral Source</Label>
+              <Input
+                type="text"
+                id="referralSource"
+                name="referralSource"
+                value={formData.referralSource}
+                onChange={handleInputChange}
+                placeholder="e.g., Instagram ad, Google search"
+              />
+              <HelperText>Where did the patient hear about us?</HelperText>
+            </FormGroup>
+
+            <FormGroup>
+              <Label htmlFor="campaignId">Campaign ID</Label>
+              <Input
+                type="text"
+                id="campaignId"
+                name="campaignId"
+                value={formData.campaignId}
+                onChange={handleInputChange}
+                placeholder="e.g., CAMP-JULY-25"
+              />
+              <HelperText>Marketing campaign identifier</HelperText>
+            </FormGroup>
+          </FormGrid>
+        </Section>
+
         {/* Form Actions */}
         <FormActions>
-          <ActionButton type="button" variant="secondary" onClick={handleCancel}>
+          <ActionButton type="button" variant="secondary" onClick={resetForm}>
             Cancel
           </ActionButton>
           <ActionButton onClick={handleSubmit} disabled={isSubmitting}>
@@ -601,6 +708,66 @@ const FormContainer = styled.div`
   width: 100%;
   max-width: 1000px;
   margin: 0 auto;
+`;
+
+const LoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 16px;
+`;
+
+const LoadingSpinner = styled.div`
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e2e8f0;
+  border-top: 3px solid ${theme.colors.primary};
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
+
+const LoadingText = styled.div`
+  font-size: 16px;
+  color: #6b7280;
+  font-weight: 500;
+`;
+
+const ErrorContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 12px;
+  text-align: center;
+  padding: 40px 20px;
+`;
+
+const ErrorIcon = styled.div`
+  font-size: 48px;
+  margin-bottom: 8px;
+`;
+
+const ErrorTitle = styled.h3`
+  font-size: 20px;
+  font-weight: 600;
+  color: ${theme.colors.danger};
+  margin: 0 0 8px 0;
+`;
+
+const ErrorMessage = styled.p`
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+  max-width: 400px;
+  line-height: 1.5;
 `;
 
 const FormHeader = styled.div`
