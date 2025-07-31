@@ -36,6 +36,7 @@ const ROUTE_PATHS = {
 
   // Patient-specific routes
   PATIENT_APPOINTMENTS: "/appointments",
+  PATIENT_APPOINTMENT_DETAIL: "/appointments/:appointmentId",
   PATIENT_MEDICAL_HISTORY: "/medical-history",
   PATIENT_PRESCRIPTIONS: "/prescriptions",
   PATIENT_BILLING: "/billing",

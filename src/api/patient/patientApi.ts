@@ -9,7 +9,12 @@ import {
   GetPatientProfileResponse,
   GetPatientAppointmentsResponse,
   GetMedicalRecordsResponse,
+  GetDashboardDataResponse,
 } from "./patientTypes";
+import {
+  GetAppointmentDetailsResponse,
+} from "../appointment/appointmentTypes";
+
 
 const token = localStorage.getItem("auth_token");
 export const patientApi = {
@@ -68,4 +73,27 @@ export const patientApi = {
     );
     return response.data.data;
   },
-};
+
+    getPatientDashboard: async (): Promise<GetDashboardDataResponse> => {
+      const response = await httpClient.get<GetDashboardDataResponse>(
+        API_ENDPOINTS.PATIENT.GET_PATIENT_DASHBOARD,
+        {
+          headers: {
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+        }
+      );
+      return response.data;
+    },
+    getPatientAppointmentById: async (id: string): Promise<GetAppointmentDetailsResponse> => {
+      const response = await httpClient.get<ApiResponse<GetAppointmentDetailsResponse>>(
+        API_ENDPOINTS.PATIENT.GET_PATIENT_APPOINTMENT_BY_ID(id),
+        {
+          headers: {
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+        }
+      );
+      return response.data.data;
+    },
+  };

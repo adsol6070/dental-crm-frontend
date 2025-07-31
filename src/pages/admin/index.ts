@@ -9,3 +9,4 @@ export const PatientView = lazy(() => import("./patientDetail"));
 export const CreateDoctorForm = lazy(() => import("./createDoctorForm"));
 export const DoctorList = lazy(() => import("./doctorList"));
 export const DoctorView = lazy(() => import("./doctorDetail"));
+export const Reports = lazy(() => import("./Reports"));

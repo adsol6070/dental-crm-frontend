@@ -8,6 +8,7 @@ import {
   GetAdminProfileResponse,
   changePassPayload,
   DoctorVerificationPayload,
+  UserStatusPayload,
   UserCreatePayload,
   ApiResponse,
 } from "@/api/admin/adminTypes";
@@ -190,7 +191,6 @@ export const useDisableTwoFA = () =>
     "2FA diabled successfully!"
   );
 
-  
 export const useChangePassword = () =>
   useCustomMutation(
     (data: changePassPayload) => adminApi.changePassword(data),
@@ -198,10 +198,39 @@ export const useChangePassword = () =>
     "Password changed successfully!"
   );
 
-    
-export const useCreateUserAdmin = () =>
+export const useCreateUserAdmin = (p0: {
+  onSuccess: () => void;
+  onError: (error: any) => void;
+}) =>
   useCustomMutation(
     (data: UserCreatePayload) => adminApi.createUser(data),
-    ["admin"],
+    ["adminUsers"],
     "User Created successfully!"
+  );
+
+export const useGetUserAdmin = () =>
+  useQuery({
+    queryKey: ["adminUsers"],
+    queryFn: () => adminApi.getAllUsers(),
+    select: (data) => data,
+  });
+
+export const useUpdateUserStatus = () =>
+  useCustomMutation(
+    ({
+      id,
+      userStatusData,
+    }: {
+      id: string;
+      userStatusData: UserStatusPayload;
+    }) => adminApi.updateUserStatus(id, userStatusData),
+    ["adminUsers"],
+    "User status updated successfully!"
+  );
+
+export const useDeleteUser = () =>
+  useCustomMutation(
+    (id: string) => adminApi.deleteUser(id),
+    ["adminUsers"],
+    "User deleted successfully!"
   );

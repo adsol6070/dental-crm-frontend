@@ -1,143 +1,174 @@
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { theme } from '@/config/theme.config';
+import { usePatientDashboard } from '@/hooks/usePatient'; 
 
-interface PatientData {
-  id: string;
-  name: string;
-  age: number;
-  profilePicture?: string;
-  patientId: string;
-  isVerified: boolean;
-  nextAppointment?: {
-    date: Date;
-    doctor: string;
-    type: string;
+// Types based on your API response
+interface Doctor {
+  personalInfo: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
   };
-  totalAppointmentsThisYear: number;
-  lastVisitDate?: Date;
-  currentMedications: Array<{
-    name: string;
-    dosage: string;
-    schedule: string;
-    nextDose: Date;
-  }>;
-  allergies: string[];
-  upcomingReminders: Array<{
-    type: string;
-    date: Date;
-    description: string;
-  }>;
-  recentActivity: Array<{
-    type: 'appointment' | 'prescription' | 'lab';
-    title: string;
-    date: Date;
-    status: string;
-  }>;
+  professionalInfo: {
+    specialization: string;
+    qualifications: string[];
+    experience: number;
+    licenseNumber: string;
+    department: string;
+  };
+  _id: string;
+  fullName: string;
+  id: string;
+}
+
+interface Appointment {
+  _id: string;
+  patient: string;
+  doctor: Doctor;
+  appointmentDateTime: string;
+  duration: number;
+  appointmentType: string;
+  status: string;
+  priority: string;
+  bookingSource: string;
+  symptoms: string[];
+  notes: string;
+  specialRequirements: string;
+  remindersSent: number;
+  paymentStatus: string;
+  paymentAmount: number;
+  appointmentId: string;
+  createdAt: string;
+  updatedAt: string;
+  endDateTime: string;
+  id: string;
+  consultation?: {
+    diagnosis: string;
+    followUpRequired: boolean;
+  };
+}
+
+interface Statistics {
+  totalAppointments: number;
+  completedAppointments: number;
+  cancelledAppointments: number;
+  noShowCount: number;
+  lastVisit: string;
+}
+
+interface MonthlyStats {
+  _id: number;
+  count: number;
+}
+
+interface PersonalInfo {
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  gender: string;
+  bloodGroup: string;
+}
+
+interface Preferences {
+  reminderSettings: {
+    enableReminders: boolean;
+    reminderTime: number;
+  };
+  preferredLanguage: string;
+  communicationMethod: string;
+}
+
+interface PatientDashboardData {
+  upcomingAppointments: Appointment[];
+  recentAppointments: Appointment[];
+  statistics: Statistics;
+  monthlyStats: MonthlyStats[];
+  personalInfo: PersonalInfo;
+  preferences: Preferences;
 }
 
 const UserDashboard = () => {
-  const [patientData, setPatientData] = useState<PatientData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading, isError, error } = usePatientDashboard();
+  const dashboardData: PatientDashboardData | undefined = data?.data;
 
-  useEffect(() => {
-    // Simulate API call
-    const fetchPatientData = async () => {
-      setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const mockData: PatientData = {
-        id: '1',
-        name: 'John Doe',
-        age: 34,
-        patientId: 'PAT-2024-001',
-        isVerified: true,
-        nextAppointment: {
-          date: new Date('2024-07-15T10:00:00'),
-          doctor: 'Dr. Sarah Wilson',
-          type: 'General Checkup'
-        },
-        totalAppointmentsThisYear: 8,
-        lastVisitDate: new Date('2024-06-20'),
-        currentMedications: [
-          {
-            name: 'Lisinopril',
-            dosage: '10mg',
-            schedule: 'Once daily',
-            nextDose: new Date('2024-07-04T08:00:00')
-          },
-          {
-            name: 'Metformin',
-            dosage: '500mg',
-            schedule: 'Twice daily',
-            nextDose: new Date('2024-07-03T20:00:00')
-          }
-        ],
-        allergies: ['Penicillin', 'Shellfish'],
-        upcomingReminders: [
-          {
-            type: 'Lab Test',
-            date: new Date('2024-07-10'),
-            description: 'Annual blood work'
-          },
-          {
-            type: 'Medication Refill',
-            date: new Date('2024-07-08'),
-            description: 'Lisinopril prescription expires'
-          }
-        ],
-        recentActivity: [
-          {
-            type: 'appointment',
-            title: 'Follow-up with Dr. Wilson',
-            date: new Date('2024-06-20'),
-            status: 'Completed'
-          },
-          {
-            type: 'prescription',
-            title: 'Metformin prescription renewed',
-            date: new Date('2024-06-18'),
-            status: 'Active'
-          },
-          {
-            type: 'lab',
-            title: 'Blood glucose test',
-            date: new Date('2024-06-15'),
-            status: 'Results pending'
-          }
-        ]
-      };
-      
-      setPatientData(mockData);
-      setLoading(false);
-    };
-
-    fetchPatientData();
-  }, []);
-
-  const calculateDaysUntil = (date: Date): number => {
+  const calculateDaysUntil = (dateString: string): number => {
     const today = new Date();
-    const diffTime = date.getTime() - today.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const targetDate = new Date(dateString);
+    const diffTime = targetDate.getTime() - today.getTime();
+    const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return days > 0 ? days : 0;
   };
 
-  const formatDate = (date: Date): string => {
-    return date.toLocaleDateString('en-US', {
+  const formatDate = (dateString: string): string => {
+    return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric'
     });
   };
 
-  const formatTime = (date: Date): string => {
-    return date.toLocaleTimeString('en-US', {
+  const formatTime = (dateString: string): string => {
+    return new Date(dateString).toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
       hour12: true
     });
   };
 
-  if (loading) {
+  const calculateAge = (dateOfBirth: string): number => {
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const getStatusColor = (status: string): string => {
+    switch (status.toLowerCase()) {
+      case 'scheduled': return '#3b82f6';
+      case 'confirmed': return '#10b981';
+      case 'completed': return '#6b7280';
+      case 'cancelled': return '#ef4444';
+      default: return '#6b7280';
+    }
+  };
+
+  const getStatusBackground = (status: string): string => {
+    switch (status.toLowerCase()) {
+      case 'scheduled': return '#dbeafe';
+      case 'confirmed': return '#d1fae5';
+      case 'completed': return '#f3f4f6';
+      case 'cancelled': return '#fee2e2';
+      default: return '#f3f4f6';
+    }
+  };
+
+  const getPaymentStatusColor = (status: string): string => {
+    switch (status.toLowerCase()) {
+      case 'paid': return '#10b981';
+      case 'pending': return '#f59e0b';
+      case 'failed': return '#ef4444';
+      default: return '#6b7280';
+    }
+  };
+
+  const getNextAppointment = () => {
+    if (!dashboardData?.upcomingAppointments?.length) return null;
+    return dashboardData.upcomingAppointments
+      .sort((a, b) => new Date(a.appointmentDateTime).getTime() - new Date(b.appointmentDateTime).getTime())[0];
+  };
+
+  const getThisYearTotal = () => {
+    const currentYear = new Date().getFullYear();
+    return dashboardData?.monthlyStats?.reduce((total, month) => total + month.count, 0) || 0;
+  };
+
+  if (isLoading) {
     return (
       <LoadingContainer>
         <LoadingSpinner />
@@ -146,13 +177,19 @@ const UserDashboard = () => {
     );
   }
 
-  if (!patientData) {
+  if (isError || !dashboardData) {
     return (
       <ErrorContainer>
-        <ErrorText>Unable to load dashboard data</ErrorText>
+        <ErrorText>
+          {error ? `Error: ${(error as Error).message}` : 'Unable to load dashboard data'}
+        </ErrorText>
       </ErrorContainer>
     );
   }
+
+  const nextAppointment = getNextAppointment();
+  const fullName = `${dashboardData.personalInfo.firstName} ${dashboardData.personalInfo.lastName}`;
+  const age = calculateAge(dashboardData.personalInfo.dateOfBirth);
 
   return (
     <DashboardContainer>
@@ -161,22 +198,19 @@ const UserDashboard = () => {
         <PersonalHealthCard>
           <ProfileSection>
             <ProfilePicture>
-              {patientData.profilePicture ? (
-                <img src={patientData.profilePicture} alt="Profile" />
-              ) : (
-                <ProfileInitials>
-                  {patientData.name.split(' ').map(n => n[0]).join('')}
-                </ProfileInitials>
-              )}
+              <ProfileInitials>
+                {dashboardData.personalInfo.firstName[0]}{dashboardData.personalInfo.lastName[0]}
+              </ProfileInitials>
             </ProfilePicture>
             <ProfileInfo>
-              <PatientName>{patientData.name}</PatientName>
+              <PatientName>{fullName}</PatientName>
               <PatientDetails>
-                <DetailItem>Age: {patientData.age}</DetailItem>
-                <DetailItem>ID: {patientData.patientId}</DetailItem>
+                <DetailItem>Age: {age}</DetailItem>
+                <DetailItem>Blood Group: {dashboardData.personalInfo.bloodGroup}</DetailItem>
+                <DetailItem>Gender: {dashboardData.personalInfo.gender}</DetailItem>
               </PatientDetails>
-              <VerificationBadge verified={patientData.isVerified}>
-                {patientData.isVerified ? '✓ Verified' : '⚠ Pending Verification'}
+              <VerificationBadge verified={true}>
+                ✓ Active Patient
               </VerificationBadge>
             </ProfileInfo>
           </ProfileSection>
@@ -187,8 +221,8 @@ const UserDashboard = () => {
             <StatIcon>📅</StatIcon>
             <StatContent>
               <StatValue>
-                {patientData.nextAppointment 
-                  ? `${calculateDaysUntil(patientData.nextAppointment.date)} days`
+                {nextAppointment 
+                  ? `${calculateDaysUntil(nextAppointment.appointmentDateTime)} days`
                   : 'None scheduled'
                 }
               </StatValue>
@@ -199,7 +233,7 @@ const UserDashboard = () => {
           <StatCard>
             <StatIcon>📊</StatIcon>
             <StatContent>
-              <StatValue>{patientData.totalAppointmentsThisYear}</StatValue>
+              <StatValue>{getThisYearTotal()}</StatValue>
               <StatLabel>Appointments This Year</StatLabel>
             </StatContent>
           </StatCard>
@@ -208,8 +242,8 @@ const UserDashboard = () => {
             <StatIcon>🕒</StatIcon>
             <StatContent>
               <StatValue>
-                {patientData.lastVisitDate 
-                  ? formatDate(patientData.lastVisitDate)
+                {dashboardData.statistics.lastVisit 
+                  ? formatDate(dashboardData.statistics.lastVisit)
                   : 'No visits'
                 }
               </StatValue>
@@ -275,109 +309,182 @@ const UserDashboard = () => {
 
       {/* Main Content Grid */}
       <MainContentGrid>
-        {/* Health Overview */}
+        {/* Health Overview - Upcoming Appointments */}
         <HealthOverviewCard>
           <CardHeader>
-            <CardTitle>Health Overview</CardTitle>
-            <StatusIndicator status="good">Good</StatusIndicator>
+            <CardTitle>Upcoming Appointments</CardTitle>
+            <StatusIndicator status="active">
+              {dashboardData.upcomingAppointments.length} Scheduled
+            </StatusIndicator>
           </CardHeader>
           
-          <HealthSection>
-            <HealthSectionTitle>Active Medications</HealthSectionTitle>
-            <MedicationList>
-              {patientData.currentMedications.map((med, index) => (
-                <MedicationItem key={index}>
-                  <MedicationInfo>
-                    <MedicationName>{med.name} {med.dosage}</MedicationName>
-                    <MedicationSchedule>{med.schedule}</MedicationSchedule>
-                  </MedicationInfo>
-                  <NextDose>
-                    Next: {formatTime(med.nextDose)}
-                  </NextDose>
-                </MedicationItem>
+          {dashboardData.upcomingAppointments.length > 0 ? (
+            <AppointmentsList>
+              {dashboardData.upcomingAppointments.slice(0, 3).map((appointment) => (
+                <AppointmentItem key={appointment.id}>
+                  <AppointmentHeader>
+                    <AppointmentDate>
+                      {formatDate(appointment.appointmentDateTime)}
+                    </AppointmentDate>
+                    <AppointmentTime>
+                      {formatTime(appointment.appointmentDateTime)}
+                    </AppointmentTime>
+                  </AppointmentHeader>
+                  <AppointmentInfo>
+                    <DoctorName>{appointment.doctor.fullName}</DoctorName>
+                    <DepartmentName>{appointment.doctor.professionalInfo.department}</DepartmentName>
+                    <AppointmentDetails>
+                      <AppointmentType>{appointment.appointmentType}</AppointmentType>
+                      <StatusBadge 
+                        color={getStatusColor(appointment.status)}
+                        background={getStatusBackground(appointment.status)}
+                      >
+                        {appointment.status}
+                      </StatusBadge>
+                    </AppointmentDetails>
+                  </AppointmentInfo>
+                  <PaymentInfo>
+                    <PaymentAmount>₹{appointment.paymentAmount}</PaymentAmount>
+                    <PaymentStatus color={getPaymentStatusColor(appointment.paymentStatus)}>
+                      {appointment.paymentStatus}
+                    </PaymentStatus>
+                  </PaymentInfo>
+                </AppointmentItem>
               ))}
-            </MedicationList>
-          </HealthSection>
-
-          <HealthSection>
-            <HealthSectionTitle>Upcoming Reminders</HealthSectionTitle>
-            <ReminderList>
-              {patientData.upcomingReminders.map((reminder, index) => (
-                <ReminderItem key={index}>
-                  <ReminderIcon>⏰</ReminderIcon>
-                  <ReminderInfo>
-                    <ReminderType>{reminder.type}</ReminderType>
-                    <ReminderDescription>{reminder.description}</ReminderDescription>
-                    <ReminderDate>{formatDate(reminder.date)}</ReminderDate>
-                  </ReminderInfo>
-                </ReminderItem>
-              ))}
-            </ReminderList>
-          </HealthSection>
-
-          {patientData.allergies.length > 0 && (
-            <AllergyAlert>
-              <AlertIcon>⚠️</AlertIcon>
-              <AlertContent>
-                <AlertTitle>Allergy Alerts</AlertTitle>
-                <AllergyList>
-                  {patientData.allergies.join(', ')}
-                </AllergyList>
-              </AlertContent>
-            </AllergyAlert>
+            </AppointmentsList>
+          ) : (
+            <EmptyState>
+              <EmptyIcon>📅</EmptyIcon>
+              <EmptyTitle>No upcoming appointments</EmptyTitle>
+              <EmptyDescription>Book your next appointment to maintain your health</EmptyDescription>
+            </EmptyState>
           )}
+
+          {/* Health Statistics */}
+          <HealthSection>
+            <HealthSectionTitle>Health Statistics</HealthSectionTitle>
+            <StatsGrid>
+              <StatItem>
+                <StatItemLabel>Total Appointments</StatItemLabel>
+                <StatItemValue>{dashboardData.statistics.totalAppointments}</StatItemValue>
+              </StatItem>
+              <StatItem>
+                <StatItemLabel>Completed</StatItemLabel>
+                <StatItemValue>{dashboardData.statistics.completedAppointments}</StatItemValue>
+              </StatItem>
+              <StatItem>
+                <StatItemLabel>Cancelled</StatItemLabel>
+                <StatItemValue>{dashboardData.statistics.cancelledAppointments}</StatItemValue>
+              </StatItem>
+              <StatItem>
+                <StatItemLabel>No Shows</StatItemLabel>
+                <StatItemValue>{dashboardData.statistics.noShowCount}</StatItemValue>
+              </StatItem>
+            </StatsGrid>
+          </HealthSection>
+
+          {/* Monthly Activity Chart */}
+          <HealthSection>
+            <HealthSectionTitle>Monthly Activity</HealthSectionTitle>
+            <MonthlyChart>
+              {dashboardData.monthlyStats.map((month) => (
+                <MonthlyBar key={month._id}>
+                  <MonthlyBarFill height={Math.min((month.count / 10) * 100, 100)}>
+                    {month.count}
+                  </MonthlyBarFill>
+                  <MonthLabel>
+                    {new Date(2025, month._id - 1).toLocaleDateString('en-US', { month: 'short' })}
+                  </MonthLabel>
+                </MonthlyBar>
+              ))}
+            </MonthlyChart>
+          </HealthSection>
         </HealthOverviewCard>
 
         {/* Recent Activity */}
         <RecentActivityCard>
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
+            <CardTitle>Recent Appointments</CardTitle>
             <ViewAllLink>View All</ViewAllLink>
           </CardHeader>
           
-          <ActivityList>
-            {patientData.recentActivity.map((activity, index) => (
-              <ActivityItem key={index}>
-                <ActivityIcon type={activity.type}>
-                  {activity.type === 'appointment' ? '👨‍⚕️' : 
-                   activity.type === 'prescription' ? '💊' : '🧪'}
-                </ActivityIcon>
-                <ActivityInfo>
-                  <ActivityTitle>{activity.title}</ActivityTitle>
-                  <ActivityDate>{formatDate(activity.date)}</ActivityDate>
-                </ActivityInfo>
-                <ActivityStatus status={activity.status}>
-                  {activity.status}
-                </ActivityStatus>
-              </ActivityItem>
-            ))}
-          </ActivityList>
+          {dashboardData.recentAppointments.length > 0 ? (
+            <ActivityList>
+              {dashboardData.recentAppointments.map((appointment) => (
+                <ActivityItem key={appointment.id}>
+                  <ActivityIcon type="appointment">
+                    👨‍⚕️
+                  </ActivityIcon>
+                  <ActivityInfo>
+                    <ActivityTitle>{appointment.doctor.fullName}</ActivityTitle>
+                    <ActivityDescription>
+                      {appointment.doctor.professionalInfo.specialization}
+                    </ActivityDescription>
+                    <ActivityDate>{formatDate(appointment.appointmentDateTime)}</ActivityDate>
+                    {appointment.consultation && (
+                      <DiagnosisNote>
+                        Diagnosis: {appointment.consultation.diagnosis}
+                      </DiagnosisNote>
+                    )}
+                  </ActivityInfo>
+                  <ActivityStatus status={appointment.status}>
+                    {appointment.status}
+                  </ActivityStatus>
+                </ActivityItem>
+              ))}
+            </ActivityList>
+          ) : (
+            <EmptyState>
+              <EmptyIcon>📋</EmptyIcon>
+              <EmptyTitle>No recent appointments</EmptyTitle>
+              <EmptyDescription>Your appointment history will appear here</EmptyDescription>
+            </EmptyState>
+          )}
         </RecentActivityCard>
 
         {/* Next Appointment Card */}
-        {patientData.nextAppointment && (
+        {nextAppointment && (
           <NextAppointmentCard>
             <CardHeader>
               <CardTitle>Next Appointment</CardTitle>
               <CountdownBadge>
-                {calculateDaysUntil(patientData.nextAppointment.date)} days
+                {calculateDaysUntil(nextAppointment.appointmentDateTime)} days
               </CountdownBadge>
             </CardHeader>
             
-            <AppointmentDetails>
+            <AppointmentDetailsCard>
               <AppointmentDate>
-                {formatDate(patientData.nextAppointment.date)}
+                {formatDate(nextAppointment.appointmentDateTime)}
               </AppointmentDate>
               <AppointmentTime>
-                {formatTime(patientData.nextAppointment.date)}
+                {formatTime(nextAppointment.appointmentDateTime)}
               </AppointmentTime>
               <AppointmentDoctor>
-                with {patientData.nextAppointment.doctor}
+                with {nextAppointment.doctor.fullName}
               </AppointmentDoctor>
               <AppointmentType>
-                {patientData.nextAppointment.type}
+                {nextAppointment.appointmentType} - {nextAppointment.doctor.professionalInfo.specialization}
               </AppointmentType>
-            </AppointmentDetails>
+              <AppointmentLocation>
+                {nextAppointment.doctor.professionalInfo.department}
+              </AppointmentLocation>
+              
+              {nextAppointment.symptoms.length > 0 && (
+                <SymptomsSection>
+                  <SymptomsTitle>Reported Symptoms:</SymptomsTitle>
+                  <SymptomsList>
+                    {nextAppointment.symptoms.join(', ')}
+                  </SymptomsList>
+                </SymptomsSection>
+              )}
+              
+              {nextAppointment.notes && (
+                <NotesSection>
+                  <NotesTitle>Notes:</NotesTitle>
+                  <NotesText>{nextAppointment.notes}</NotesText>
+                </NotesSection>
+              )}
+            </AppointmentDetailsCard>
             
             <AppointmentActions>
               <ActionButton variant="primary">Join Video Call</ActionButton>
@@ -385,18 +492,319 @@ const UserDashboard = () => {
             </AppointmentActions>
           </NextAppointmentCard>
         )}
+
+        {/* Patient Preferences Card */}
+        <PreferencesCard>
+          <CardHeader>
+            <CardTitle>Your Preferences</CardTitle>
+          </CardHeader>
+          
+          <PreferencesList>
+            <PreferenceItem>
+              <PreferenceLabel>Preferred Language</PreferenceLabel>
+              <PreferenceValue>{dashboardData.preferences.preferredLanguage}</PreferenceValue>
+            </PreferenceItem>
+            
+            <PreferenceItem>
+              <PreferenceLabel>Communication Method</PreferenceLabel>
+              <PreferenceValue>{dashboardData.preferences.communicationMethod}</PreferenceValue>
+            </PreferenceItem>
+            
+            <PreferenceItem>
+              <PreferenceLabel>Reminders</PreferenceLabel>
+              <PreferenceValue>
+                {dashboardData.preferences.reminderSettings.enableReminders ? 
+                  `Enabled (${dashboardData.preferences.reminderSettings.reminderTime}h before)` : 
+                  'Disabled'
+                }
+              </PreferenceValue>
+            </PreferenceItem>
+          </PreferencesList>
+        </PreferencesCard>
       </MainContentGrid>
     </DashboardContainer>
   );
 };
 
-// Styled Components
+// Additional Styled Components for new features
+const AppointmentsList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+`;
+
+const AppointmentItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+`;
+
+const AppointmentHeader = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 120px;
+`;
+
+const AppointmentInfo = styled.div`
+  flex: 1;
+  margin: 0 16px;
+  
+  @media (max-width: 768px) {
+    margin: 0;
+  }
+`;
+
+const DoctorName = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 2px;
+`;
+
+const DepartmentName = styled.div`
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 8px;
+`;
+
+const AppointmentDetails = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const StatusBadge = styled.span<{ color: string; background: string }>`
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  color: ${props => props.color};
+  background: ${props => props.background};
+`;
+
+const PaymentInfo = styled.div`
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const PaymentAmount = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+`;
+
+const PaymentStatus = styled.div<{ color: string }>`
+  font-size: 11px;
+  font-weight: 500;
+  color: ${props => props.color};
+  text-transform: capitalize;
+`;
+
+const EmptyState = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+`;
+
+const EmptyIcon = styled.div`
+  font-size: 32px;
+  margin-bottom: 12px;
+`;
+
+const EmptyTitle = styled.div`
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 4px;
+`;
+
+const EmptyDescription = styled.div`
+  font-size: 14px;
+  color: #6b7280;
+`;
+
+const StatsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 12px;
+`;
+
+const StatItem = styled.div`
+  text-align: center;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 6px;
+`;
+
+const StatItemLabel = styled.div`
+  font-size: 11px;
+  color: #6b7280;
+  margin-bottom: 4px;
+`;
+
+const StatItemValue = styled.div`
+  font-size: 18px;
+  font-weight: 600;
+  color: ${theme.colors.primary};
+`;
+
+const MonthlyChart = styled.div`
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  height: 80px;
+  padding: 16px 0;
+`;
+
+const MonthlyBar = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+`;
+
+const MonthlyBarFill = styled.div<{ height: number }>`
+  width: 100%;
+  height: ${props => props.height}%;
+  background: linear-gradient(to top, ${theme.colors.primary}, ${theme.colors.primary}80);
+  border-radius: 4px;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  padding-bottom: 4px;
+  min-height: 20px;
+`;
+
+const MonthLabel = styled.div`
+  font-size: 10px;
+  color: #6b7280;
+  margin-top: 4px;
+`;
+
+const DiagnosisNote = styled.div`
+  font-size: 11px;
+  color: ${theme.colors.primary};
+  font-style: italic;
+  margin-top: 4px;
+`;
+
+const AppointmentDetailsCard = styled.div`
+  text-align: center;
+  margin-bottom: 16px;
+`;
+
+const AppointmentLocation = styled.div`
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 4px;
+`;
+
+const SymptomsSection = styled.div`
+  margin-top: 16px;
+  padding: 12px;
+  background: #fef3c7;
+  border-radius: 6px;
+  text-align: left;
+`;
+
+const SymptomsTitle = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: #92400e;
+  margin-bottom: 4px;
+`;
+
+const SymptomsList = styled.div`
+  font-size: 12px;
+  color: #92400e;
+`;
+
+const NotesSection = styled.div`
+  margin-top: 12px;
+  padding: 12px;
+  background: #f0f9ff;
+  border-radius: 6px;
+  text-align: left;
+`;
+
+const NotesTitle = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: #1e40af;
+  margin-bottom: 4px;
+`;
+
+const NotesText = styled.div`
+  font-size: 12px;
+  color: #1e40af;
+`;
+
+const PreferencesCard = styled.div`
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  margin-top: 20px;
+`;
+
+const PreferencesList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const PreferenceItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f3f4f6;
+  
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const PreferenceLabel = styled.div`
+  font-size: 13px;
+  color: #6b7280;
+`;
+
+const PreferenceValue = styled.div`
+  font-size: 13px;
+  font-weight: 500;
+  color: #1f2937;
+`;
+
+// Keep all existing styled components from the original code...
 const DashboardContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 20px;
   max-width: 1200px;
   margin: 0 auto;
+  padding: 20px;
 `;
 
 const LoadingContainer = styled.div`
@@ -499,6 +907,7 @@ const PatientDetails = styled.div`
   display: flex;
   gap: 16px;
   margin-bottom: 8px;
+  flex-wrap: wrap;
 `;
 
 const DetailItem = styled.span`
@@ -670,8 +1079,8 @@ const StatusIndicator = styled.span<{ status: string }>`
   border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
-  background: ${props => props.status === 'good' ? '#d1fae5' : '#fee2e2'};
-  color: ${props => props.status === 'good' ? '#065f46' : '#991b1b'};
+  background: ${props => props.status === 'good' || props.status === 'active' ? '#d1fae5' : '#fee2e2'};
+  color: ${props => props.status === 'good' || props.status === 'active' ? '#065f46' : '#991b1b'};
 `;
 
 const ViewAllLink = styled.button`
@@ -711,114 +1120,6 @@ const HealthSectionTitle = styled.h4`
   margin: 0 0 8px 0;
 `;
 
-const MedicationList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-const MedicationItem = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  background: #f8fafc;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
-`;
-
-const MedicationInfo = styled.div`
-  flex: 1;
-`;
-
-const MedicationName = styled.div`
-  font-size: 13px;
-  font-weight: 500;
-  color: #1f2937;
-`;
-
-const MedicationSchedule = styled.div`
-  font-size: 11px;
-  color: #6b7280;
-`;
-
-const NextDose = styled.div`
-  font-size: 11px;
-  color: ${theme.colors.primary};
-  font-weight: 500;
-`;
-
-const ReminderList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-const ReminderItem = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: #f8fafc;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
-`;
-
-const ReminderIcon = styled.div`
-  font-size: 14px;
-`;
-
-const ReminderInfo = styled.div`
-  flex: 1;
-`;
-
-const ReminderType = styled.div`
-  font-size: 12px;
-  font-weight: 500;
-  color: #1f2937;
-`;
-
-const ReminderDescription = styled.div`
-  font-size: 11px;
-  color: #6b7280;
-`;
-
-const ReminderDate = styled.div`
-  font-size: 11px;
-  color: ${theme.colors.primary};
-  font-weight: 500;
-`;
-
-const AllergyAlert = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px;
-  background: #fef3c7;
-  border: 1px solid #f59e0b;
-  border-radius: 6px;
-  margin-top: 16px;
-`;
-
-const AlertIcon = styled.div`
-  font-size: 16px;
-`;
-
-const AlertContent = styled.div`
-  flex: 1;
-`;
-
-const AlertTitle = styled.div`
-  font-size: 12px;
-  font-weight: 500;
-  color: #92400e;
-`;
-
-const AllergyList = styled.div`
-  font-size: 11px;
-  color: #92400e;
-`;
-
 const ActivityList = styled.div`
   display: flex;
   flex-direction: column;
@@ -848,6 +1149,12 @@ const ActivityTitle = styled.div`
   color: #1f2937;
 `;
 
+const ActivityDescription = styled.div`
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 2px;
+`;
+
 const ActivityDate = styled.div`
   font-size: 11px;
   color: #6b7280;
@@ -861,24 +1168,21 @@ const ActivityStatus = styled.span<{ status: string }>`
   background: ${props => {
     switch (props.status.toLowerCase()) {
       case 'completed': return '#d1fae5';
-      case 'active': return '#dbeafe';
-      case 'results pending': return '#fef3c7';
+      case 'confirmed': return '#dbeafe';
+      case 'scheduled': return '#fef3c7';
+      case 'cancelled': return '#fee2e2';
       default: return '#f3f4f6';
     }
   }};
   color: ${props => {
     switch (props.status.toLowerCase()) {
       case 'completed': return '#065f46';
-      case 'active': return '#1e40af';
-      case 'results pending': return '#92400e';
+      case 'confirmed': return '#1e40af';
+      case 'scheduled': return '#92400e';
+      case 'cancelled': return '#991b1b';
       default: return '#374151';
     }
   }};
-`;
-
-const AppointmentDetails = styled.div`
-  text-align: center;
-  margin-bottom: 16px;
 `;
 
 const AppointmentDate = styled.div`

@@ -9,6 +9,7 @@ export type BloodGroup =
   | "O+"
   | "O-";
 export type CommunicationMethod = "email" | "sms" | "whatsapp" | "phone";
+export type statusOptions = "active" | "inactive" | "suspended";
 export type RegistrationSource =
   | "website"
   | "mobile-app"
@@ -218,4 +219,45 @@ export interface ApiResponse<T> {
   data: T;
   message?: string;
   pagination?: Pagination;
+}
+
+export interface CreatedBy {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  fullName: string;
+  id: string;
+}
+
+export interface AdminUser {
+  _id: string;
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  role: string;
+  status: string;
+  permissions: string[];
+  isActive: boolean;
+  mustChangePassword: boolean;
+  tempPassword: boolean;
+  twoFactorEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+  fullName: string;
+  createdBy?: CreatedBy;
+  lastLogin?: string;
+}
+export interface UserStatusPayload {
+  status: statusOptions;
+  isActive: boolean;
+}
+export interface UsersListApiResponse {
+  success: boolean;
+  data: {
+    users: AdminUser[];
+    pagination: Pagination;
+  };
 }

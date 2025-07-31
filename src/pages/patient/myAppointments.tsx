@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import { FiEye, FiEdit2, FiTrash, FiCalendar, FiClock, FiFileText } from "react-icons/fi";
 import { usePatientAppointments } from '@/hooks/usePatient';
+import { ROUTE_PATHS } from '@/config/route-paths.config';
 
 // Theme configuration
 const theme = {
@@ -161,15 +162,16 @@ const AppointmentsDashboard = () => {
   const paginatedAppointments = filteredAndSortedAppointments.slice(startIndex, startIndex + itemsPerPage);
 
   const handleViewAppointment = (appointmentId: string) => {
-    navigate(`/app/appointments/details/${appointmentId}`);
+    const route = ROUTE_PATHS.PATIENT_APPOINTMENT_DETAIL.replace(':appointmentId', appointmentId);
+    navigate(`/patient${route}`);
   };
 
   const handleEditAppointment = (appointmentId: string) => {
-    navigate(`/app/appointments/edit/${appointmentId}`);
+    navigate(`/patient/appointments/edit/${appointmentId}`);
   };
 
   const handleNewAppointment = () => {
-    navigate('/app/appointments/create');
+    navigate('/patient/appointments/create');
   };
 
   const handleDeleteAppointment = (appointmentId: string) => {
@@ -449,7 +451,7 @@ const AppointmentsDashboard = () => {
                       >
                         <FiEye size={16} />
                       </ActionButton>
-                      <ActionButton 
+                      {/* <ActionButton 
                         variant="edit" 
                         onClick={() => handleEditAppointment(appointment._id)}
                         title="Edit appointment"
@@ -462,7 +464,7 @@ const AppointmentsDashboard = () => {
                         title="Cancel appointment"
                       >
                         <FiTrash size={16} />
-                      </ActionButton>
+                      </ActionButton> */}
                     </ActionButtons>
                   </TableCell>
                 </TableRow>

@@ -1,9 +1,9 @@
-import { 
-  FiHome, 
-  FiCalendar, 
-  FiUsers, 
-  FiUser, 
-  FiClock, 
+import {
+  FiHome,
+  FiCalendar,
+  FiUsers,
+  FiUser,
+  FiClock,
   FiUserPlus,
   FiUserCheck,
   FiSettings,
@@ -72,7 +72,7 @@ const doctorMenuItems = [
     icon: <FiXCircle size="18" />,
     path: ROUTES.DOCTOR.UNAVAILABLE_DAYS, // /doctor/unavailable-days
   },
-    {
+  {
     label: "Appointments",
     icon: <FiCalendar size="18" />,
     path: ROUTES.DOCTOR.APPOINTMENTS, // /doctor/unavailable-days
@@ -125,7 +125,6 @@ const doctorMenuItems = [
   //   ],
   // },
 ];
-
 
 // Admin-specific menu items
 const adminMenuItems = [
@@ -193,21 +192,26 @@ const adminMenuItems = [
     path: ROUTES.ADMIN.REPORTS,
   },
   {
-    label: "System Management",
-    icon: <FiShield size="18" />,
-    subMenu: [
-      {
-        label: "User Management",
-        icon: <FiUsers size="16" />,
-        path: ROUTES.ADMIN.USER_MANAGEMENT,
-      },
-      {
-        label: "System Settings",
-        icon: <FiDatabase size="16" />,
-        path: ROUTES.ADMIN.SYSTEM_SETTINGS,
-      },
-    ],
+    label: "User Management",
+    icon: <FiUsers size="16" />,
+    path: ROUTES.ADMIN.USER_MANAGEMENT,
   },
+  // {
+  //   label: "System Management",
+  //   icon: <FiShield size="18" />,
+  //   subMenu: [
+  //     {
+  //       label: "User Management",
+  //       icon: <FiUsers size="16" />,
+  //       path: ROUTES.ADMIN.USER_MANAGEMENT,
+  //     },
+  //     {
+  //       label: "System Settings",
+  //       icon: <FiDatabase size="16" />,
+  //       path: ROUTES.ADMIN.SYSTEM_SETTINGS,
+  //     },
+  //   ],
+  // },
 ];
 
 // Function to get sidebar menu items based on user type
@@ -227,8 +231,8 @@ export const getSidebarMenuItems = (userType: UserType) => {
 // Hook to get menu items based on current user
 export const useSidebarMenuItems = () => {
   const { state } = useAuth();
-  
+
   if (!state.user) return [];
-  
+
   return getSidebarMenuItems(state.user.type);
 };

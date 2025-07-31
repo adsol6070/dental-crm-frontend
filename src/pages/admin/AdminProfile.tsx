@@ -98,7 +98,6 @@ const handleChangePassword = () => {
     } else {
       try {
         const response = await enableTwoFAMutation.mutateAsync();
-        console.log("response", response);
         setTwoFAData(response);
         setShow2FAModal(true);
       } catch (err) {

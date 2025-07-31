@@ -16,6 +16,9 @@ import {
   UserCreatePayload,
   UserCreatedApiResponse,
   genericApiResponse,
+  AdminUser,
+  UsersListApiResponse,
+  UserStatusPayload,
   ApiResponse,
 } from "./adminTypes";
 import { Doctor, DoctorsApiResponse } from "../doctor/doctorTypes";
@@ -103,6 +106,7 @@ export const adminApi = {
     );
     return response.data.data;
   },
+
   getDoctors: async (): Promise<Doctor[]> => {
     const response = await httpClient.get<ApiResponse<DoctorsApiResponse>>(
       API_ENDPOINTS.ADMIN.GET_ALL_DOCTORS,
@@ -223,5 +227,45 @@ export const adminApi = {
       }
     );
     return response.data;
+  },
+
+  getAllUsers: async (): Promise<UsersListApiResponse> => {
+  const response = await httpClient.get<UsersListApiResponse>(
+    API_ENDPOINTS.ADMIN.GET_ALL_USERS,
+    {
+      headers: {
+        Authorization: token ? `Bearer ${token}` : "",
+      },
+    }
+  );
+  return response.data;
+},
+
+updateUserStatus: async (
+    id: string,
+    data: UserStatusPayload
+  ): Promise<AdminUser> => {
+    const response = await httpClient.put<ApiResponse<AdminUser>>(
+      API_ENDPOINTS.ADMIN.USER_STATUS_UPDATE(id),
+      data,
+      {
+        headers: {
+          Authorization: token ? `Bearer ${token}` : "",
+        },
+      }
+    );
+    return response.data.data;
+  },
+
+  deleteUser: async (id: string): Promise<{ message: string }> => {
+    const response = await httpClient.delete<ApiResponse<{ message: string }>>(
+      API_ENDPOINTS.ADMIN.DELETE_USER(id),
+      {
+        headers: {
+          Authorization: token ? `Bearer ${token}` : "",
+        },
+      }
+    );
+    return response.data.data;
   },
 };

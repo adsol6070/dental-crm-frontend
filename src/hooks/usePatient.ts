@@ -5,6 +5,9 @@ import {
   GetPatientAppointmentsResponse,
   GetMedicalRecordsResponse,
 } from "@/api/patient/patientTypes";
+import {
+  GetAppointmentDetailsResponse,
+} from "@/api/appointment/appointmentTypes";
 import axios from "axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
@@ -100,3 +103,18 @@ export const useCreatePatient = () =>
     ["patients"],
     "Patient created successfully!"
   );
+
+export const usePatientDashboard = () =>
+  useQuery({
+    queryKey: ["patientDashboard"],
+    queryFn: () => patientApi.getPatientDashboard(),
+    enabled: true,
+    select: (data) => data,
+  });
+
+  export const useAppointmentById = (id: string) =>
+    useQuery<GetAppointmentDetailsResponse, Error>({
+      queryKey: ["patientAppointment", id],
+      queryFn: () => patientApi.getPatientAppointmentById(id),
+      enabled: !!id,
+    });

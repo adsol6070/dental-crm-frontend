@@ -221,3 +221,22 @@ export interface GetMedicalRecordsResponse {
     medicalRecords: MedicalRecord[];
   };
 }
+
+export interface DashboardData {
+  upcomingAppointments: Appointment[];
+  recentAppointments: (Appointment & { consultation: ConsultationInfo })[];
+  statistics: Statistics;
+  monthlyStats: MonthlyStat[];
+  personalInfo: PersonalInfo;
+  preferences: Preferences;
+}
+
+export interface MonthlyStat {
+  _id: number; // Represents the month (e.g., 7 for July)
+  count: number;
+}
+
+export interface GetDashboardDataResponse {
+  success: boolean;
+  data: DashboardData;
+}

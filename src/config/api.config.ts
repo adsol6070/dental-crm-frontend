@@ -30,12 +30,17 @@ export const API_ENDPOINTS = {
     DISABLE_TWOFA: `/api/users/2fa/disable`,
     CHANGE_PASSWORD: `/api/users/change-password`,
     CREATE_USER: `/api/users/create-admin`,
+    GET_ALL_USERS: "/api/users/all",
+    USER_STATUS_UPDATE: (userId: string) => `/api/users/${userId}/status`,
+    DELETE_USER: (userId: string) => `/api/users/${userId}`,
   },
   PATIENT: {
     CREATE: `/api/patients/register`,
     GET_PATIENT_PROFILE: `/api/patients/profile`,
     GET_PATIENT_APPOINTMENTS: `/api/patients/appointments`,
     GET_PATIENT_MEDICAL_RECORDS: `/api/patients/medical-records`,
+    GET_PATIENT_DASHBOARD: `/api/patients/dashboard`,
+    GET_PATIENT_APPOINTMENT_BY_ID: (appointmentId: string) => `/api/patients/appointments/${appointmentId}`,
   },
   APPOINTMENT: {
     GET_BY_ID: (id: string) => `/api/appointments/${id}`,

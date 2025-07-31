@@ -333,3 +333,9 @@ export interface UpdateAppointmentStatusPayload {
   status: AppointmentStatus;
   reason?: string;
 }
+export interface GetAppointmentDetailsResponse {
+  success: boolean;
+  data: {
+    appointment: Appointment;
+  };
+}

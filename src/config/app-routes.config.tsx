@@ -10,10 +10,12 @@ import {
   AdminDashboard,
   PatientDashboard,
   AdminProfile,
+  Reports,
   PatientProfile,
   CreatePatientForm,
   PatientList,
   PatientView,
+  AppointmentDetail,
   PatientPrescription,
   PatientBilling,
   DoctorDashboard,
@@ -51,6 +53,7 @@ export const AUTH_ROUTES = [
 export const PATIENT_ROUTES = [
   { path: ROUTE_PATHS.PATIENT_DASHBOARD, element: <PatientDashboard /> },
   { path: ROUTE_PATHS.PATIENT_APPOINTMENTS, element: <PatientAppointments /> },
+  { path: ROUTE_PATHS.PATIENT_APPOINTMENT_DETAIL, element: <AppointmentDetail /> },
   { path: ROUTE_PATHS.PATIENT_MEDICAL_HISTORY, element: <MedicalHistory /> },
   { path: ROUTE_PATHS.PATIENT_PRESCRIPTIONS, element: <PatientPrescription /> },
   { path: ROUTE_PATHS.PATIENT_BILLING, element: <PatientBilling /> },
@@ -114,7 +117,7 @@ export const ADMIN_ROUTES = [
   // System Management
   { path: ROUTE_PATHS.USER_MANAGEMENT, element: <UserManagement /> },
   // { path: ROUTE_PATHS.SYSTEM_SETTINGS, element: <SystemSettings /> },
-  // { path: ROUTE_PATHS.REPORTS, element: <Reports /> },
+  { path: ROUTE_PATHS.REPORTS, element: <Reports /> },
 
   // Common Routes
   // { path: ROUTE_PATHS.PROFILE, element: <Profile /> },
