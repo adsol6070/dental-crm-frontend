@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { usePatients, useDoctors } from '@/hooks/useAdmin'; 
 import { useBookAppointment } from '@/hooks/useAppointment'; 
@@ -20,7 +20,7 @@ interface FormData {
   appointmentDate: string;
   appointmentTime: string;
   duration: number;
-  appointmentType: 'consultation' | 'follow-up' | 'emergency' | 'routine-checkup' | 'procedure' | '';
+  appointmentType: 'consultationFee' | 'followUpFee' | 'emergencyFee' | '';
   status: 'scheduled' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled' | 'no-show';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   bookingSource: 'website' | 'mobile-app' | 'whatsapp' | 'phone-call' | 'email' | 'sms' | 'in-person' | 'third-party' | 'referral' | 'qr-code' | 'social-media' | 'voice-bot' | 'api' | '';
@@ -32,7 +32,6 @@ interface FormData {
   
   // Payment Information
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
-  paymentAmount: string;
   paymentMethod: string;
   
   // Consultation Details (Optional)
@@ -71,6 +70,12 @@ interface DoctorInfo {
   _id: string;
   doctorId: string;
   fullName: string;
+  // Fee structure based on appointment type
+  fees?: {
+    consultationFee?: number;
+    followUpFee?: number;
+    emergencyFee?: number;
+  };
 }
 
 const CreateAppointmentForm = () => {
@@ -88,7 +93,6 @@ const CreateAppointmentForm = () => {
     notes: '',
     specialRequirements: '',
     paymentStatus: 'pending',
-    paymentAmount: '',
     paymentMethod: '',
     diagnosis: '',
     prescription: '',
@@ -99,6 +103,7 @@ const CreateAppointmentForm = () => {
   });
 
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
+  const [calculatedFee, setCalculatedFee] = useState<number>(0);
 
   // Fetch patients and doctors from backend
   const { data: patientsResponse, isLoading: patientsLoading, error: patientsError } = usePatients();
@@ -107,6 +112,18 @@ const CreateAppointmentForm = () => {
 
   // Extract patients array from paginated response
   const patients = patientsResponse?.data?.patients || [];
+
+  // Calculate fee whenever doctor or appointment type changes
+  useEffect(() => {
+    if (formData.doctor && formData.appointmentType && doctors) {
+      const selectedDoctor = doctors.find((doc: DoctorInfo) => doc._id === formData.doctor);
+      if (selectedDoctor?.fees && selectedDoctor.fees[formData.appointmentType]) {
+        setCalculatedFee(selectedDoctor.fees[formData.appointmentType]);
+      } 
+    } else {
+      setCalculatedFee(0);
+    }
+  }, [formData.doctor, formData.appointmentType, doctors]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -152,11 +169,6 @@ const CreateAppointmentForm = () => {
       }
     }
     
-    // Payment amount validation
-    if (formData.paymentAmount && parseFloat(formData.paymentAmount) < 0) {
-      newErrors.paymentAmount = 'Payment amount cannot be negative';
-    }
-    
     // Next appointment date validation
     if (formData.nextAppointmentDate) {
       const nextDate = new Date(formData.nextAppointmentDate);
@@ -186,7 +198,6 @@ const CreateAppointmentForm = () => {
       notes: '',
       specialRequirements: '',
       paymentStatus: 'pending',
-      paymentAmount: '',
       paymentMethod: '',
       diagnosis: '',
       prescription: '',
@@ -196,6 +207,7 @@ const CreateAppointmentForm = () => {
       campaignId: ''
     });
     setErrors({});
+    setCalculatedFee(0);
   };
 
   const handleSubmit = async () => {
@@ -222,7 +234,7 @@ const CreateAppointmentForm = () => {
         specialRequirements: formData.specialRequirements,
         remindersSent: 0,
         paymentStatus: formData.paymentStatus,
-        paymentAmount: formData.paymentAmount ? parseFloat(formData.paymentAmount) : undefined,
+        paymentAmount: calculatedFee, // Use calculated fee
         paymentMethod: formData.paymentMethod || undefined,
         ...(formData.diagnosis || formData.prescription || formData.nextAppointmentDate || formData.followUpRequired ? {
           consultation: {
@@ -411,14 +423,42 @@ const CreateAppointmentForm = () => {
                 hasError={!!errors.appointmentType}
               >
                 <option value="">Select type</option>
-                <option value="consultation">Consultation</option>
-                <option value="follow-up">Follow-up</option>
-                <option value="emergency">Emergency</option>
-                <option value="routine-checkup">Routine Checkup</option>
-                <option value="procedure">Procedure</option>
+                <option value="consultationFee">Consultation</option>
+                <option value="followUpFee">Follow-up</option>
+                <option value="emergencyFee">Emergency</option>
               </Select>
               {errors.appointmentType && <ErrorText>{errors.appointmentType}</ErrorText>}
             </FormGroup>
+
+            {/* Professional Fee Display - Right after appointment type selection */}
+            {(formData.doctor && formData.appointmentType) && (
+              <ProfessionalFeeCard className="full-width">
+                <FeeCardHeader>
+                  <FeeCardIcon>💰</FeeCardIcon>
+                  <FeeCardTitle>Consultation Fee</FeeCardTitle>
+                </FeeCardHeader>
+                <FeeCardBody>
+                  <FeeDetails>
+                    <FeeRow>
+                      <FeeRowLabel>Doctor:</FeeRowLabel>
+                      <FeeRowValue>{getDoctorDisplayName(doctors?.find((doc: DoctorInfo) => doc._id === formData.doctor) || {} as DoctorInfo)}</FeeRowValue>
+                    </FeeRow>
+                    <FeeRow>
+                      <FeeRowLabel>Appointment Type:</FeeRowLabel>
+                      <FeeRowValue>{formData.appointmentType.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}</FeeRowValue>
+                    </FeeRow>
+                    <FeeRow>
+                      <FeeRowLabel>Duration:</FeeRowLabel>
+                      <FeeRowValue>{formData.duration} minutes</FeeRowValue>
+                    </FeeRow>
+                  </FeeDetails>
+                  <FeeTotalSection>
+                    <FeeTotalLabel>Total Fee</FeeTotalLabel>
+                    <FeeTotalAmount>₹{calculatedFee.toLocaleString()}</FeeTotalAmount>
+                  </FeeTotalSection>
+                </FeeCardBody>
+              </ProfessionalFeeCard>
+            )}
 
             <FormGroup>
               <Label htmlFor="status">Status</Label>
@@ -528,7 +568,7 @@ const CreateAppointmentForm = () => {
           </FormGrid>
         </Section>
 
-        {/* Payment Information Section */}
+        {/* Fee Display and Payment Information Section */}
         <Section>
           <SectionHeader>
             <SectionIcon>💳</SectionIcon>
@@ -549,23 +589,6 @@ const CreateAppointmentForm = () => {
                 <option value="failed">Failed</option>
                 <option value="refunded">Refunded</option>
               </Select>
-            </FormGroup>
-
-            <FormGroup>
-              <Label htmlFor="paymentAmount">Payment Amount</Label>
-              <Input
-                type="number"
-                id="paymentAmount"
-                name="paymentAmount"
-                value={formData.paymentAmount}
-                onChange={handleInputChange}
-                hasError={!!errors.paymentAmount}
-                placeholder="Enter amount"
-                min="0"
-                step="0.01"
-              />
-              {errors.paymentAmount && <ErrorText>{errors.paymentAmount}</ErrorText>}
-              <HelperText>Optional - Leave empty if not applicable</HelperText>
             </FormGroup>
 
             <FormGroup>
@@ -963,6 +986,145 @@ const CheckboxLabel = styled.label`
   color: #374151;
   cursor: pointer;
   font-weight: 500;
+`;
+
+const ProfessionalFeeCard = styled.div`
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  margin: 16px 0;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+  }
+`;
+
+const FeeCardHeader = styled.div`
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  color: white;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+const FeeCardIcon = styled.div`
+  font-size: 20px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+`;
+
+const FeeCardTitle = styled.h4`
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: 0.5px;
+`;
+
+const FeeCardBody = styled.div`
+  padding: 20px;
+`;
+
+const FeeDetails = styled.div`
+  margin-bottom: 16px;
+`;
+
+const FeeRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f5f9;
+  
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const FeeRowLabel = styled.span`
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 500;
+`;
+
+const FeeRowValue = styled.span`
+  font-size: 14px;
+  color: #1e293b;
+  font-weight: 600;
+  text-align: right;
+`;
+
+const FeeTotalSection = styled.div`
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 1px solid #0ea5e9;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+`;
+
+const FeeTotalLabel = styled.span`
+  font-size: 16px;
+  font-weight: 600;
+  color: #0c4a6e;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const FeeTotalAmount = styled.span`
+  font-size: 24px;
+  font-weight: 700;
+  color: #0c4a6e;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+`;
+
+const FeeDisplayContainer = styled.div`
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 2px solid #0284c7;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #0284c7, #0ea5e9);
+  }
+`;
+
+const FeeLabel = styled.div`
+  font-size: 14px;
+  font-weight: 500;
+  color: #0369a1;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const FeeAmount = styled.div`
+  font-size: 28px;
+  font-weight: 700;
+  color: #0c4a6e;
+  margin-bottom: 4px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+`;
+
+const FeeDescription = styled.div`
+  font-size: 12px;
+  color: #0369a1;
+  opacity: 0.8;
+  text-transform: capitalize;
 `;
 
 const ErrorText = styled.span`
