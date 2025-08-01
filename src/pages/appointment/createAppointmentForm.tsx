@@ -1,16 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import styled from 'styled-components';
-import { usePatients, useDoctors } from '@/hooks/useAdmin'; 
-import { useBookAppointment } from '@/hooks/useAppointment'; 
-import { Toaster } from 'react-hot-toast';
+import React, { useState, useEffect } from "react";
+import styled from "styled-components";
+import { usePatients, useDoctors } from "@/hooks/useAdmin";
+import { useBookAppointment } from "@/hooks/useAppointment";
+import { Toaster } from "react-hot-toast";
+import { httpClient } from "@/api/httpClient";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 const theme = {
   colors: {
-    primary: '#6366f1',
-    success: '#10b981',
-    danger: '#ef4444',
-    warning: '#f59e0b'
-  }
+    primary: "#6366f1",
+    success: "#10b981",
+    danger: "#ef4444",
+    warning: "#f59e0b",
+  },
 };
 
 interface FormData {
@@ -18,22 +21,43 @@ interface FormData {
   patient: string;
   doctor: string;
   appointmentDate: string;
-  appointmentTime: string;
+  appointmentStartTime: string;
+  appointmentEndTime: string;
   duration: number;
-  appointmentType: 'consultation' | 'follow-up' | 'emergency' | '';
-  status: 'scheduled' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled' | 'no-show';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  bookingSource: 'website' | 'mobile-app' | 'whatsapp' | 'phone-call' | 'email' | 'sms' | 'in-person' | 'third-party' | 'referral' | 'qr-code' | 'social-media' | 'voice-bot' | 'api' | '';
-  
+  appointmentType: "consultation" | "follow-up" | "emergency" | "";
+  status:
+    | "scheduled"
+    | "confirmed"
+    | "in-progress"
+    | "completed"
+    | "cancelled"
+    | "no-show";
+  priority: "low" | "medium" | "high" | "urgent";
+  bookingSource:
+    | "website"
+    | "mobile-app"
+    | "whatsapp"
+    | "phone-call"
+    | "email"
+    | "sms"
+    | "in-person"
+    | "third-party"
+    | "referral"
+    | "qr-code"
+    | "social-media"
+    | "voice-bot"
+    | "api"
+    | "";
+
   // Additional Details
   symptoms: string;
   notes: string;
   specialRequirements: string;
-  
+
   // Payment Information
-  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
+  paymentStatus: "pending" | "paid" | "failed" | "refunded";
   paymentMethod: string;
-  
+
   // Consultation Details (Optional)
   diagnosis: string;
   prescription: string;
@@ -80,35 +104,61 @@ interface DoctorInfo {
 
 const CreateAppointmentForm = () => {
   const [formData, setFormData] = useState<FormData>({
-    patient: '',
-    doctor: '',
-    appointmentDate: '',
-    appointmentTime: '',
+    patient: "",
+    doctor: "",
+    appointmentDate: "",
+    appointmentStartTime: "",
+    appointmentEndTime: "",
     duration: 30,
-    appointmentType: '',
-    status: 'scheduled',
-    priority: 'medium',
-    bookingSource: '',
-    symptoms: '',
-    notes: '',
-    specialRequirements: '',
-    paymentStatus: 'pending',
-    paymentMethod: '',
-    diagnosis: '',
-    prescription: '',
-    nextAppointmentDate: '',
+    appointmentType: "",
+    status: "scheduled",
+    priority: "medium",
+    bookingSource: "",
+    symptoms: "",
+    notes: "",
+    specialRequirements: "",
+    paymentStatus: "pending",
+    paymentMethod: "",
+    diagnosis: "",
+    prescription: "",
+    nextAppointmentDate: "",
     followUpRequired: false,
-    referralSource: '',
-    campaignId: ''
+    referralSource: "",
+    campaignId: "",
   });
 
-  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>(
+    {}
+  );
   const [calculatedFee, setCalculatedFee] = useState<number>(0);
+  const [availabilityData, setAvailabilityData] = useState<
+    { date: string; available: boolean }[]
+  >([]);
+  const [availableTimes, setAvailableTimes] = useState<string[]>([]);
+
+  const availableDates = availabilityData
+    .filter((day) => day.available)
+    .map((day) => new Date(day.date));
+
+  const isDateAvailable = (date: Date) => {
+    return availableDates.some(
+      (availableDate) => availableDate.toDateString() === date.toDateString()
+    );
+  };
 
   // Fetch patients and doctors from backend
-  const { data: patientsResponse, isLoading: patientsLoading, error: patientsError } = usePatients();
-  const { data: doctors, isLoading: doctorsLoading, error: doctorsError } = useDoctors();
-  const { mutate: bookAppointment, isLoading: isSubmitting } = useBookAppointment();
+  const {
+    data: patientsResponse,
+    isLoading: patientsLoading,
+    error: patientsError,
+  } = usePatients();
+  const {
+    data: doctors,
+    isLoading: doctorsLoading,
+    error: doctorsError,
+  } = useDoctors();
+  const { mutate: bookAppointment, isLoading: isSubmitting } =
+    useBookAppointment();
 
   // Extract patients array from paginated response
   const patients = patientsResponse?.data?.patients || [];
@@ -116,14 +166,16 @@ const CreateAppointmentForm = () => {
   // Calculate fee whenever doctor or appointment type changes
   useEffect(() => {
     if (formData.doctor && formData.appointmentType && doctors) {
-      const selectedDoctor = doctors.find((doc: DoctorInfo) => doc._id === formData.doctor);
+      const selectedDoctor = doctors.find(
+        (doc: DoctorInfo) => doc._id === formData.doctor
+      );
       if (selectedDoctor?.fees) {
         let fee = 0;
-        if (formData.appointmentType === 'consultation') {
+        if (formData.appointmentType === "consultation") {
           fee = selectedDoctor.fees.consultationFee ?? 0;
-        } else if (formData.appointmentType === 'follow-up') {
+        } else if (formData.appointmentType === "follow-up") {
           fee = selectedDoctor.fees.followUpFee ?? 0;
-        } else if (formData.appointmentType === 'emergency') {
+        } else if (formData.appointmentType === "emergency") {
           fee = selectedDoctor.fees.emergencyFee ?? 0;
         }
         setCalculatedFee(fee);
@@ -135,86 +187,181 @@ const CreateAppointmentForm = () => {
     }
   }, [formData.doctor, formData.appointmentType, doctors]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  useEffect(() => {
+    const fetchDoctorAvailability = async () => {
+      if (!formData.doctor) return;
+
+      const startDate = new Date().toISOString().split("T")[0];
+      const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // +30 days
+        .toISOString()
+        .split("T")[0];
+
+      try {
+        const res = await httpClient.get(
+          `/api/appointments/availability/${formData.doctor}`,
+          { params: { startDate, endDate } }
+        );
+
+        setAvailabilityData(res.data.data.availability);
+      } catch (error) {
+        console.error("Failed to fetch availability", error);
+        setAvailabilityData([]);
+      }
+    };
+
+    fetchDoctorAvailability();
+  }, [formData.doctor]);
+
+  useEffect(() => {
+    const fetchSlots = async () => {
+      if (!formData.doctor || !formData.appointmentDate) return;
+
+      try {
+        const res = await httpClient.get(
+          `/api/appointments/slots/${formData.doctor}/${formData.appointmentDate}`
+        );
+
+        setAvailableTimes(res.data.data.slots || []);
+      } catch (error) {
+        console.error("Failed to fetch slots", error);
+        setAvailableTimes([]);
+      }
+    };
+
+    fetchSlots();
+  }, [formData.appointmentDate, formData.doctor]);
+
+  const handleInputChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
+  ) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
-    
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : type === 'number' ? parseInt(value) || 0 : value
+      [name]:
+        type === "checkbox"
+          ? checked
+          : type === "number"
+          ? parseInt(value) || 0
+          : value,
     }));
-    
+
     // Clear error when user starts typing
     if (errors[name as keyof FormData]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
-        [name]: ''
+        [name]: "",
+      }));
+    }
+  };
+
+  const handleSlotChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedValue = e.target.value;
+    try {
+      const { startTime, endTime } = JSON.parse(selectedValue);
+      const startDateTime = new Date(
+        `${formData.appointmentDate}T${startTime}:00+05:30`
+      );
+      const endDateTime = new Date(
+        `${formData.appointmentDate}T${endTime}:00+05:30`
+      );
+
+      const durationMinutes =
+        (endDateTime.getTime() - startDateTime.getTime()) / 60000;
+
+      setFormData((prev) => ({
+        ...prev,
+        appointmentStartTime: startDateTime.toISOString(),
+        appointmentEndTime: endDateTime.toISOString(),
+        duration: durationMinutes,
+      }));
+    } catch (error) {
+      console.error("Invalid slot format", err);
+    }
+  };
+
+  const handleDateChange = (name: string, date: Date | null) => {
+    const formattedDate = date ? date.toISOString().split("T")[0] : "";
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: formattedDate,
+    }));
+
+    // Clear error if exists
+    if (errors[name as keyof FormData]) {
+      setErrors((prev) => ({
+        ...prev,
+        [name]: "",
       }));
     }
   };
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof FormData, string>> = {};
-    
+
     // Required fields validation
-    if (!formData.patient) newErrors.patient = 'Patient is required';
-    if (!formData.doctor) newErrors.doctor = 'Doctor is required';
-    if (!formData.appointmentDate) newErrors.appointmentDate = 'Appointment date is required';
-    if (!formData.appointmentTime) newErrors.appointmentTime = 'Appointment time is required';
-    if (!formData.appointmentType) newErrors.appointmentType = 'Appointment type is required';
-    if (!formData.bookingSource) newErrors.bookingSource = 'Booking source is required';
-    
-    // Duration validation
-    if (formData.duration < 15) newErrors.duration = 'Duration must be at least 15 minutes';
-    if (formData.duration > 480) newErrors.duration = 'Duration cannot exceed 480 minutes';
-    
+    if (!formData.patient) newErrors.patient = "Patient is required";
+    if (!formData.doctor) newErrors.doctor = "Doctor is required";
+    if (!formData.appointmentDate)
+      newErrors.appointmentDate = "Appointment date is required";
+    if (!formData.appointmentType)
+      newErrors.appointmentType = "Appointment type is required";
+    if (!formData.bookingSource)
+      newErrors.bookingSource = "Booking source is required";
+
     // Date validation - appointment date should not be in the past
     if (formData.appointmentDate) {
       const selectedDate = new Date(formData.appointmentDate);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
+
       if (selectedDate < today) {
-        newErrors.appointmentDate = 'Appointment date cannot be in the past';
+        newErrors.appointmentDate = "Appointment date cannot be in the past";
       }
     }
-    
+
     // Next appointment date validation
     if (formData.nextAppointmentDate) {
       const nextDate = new Date(formData.nextAppointmentDate);
       const appointmentDate = new Date(formData.appointmentDate);
-      
+
       if (nextDate <= appointmentDate) {
-        newErrors.nextAppointmentDate = 'Next appointment must be after current appointment';
+        newErrors.nextAppointmentDate =
+          "Next appointment must be after current appointment";
       }
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const resetForm = () => {
     setFormData({
-      patient: '',
-      doctor: '',
-      appointmentDate: '',
-      appointmentTime: '',
+      patient: "",
+      doctor: "",
+      appointmentDate: "",
+      appointmentStartTime: "",
+      appointmentEndTime: "",
       duration: 30,
-      appointmentType: '',
-      status: 'scheduled',
-      priority: 'medium',
-      bookingSource: '',
-      symptoms: '',
-      notes: '',
-      specialRequirements: '',
-      paymentStatus: 'pending',
-      paymentMethod: '',
-      diagnosis: '',
-      prescription: '',
-      nextAppointmentDate: '',
+      appointmentType: "",
+      status: "scheduled",
+      priority: "medium",
+      bookingSource: "",
+      symptoms: "",
+      notes: "",
+      specialRequirements: "",
+      paymentStatus: "pending",
+      paymentMethod: "",
+      diagnosis: "",
+      prescription: "",
+      nextAppointmentDate: "",
       followUpRequired: false,
-      referralSource: '',
-      campaignId: ''
+      referralSource: "",
+      campaignId: "",
     });
     setErrors({});
     setCalculatedFee(0);
@@ -224,72 +371,95 @@ const CreateAppointmentForm = () => {
     if (!validateForm()) {
       return;
     }
-    
+
     try {
       // Combine date and time for submission
-      const appointmentDateTime = new Date(`${formData.appointmentDate}T${formData.appointmentTime}`);
-      
+
       // Prepare the payload according to your API structure
       const appointmentPayload = {
         patient: formData.patient,
         doctor: formData.doctor,
-        appointmentDateTime: appointmentDateTime.toISOString(),
+        appointmentDate: formData.appointmentDate, // Add this line
+        appointmentStartTime: formData.appointmentStartTime, // Add this line
+        appointmentEndTime: formData.appointmentEndTime, // Add this line
         duration: formData.duration,
         appointmentType: formData.appointmentType,
         status: formData.status,
         priority: formData.priority,
         bookingSource: formData.bookingSource,
-        symptoms: formData.symptoms ? formData.symptoms.split(',').map(s => s.trim()).filter(Boolean) : [],
+        symptoms: formData.symptoms
+          ? formData.symptoms
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : [],
         notes: formData.notes,
         specialRequirements: formData.specialRequirements,
         remindersSent: 0,
         paymentStatus: formData.paymentStatus,
         paymentAmount: calculatedFee, // Use calculated fee
         paymentMethod: formData.paymentMethod || undefined,
-        ...(formData.diagnosis || formData.prescription || formData.nextAppointmentDate || formData.followUpRequired ? {
-          consultation: {
-            diagnosis: formData.diagnosis || '',
-            prescription: formData.prescription || '',
-            nextAppointment: formData.nextAppointmentDate ? new Date(formData.nextAppointmentDate).toISOString() : undefined,
-            followUpRequired: formData.followUpRequired
-          }
-        } : {}),
+        ...(formData.diagnosis ||
+        formData.prescription ||
+        formData.nextAppointmentDate ||
+        formData.followUpRequired
+          ? {
+              consultation: {
+                diagnosis: formData.diagnosis || "",
+                prescription: formData.prescription || "",
+                nextAppointment: formData.nextAppointmentDate
+                  ? new Date(formData.nextAppointmentDate).toISOString()
+                  : undefined,
+                followUpRequired: formData.followUpRequired,
+              },
+            }
+          : {}),
         metadata: {
-          ipAddress: '127.0.0.1', // This should ideally come from the client
+          ipAddress: "127.0.0.1", // This should ideally come from the client
           userAgent: navigator.userAgent,
-          ...(formData.referralSource && { referralSource: formData.referralSource }),
-          ...(formData.campaignId && { campaignId: formData.campaignId })
-        }
+          ...(formData.referralSource && {
+            referralSource: formData.referralSource,
+          }),
+          ...(formData.campaignId && { campaignId: formData.campaignId }),
+        },
       };
 
       // Remove undefined values
       const cleanPayload = Object.fromEntries(
-        Object.entries(appointmentPayload).filter(([_, value]) => value !== undefined && value !== '')
+        Object.entries(appointmentPayload).filter(
+          ([_, value]) => value !== undefined && value !== ""
+        )
       );
-      
+
       bookAppointment(cleanPayload, {
         onSuccess: () => {
           resetForm();
         },
         onError: (error) => {
-          console.error('Error creating appointment:', error);
-        }
+          console.error("Error creating appointment:", error);
+        },
       });
     } catch (error) {
-      console.error('Error creating appointment:', error);
+      console.error("Error creating appointment:", error);
     }
   };
 
   const getPatientDisplayName = (patient: PatientInfo) => {
-    return patient.fullName || `${patient.personalInfo.firstName} ${patient.personalInfo.lastName}`;
+    return (
+      patient.fullName ||
+      `${patient.personalInfo.firstName} ${patient.personalInfo.lastName}`
+    );
   };
 
   const getDoctorDisplayName = (doctor: DoctorInfo) => {
-    return doctor.fullName || `Dr. ${doctor.personalInfo.firstName} ${doctor.personalInfo.lastName}`;
+    return (
+      doctor.fullName ||
+      `Dr. ${doctor.personalInfo.firstName} ${doctor.personalInfo.lastName}`
+    );
   };
 
   // Get today's date for min attribute
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toISOString().split("T")[0];
 
   // Loading state for dropdowns
   if (patientsLoading || doctorsLoading) {
@@ -311,7 +481,9 @@ const CreateAppointmentForm = () => {
           <ErrorIcon>⚠️</ErrorIcon>
           <ErrorTitle>Failed to load form data</ErrorTitle>
           <ErrorMessage>
-            {patientsError?.message || doctorsError?.message || 'Unable to load patients and doctors data.'}
+            {patientsError?.message ||
+              doctorsError?.message ||
+              "Unable to load patients and doctors data."}
           </ErrorMessage>
         </ErrorContainer>
       </FormContainer>
@@ -338,7 +510,7 @@ const CreateAppointmentForm = () => {
             <SectionIcon>👥</SectionIcon>
             <SectionTitle>Basic Information</SectionTitle>
           </SectionHeader>
-          
+
           <FormGrid>
             <FormGroup>
               <Label htmlFor="patient">Patient *</Label>
@@ -352,7 +524,8 @@ const CreateAppointmentForm = () => {
                 <option value="">Select patient</option>
                 {patients.map((patient: PatientInfo) => (
                   <option key={patient._id} value={patient._id}>
-                    {getPatientDisplayName(patient)} ({patient.patientId}) - {patient.contactInfo.phone}
+                    {getPatientDisplayName(patient)} ({patient.patientId}) -{" "}
+                    {patient.contactInfo.phone}
                   </option>
                 ))}
               </Select>
@@ -371,7 +544,8 @@ const CreateAppointmentForm = () => {
                 <option value="">Select doctor</option>
                 {doctors?.map((doctor: DoctorInfo) => (
                   <option key={doctor._id} value={doctor._id}>
-                    {getDoctorDisplayName(doctor)} - {doctor.professionalInfo.specialization}
+                    {getDoctorDisplayName(doctor)} -{" "}
+                    {doctor.professionalInfo.specialization}
                   </option>
                 ))}
               </Select>
@@ -380,47 +554,46 @@ const CreateAppointmentForm = () => {
 
             <FormGroup>
               <Label htmlFor="appointmentDate">Appointment Date *</Label>
-              <Input
-                type="date"
-                id="appointmentDate"
-                name="appointmentDate"
-                value={formData.appointmentDate}
-                onChange={handleInputChange}
-                hasError={!!errors.appointmentDate}
-                min={today}
+              <DatePicker
+                selected={
+                  formData.appointmentDate
+                    ? new Date(formData.appointmentDate)
+                    : null
+                }
+                onChange={(date) => handleDateChange("appointmentDate", date)}
+                filterDate={isDateAvailable}
+                minDate={new Date()}
+                dateFormat="yyyy-MM-dd"
               />
-              {errors.appointmentDate && <ErrorText>{errors.appointmentDate}</ErrorText>}
+              {errors.appointmentDate && (
+                <ErrorText>{errors.appointmentDate}</ErrorText>
+              )}
             </FormGroup>
 
             <FormGroup>
-              <Label htmlFor="appointmentTime">Appointment Time *</Label>
-              <Input
-                type="time"
-                id="appointmentTime"
-                name="appointmentTime"
-                value={formData.appointmentTime}
-                onChange={handleInputChange}
-                hasError={!!errors.appointmentTime}
-              />
-              {errors.appointmentTime && <ErrorText>{errors.appointmentTime}</ErrorText>}
-            </FormGroup>
-
-            <FormGroup>
-              <Label htmlFor="duration">Duration (minutes) *</Label>
-              <Input
-                type="number"
-                id="duration"
-                name="duration"
-                value={formData.duration}
-                onChange={handleInputChange}
-                hasError={!!errors.duration}
-                min="15"
-                max="480"
-                step="15"
-                placeholder="30"
-              />
-              {errors.duration && <ErrorText>{errors.duration}</ErrorText>}
-              <HelperText>Duration must be between 15-480 minutes</HelperText>
+              <Label htmlFor="appointmentSlots">Appointment Time *</Label>
+              <select
+                id="appointmentSlots"
+                onChange={handleSlotChange}
+                style={{
+                  padding: "0.5rem",
+                }}
+              >
+                <option value="">Select a time</option>
+                {availableTimes
+                  .filter((slot) => slot?.available)
+                  .map((slot) => (
+                    <option
+                      key={slot.dateTime}
+                      value={JSON.stringify({
+                        startTime: slot.startTime,
+                        endTime: slot.endTime,
+                      })}
+                    >
+                      {slot.startTime} - {slot.endTime}
+                    </option>
+                  ))}
+              </select>
             </FormGroup>
 
             <FormGroup>
@@ -437,11 +610,13 @@ const CreateAppointmentForm = () => {
                 <option value="follow-up">Follow-up</option>
                 <option value="emergency">Emergency</option>
               </Select>
-              {errors.appointmentType && <ErrorText>{errors.appointmentType}</ErrorText>}
+              {errors.appointmentType && (
+                <ErrorText>{errors.appointmentType}</ErrorText>
+              )}
             </FormGroup>
 
             {/* Professional Fee Display - Right after appointment type selection */}
-            {(formData.doctor && formData.appointmentType) && (
+            {formData.doctor && formData.appointmentType && (
               <ProfessionalFeeCard className="full-width">
                 <FeeCardHeader>
                   <FeeCardIcon>💰</FeeCardIcon>
@@ -451,11 +626,21 @@ const CreateAppointmentForm = () => {
                   <FeeDetails>
                     <FeeRow>
                       <FeeRowLabel>Doctor:</FeeRowLabel>
-                      <FeeRowValue>{getDoctorDisplayName(doctors?.find((doc: DoctorInfo) => doc._id === formData.doctor) || {} as DoctorInfo)}</FeeRowValue>
+                      <FeeRowValue>
+                        {getDoctorDisplayName(
+                          doctors?.find(
+                            (doc: DoctorInfo) => doc._id === formData.doctor
+                          ) || ({} as DoctorInfo)
+                        )}
+                      </FeeRowValue>
                     </FeeRow>
                     <FeeRow>
                       <FeeRowLabel>Appointment Type:</FeeRowLabel>
-                      <FeeRowValue>{formData.appointmentType.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}</FeeRowValue>
+                      <FeeRowValue>
+                        {formData.appointmentType
+                          .replace("-", " ")
+                          .replace(/\b\w/g, (l) => l.toUpperCase())}
+                      </FeeRowValue>
                     </FeeRow>
                     <FeeRow>
                       <FeeRowLabel>Duration:</FeeRowLabel>
@@ -464,7 +649,9 @@ const CreateAppointmentForm = () => {
                   </FeeDetails>
                   <FeeTotalSection>
                     <FeeTotalLabel>Total Fee</FeeTotalLabel>
-                    <FeeTotalAmount>₹{calculatedFee.toLocaleString()}</FeeTotalAmount>
+                    <FeeTotalAmount>
+                      ₹{calculatedFee.toLocaleString()}
+                    </FeeTotalAmount>
                   </FeeTotalSection>
                 </FeeCardBody>
               </ProfessionalFeeCard>
@@ -526,7 +713,9 @@ const CreateAppointmentForm = () => {
                 <option value="voice-bot">Voice Bot</option>
                 <option value="api">API</option>
               </Select>
-              {errors.bookingSource && <ErrorText>{errors.bookingSource}</ErrorText>}
+              {errors.bookingSource && (
+                <ErrorText>{errors.bookingSource}</ErrorText>
+              )}
             </FormGroup>
           </FormGrid>
         </Section>
@@ -537,7 +726,7 @@ const CreateAppointmentForm = () => {
             <SectionIcon>📝</SectionIcon>
             <SectionTitle>Additional Details</SectionTitle>
           </SectionHeader>
-          
+
           <FormGrid>
             <FormGroup className="full-width">
               <Label htmlFor="symptoms">Symptoms</Label>
@@ -584,7 +773,7 @@ const CreateAppointmentForm = () => {
             <SectionIcon>💳</SectionIcon>
             <SectionTitle>Payment Information</SectionTitle>
           </SectionHeader>
-          
+
           <FormGrid>
             <FormGroup>
               <Label htmlFor="paymentStatus">Payment Status</Label>
@@ -627,7 +816,7 @@ const CreateAppointmentForm = () => {
             <SectionIcon>🩺</SectionIcon>
             <SectionTitle>Consultation Details (Optional)</SectionTitle>
           </SectionHeader>
-          
+
           <FormGrid>
             <FormGroup className="full-width">
               <Label htmlFor="diagnosis">Diagnosis</Label>
@@ -664,7 +853,9 @@ const CreateAppointmentForm = () => {
                 hasError={!!errors.nextAppointmentDate}
                 min={formData.appointmentDate || today}
               />
-              {errors.nextAppointmentDate && <ErrorText>{errors.nextAppointmentDate}</ErrorText>}
+              {errors.nextAppointmentDate && (
+                <ErrorText>{errors.nextAppointmentDate}</ErrorText>
+              )}
             </FormGroup>
 
             <CheckboxGroup>
@@ -688,7 +879,7 @@ const CreateAppointmentForm = () => {
             <SectionIcon>📊</SectionIcon>
             <SectionTitle>Marketing & Tracking (Optional)</SectionTitle>
           </SectionHeader>
-          
+
           <FormGrid>
             <FormGroup>
               <Label htmlFor="referralSource">Referral Source</Label>
@@ -724,7 +915,7 @@ const CreateAppointmentForm = () => {
             Cancel
           </ActionButton>
           <ActionButton onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? 'Creating Appointment...' : 'Create Appointment'}
+            {isSubmitting ? "Creating Appointment..." : "Create Appointment"}
           </ActionButton>
         </FormActions>
       </FormContent>
@@ -759,10 +950,14 @@ const LoadingSpinner = styled.div`
   border-top: 3px solid ${theme.colors.primary};
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  
+
   @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
   }
 `;
 
@@ -810,7 +1005,7 @@ const FormHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  
+
   @media (max-width: 768px) {
     padding: 16px 20px;
   }
@@ -824,7 +1019,7 @@ const Title = styled.h1`
   font-size: 24px;
   font-weight: 600;
   margin: 0 0 4px 0;
-  
+
   @media (max-width: 768px) {
     font-size: 20px;
   }
@@ -834,7 +1029,7 @@ const Subtitle = styled.p`
   font-size: 14px;
   margin: 0;
   opacity: 0.9;
-  
+
   @media (max-width: 768px) {
     font-size: 13px;
   }
@@ -843,7 +1038,7 @@ const Subtitle = styled.p`
 const HeaderIcon = styled.div`
   font-size: 32px;
   opacity: 0.8;
-  
+
   @media (max-width: 768px) {
     font-size: 28px;
   }
@@ -851,7 +1046,7 @@ const HeaderIcon = styled.div`
 
 const FormContent = styled.div`
   padding: 24px;
-  
+
   @media (max-width: 768px) {
     padding: 16px;
   }
@@ -859,7 +1054,7 @@ const FormContent = styled.div`
 
 const Section = styled.div`
   margin-bottom: 24px;
-  
+
   &:last-of-type {
     margin-bottom: 0;
   }
@@ -889,11 +1084,11 @@ const FormGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 16px;
-  
+
   .full-width {
     grid-column: 1 / -1;
   }
-  
+
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
     gap: 14px;
@@ -914,18 +1109,19 @@ const Label = styled.label`
 
 const Input = styled.input<{ hasError?: boolean }>`
   padding: 10px 12px;
-  border: 1px solid ${props => props.hasError ? theme.colors.danger : '#d1d5db'};
+  border: 1px solid
+    ${(props) => (props.hasError ? theme.colors.danger : "#d1d5db")};
   border-radius: 6px;
   font-size: 14px;
   transition: all 0.2s ease;
   background: white;
-  
+
   &:focus {
     outline: none;
     border-color: ${theme.colors.primary};
     box-shadow: 0 0 0 3px ${theme.colors.primary}20;
   }
-  
+
   &::placeholder {
     color: #9ca3af;
   }
@@ -933,13 +1129,14 @@ const Input = styled.input<{ hasError?: boolean }>`
 
 const Select = styled.select<{ hasError?: boolean }>`
   padding: 10px 12px;
-  border: 1px solid ${props => props.hasError ? theme.colors.danger : '#d1d5db'};
+  border: 1px solid
+    ${(props) => (props.hasError ? theme.colors.danger : "#d1d5db")};
   border-radius: 6px;
   font-size: 14px;
   background: white;
   cursor: pointer;
   transition: all 0.2s ease;
-  
+
   &:focus {
     outline: none;
     border-color: ${theme.colors.primary};
@@ -957,13 +1154,13 @@ const TextArea = styled.textarea`
   transition: all 0.2s ease;
   font-family: inherit;
   background: white;
-  
+
   &:focus {
     outline: none;
     border-color: ${theme.colors.primary};
     box-shadow: 0 0 0 3px ${theme.colors.primary}20;
   }
-  
+
   &::placeholder {
     color: #9ca3af;
   }
@@ -978,7 +1175,7 @@ const CheckboxGroup = styled.div`
   border-radius: 6px;
   border: 1px solid #e2e8f0;
   transition: all 0.2s ease;
-  
+
   &:hover {
     border-color: ${theme.colors.primary};
   }
@@ -1006,7 +1203,7 @@ const ProfessionalFeeCard = styled.div`
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
   margin: 16px 0;
   transition: all 0.3s ease;
-  
+
   &:hover {
     box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
     transform: translateY(-2px);
@@ -1048,7 +1245,7 @@ const FeeRow = styled.div`
   align-items: center;
   padding: 8px 0;
   border-bottom: 1px solid #f1f5f9;
-  
+
   &:last-child {
     border-bottom: none;
   }
@@ -1101,9 +1298,9 @@ const FeeDisplayContainer = styled.div`
   text-align: center;
   position: relative;
   overflow: hidden;
-  
+
   &::before {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 0;
@@ -1158,14 +1355,14 @@ const FormActions = styled.div`
   padding-top: 24px;
   border-top: 1px solid #e2e8f0;
   margin-top: 24px;
-  
+
   @media (max-width: 768px) {
     flex-direction: column-reverse;
     gap: 10px;
   }
 `;
 
-const ActionButton = styled.button<{ variant?: 'secondary' }>`
+const ActionButton = styled.button<{ variant?: "secondary" }>`
   padding: 10px 20px;
   border-radius: 6px;
   font-size: 14px;
@@ -1173,8 +1370,10 @@ const ActionButton = styled.button<{ variant?: 'secondary' }>`
   cursor: pointer;
   transition: all 0.2s ease;
   min-width: 140px;
-  
-  ${props => props.variant === 'secondary' ? `
+
+  ${(props) =>
+    props.variant === "secondary"
+      ? `
     background: white;
     color: #374151;
     border: 1px solid #d1d5db;
@@ -1183,7 +1382,8 @@ const ActionButton = styled.button<{ variant?: 'secondary' }>`
       background: #f9fafb;
       border-color: #9ca3af;
     }
-  ` : `
+  `
+      : `
     background: ${theme.colors.primary};
     color: white;
     border: 1px solid ${theme.colors.primary};
@@ -1193,13 +1393,13 @@ const ActionButton = styled.button<{ variant?: 'secondary' }>`
       transform: translateY(-1px);
     }
   `}
-  
+
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
     transform: none;
   }
-  
+
   @media (max-width: 768px) {
     width: 100%;
     min-width: auto;
