@@ -20,7 +20,7 @@ interface FormData {
   appointmentDate: string;
   appointmentTime: string;
   duration: number;
-  appointmentType: 'consultationFee' | 'followUpFee' | 'emergencyFee' | '';
+  appointmentType: 'consultation' | 'follow-up' | 'emergency' | '';
   status: 'scheduled' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled' | 'no-show';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   bookingSource: 'website' | 'mobile-app' | 'whatsapp' | 'phone-call' | 'email' | 'sms' | 'in-person' | 'third-party' | 'referral' | 'qr-code' | 'social-media' | 'voice-bot' | 'api' | '';
@@ -117,9 +117,19 @@ const CreateAppointmentForm = () => {
   useEffect(() => {
     if (formData.doctor && formData.appointmentType && doctors) {
       const selectedDoctor = doctors.find((doc: DoctorInfo) => doc._id === formData.doctor);
-      if (selectedDoctor?.fees && selectedDoctor.fees[formData.appointmentType]) {
-        setCalculatedFee(selectedDoctor.fees[formData.appointmentType]);
-      } 
+      if (selectedDoctor?.fees) {
+        let fee = 0;
+        if (formData.appointmentType === 'consultation') {
+          fee = selectedDoctor.fees.consultationFee ?? 0;
+        } else if (formData.appointmentType === 'follow-up') {
+          fee = selectedDoctor.fees.followUpFee ?? 0;
+        } else if (formData.appointmentType === 'emergency') {
+          fee = selectedDoctor.fees.emergencyFee ?? 0;
+        }
+        setCalculatedFee(fee);
+      } else {
+        setCalculatedFee(0);
+      }
     } else {
       setCalculatedFee(0);
     }
@@ -423,9 +433,9 @@ const CreateAppointmentForm = () => {
                 hasError={!!errors.appointmentType}
               >
                 <option value="">Select type</option>
-                <option value="consultationFee">Consultation</option>
-                <option value="followUpFee">Follow-up</option>
-                <option value="emergencyFee">Emergency</option>
+                <option value="consultation">Consultation</option>
+                <option value="follow-up">Follow-up</option>
+                <option value="emergency">Emergency</option>
               </Select>
               {errors.appointmentType && <ErrorText>{errors.appointmentType}</ErrorText>}
             </FormGroup>

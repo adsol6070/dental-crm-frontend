@@ -10,7 +10,9 @@ import {
   ApiResponse,
 } from "./appointmentTypes";
 
-const token = localStorage.getItem("auth_token");
+const getAuthHeader = () => ({
+  Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}`,
+});
 
 export const appointmentApi = {
   bookAppointment: async (
@@ -18,11 +20,9 @@ export const appointmentApi = {
   ): Promise<AppointmentBookingResponse> => {
     const response = await httpClient.post<
       ApiResponse<AppointmentBookingResponse>
-    >(API_ENDPOINTS.APPOINTMENT.BOOK_APPOINTMENT, data, {
-      headers: {
-        Authorization: token ? `Bearer ${token}` : "",
-      },
-    });
+    >(API_ENDPOINTS.APPOINTMENT.BOOK_APPOINTMENT, data,  {
+        headers: getAuthHeader(),
+      });
     return response.data.data;
   },
 
@@ -30,9 +30,7 @@ export const appointmentApi = {
     const response = await httpClient.get<AppointmentListResponse>(
       API_ENDPOINTS.APPOINTMENT.GET_ALL,
       {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+        headers: getAuthHeader(),
       }
     );
     return response.data;
@@ -40,10 +38,8 @@ export const appointmentApi = {
   getAppointmentById: async (id: string): Promise<GetAppointmentByIdResponse> => {
     const response = await httpClient.get<GetAppointmentByIdResponse>(
       API_ENDPOINTS.APPOINTMENT.GET_BY_ID(id),
-      {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+       {
+        headers: getAuthHeader(),
       }
     );
     return response.data;

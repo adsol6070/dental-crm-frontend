@@ -24,11 +24,12 @@ import {
   FiAlertCircle,
   FiFileText,
   FiUsers,
-  FiTrendingUp
+  FiTrendingUp,
+  FiMoreVertical
 } from "react-icons/fi";
 import {useDoctorPatients, useDoctorPatientConsultationHistory} from "@/hooks/useDoctor";
 
-// Types
+// Types (keeping all your existing types)
 interface Patient {
   id: string;
   patientId: string;
@@ -111,14 +112,19 @@ type ActiveTab = 'overview' | 'history' | 'appointments' | 'documents';
 type PatientStatus = 'active' | 'inactive';
 type StatusBadgeStatus = 'success' | 'warning' | 'danger';
 
-// Theme colors matching your existing design
+// Compact, professional color palette
 const theme = {
   colors: {
-    primary: "#7c3aed",
-    success: "#10b981",
-    warning: "#f59e0b",
-    danger: "#ef4444",
+    primary: "#2563eb",
+    primaryLight: "#3b82f6",
+    primaryDark: "#1d4ed8",
+    success: "#059669",
+    warning: "#d97706",
+    danger: "#dc2626",
+    info: "#0891b2",
+    white: "#ffffff",
     gray: {
+      25: "#fefefe",
       50: "#f9fafb",
       100: "#f3f4f6",
       200: "#e5e7eb",
@@ -130,11 +136,31 @@ const theme = {
       800: "#1f2937",
       900: "#111827"
     }
+  },
+  shadows: {
+    xs: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+    sm: "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",
+    md: "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+    lg: "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)"
+  },
+  spacing: {
+    xs: "0.25rem",
+    sm: "0.5rem",
+    md: "0.75rem",
+    lg: "1rem",
+    xl: "1.5rem",
+    "2xl": "2rem"
+  },
+  borderRadius: {
+    sm: "0.25rem",
+    md: "0.375rem",
+    lg: "0.5rem",
+    xl: "0.75rem"
   }
 };
 
 const PatientManagement: React.FC = () => {
-  // API Hooks
+  // API Hooks (keeping your existing hooks)
   const { 
     data: patientsData, 
     isLoading: patientsLoading, 
@@ -142,14 +168,13 @@ const PatientManagement: React.FC = () => {
     refetch: refetchPatients 
   } = useDoctorPatients();
 
-  // State
+  // State (keeping your existing state)
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
   const [activeDetailTab, setActiveDetailTab] = useState<ActiveTab>('overview');
   
-  // Filters
   const [filters, setFilters] = useState<Filters>({
     gender: 'all',
     ageRange: 'all',
@@ -159,18 +184,16 @@ const PatientManagement: React.FC = () => {
   
   const [sortBy, setSortBy] = useState<SortBy>('name_asc');
 
-  // Patient consultation history hook
   const { 
     data: patientHistory, 
     isLoading: historyLoading, 
     refetch: refetchHistory 
   } = useDoctorPatientConsultationHistory(selectedPatient?.id || '');
 
-  // FIXED: Transform API data to match component interface
+  // Data transformation (keeping your existing logic)
   const patients: Patient[] = useMemo(() => {
     let rawPatients: any[] = [];
     
-    // Handle different possible data structures
     if (Array.isArray(patientsData)) {
       rawPatients = patientsData;
     } else if (patientsData?.data?.patients && Array.isArray(patientsData.data.patients)) {
@@ -181,7 +204,6 @@ const PatientManagement: React.FC = () => {
       rawPatients = patientsData.patients;
     }
 
-    // Calculate age from date of birth
     const calculateAge = (dateOfBirth: string): number => {
       try {
         const birth = new Date(dateOfBirth);
@@ -197,7 +219,6 @@ const PatientManagement: React.FC = () => {
       }
     };
 
-    // Transform the raw API data to match our Patient interface
     return rawPatients.map((rawPatient: any): Patient => {
       return {
         id: rawPatient._id || rawPatient.id || '',
@@ -210,11 +231,11 @@ const PatientManagement: React.FC = () => {
         profilePicture: rawPatient.personalInfo?.profilePicture || null,
         lastVisit: rawPatient.statistics?.lastVisit || null,
         registeredDate: rawPatient.createdAt || rawPatient.registeredDate || new Date().toISOString(),
-        status: 'active', // Default to active since API doesn't seem to have this field
+        status: 'active',
         address: rawPatient.contactInfo?.address ? 
           `${rawPatient.contactInfo.address.street || ''} ${rawPatient.contactInfo.address.city || ''} ${rawPatient.contactInfo.address.state || ''} ${rawPatient.contactInfo.address.zipCode || ''}`.trim() 
           : '',
-        needsFollowUp: false, // Default value since API doesn't have this
+        needsFollowUp: false,
         totalVisits: rawPatient.statistics?.totalAppointments || 0,
         conditions: rawPatient.medicalHistory?.conditions || [],
         lastDiagnosis: rawPatient.medicalHistory?.lastDiagnosis || null,
@@ -222,7 +243,7 @@ const PatientManagement: React.FC = () => {
     });
   }, [patientsData]);
 
-  // Debounced search function
+  // Utility functions (keeping your existing utility functions)
   const debouncedSearch = useCallback(
     debounce((query: string) => {
       // Search is handled in filteredAndSortedPatients memo
@@ -236,15 +257,12 @@ const PatientManagement: React.FC = () => {
     }
   }, [searchQuery, debouncedSearch]);
 
-  // Fixed: Filter and sort patients with safety checks
   const filteredAndSortedPatients = useMemo(() => {
     let filteredPatients = patients;
 
-    // Apply search filter - FIXED: Remove minimum length requirement and add safety checks
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filteredPatients = filteredPatients.filter(patient => {
-        // Add safety checks for undefined values
         const name = patient.name?.toLowerCase() || '';
         const phone = patient.phone || '';
         const email = patient.email?.toLowerCase() || '';
@@ -257,9 +275,7 @@ const PatientManagement: React.FC = () => {
       });
     }
 
-    // Apply other filters with safety checks
     filteredPatients = filteredPatients.filter(patient => {
-      // Add null/undefined checks
       if (!patient) return false;
       
       const matchesGender = filters.gender === 'all' || patient.gender === filters.gender;
@@ -270,7 +286,6 @@ const PatientManagement: React.FC = () => {
       return matchesGender && matchesAgeRange && matchesLastVisit && matchesStatus;
     });
 
-    // Apply sorting with safety checks
     return filteredPatients.sort((a, b) => {
       if (!a || !b) return 0;
       
@@ -293,13 +308,6 @@ const PatientManagement: React.FC = () => {
     });
   }, [patients, searchQuery, filters, sortBy]);
 
-  // Log filtered results for debugging
-  useEffect(() => {
-    console.log("filteredAndSortedPatients length:", filteredAndSortedPatients.length);
-    console.log("filteredAndSortedPatients:", filteredAndSortedPatients);
-  }, [filteredAndSortedPatients]);
-
-  // Fixed: Age range check with safety
   const checkAgeRange = (age: number, range: string): boolean => {
     const safeAge = age || 0;
     
@@ -312,7 +320,6 @@ const PatientManagement: React.FC = () => {
     }
   };
 
-  // Fixed: Last visit check with safety
   const checkLastVisit = (lastVisit: string | null | undefined, range: string): boolean => {
     if (!lastVisit || lastVisit === 'null' || lastVisit === 'undefined') {
       return range === 'never';
@@ -346,7 +353,6 @@ const PatientManagement: React.FC = () => {
     setActiveDetailTab('overview');
   };
 
-  // Fixed: Patient stats with safety checks
   const patientStats: PatientStats = useMemo(() => {
     const now = new Date();
     const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -372,13 +378,12 @@ const PatientManagement: React.FC = () => {
     };
   }, [patients]);
 
-  // Fixed: PatientCard component with safety checks
+  // Compact Patient Card Component
   const PatientCard: React.FC<{
     patient: Patient;
     isSelected: boolean;
     onClick: () => void;
   }> = ({ patient, isSelected, onClick }) => {
-    // Add safety checks for patient data
     if (!patient) return null;
     
     const safeName = patient.name || 'Unknown Patient';
@@ -387,194 +392,177 @@ const PatientManagement: React.FC = () => {
     const safeGender = patient.gender || 'unknown';
     const safePhone = patient.phone || 'N/A';
     const safeEmail = patient.email || 'N/A';
-    const safeAddress = patient.address || 'N/A';
     const safeConditions = patient.conditions || [];
 
     return (
-      <PatientCardContainer selected={isSelected} onClick={onClick}>
-        <PatientCardHeader>
-          <PatientAvatar>
-            <img 
-              src={patient.profilePicture || 'https://avatar.iran.liara.run/public'} 
-              alt={safeName}
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-                const fallback = target.nextSibling as HTMLElement;
-                if (fallback) fallback.style.display = 'flex';
-              }}
-            />
-            <div className="avatar-fallback">
+      <CompactPatientCard selected={isSelected} onClick={onClick}>
+        <CardHeader>
+          <PatientInfo>
+            <PatientAvatar>
               {safeName.split(' ').map(n => n[0]).join('').toUpperCase()}
-            </div>
-            <StatusIndicator status={patient.status || 'inactive'} />
-            {patient.needsFollowUp && <FollowUpIndicator title="Needs Follow-up" />}
-          </PatientAvatar>
-          
-          <PatientBasicInfo>
-            <PatientName>{safeName}</PatientName>
-            <PatientId>#{safePatientId}</PatientId>
-            <PatientMeta>{safeAge} years • {safeGender}</PatientMeta>
-          </PatientBasicInfo>
-        </PatientCardHeader>
+              <StatusDot status={patient.status || 'inactive'} />
+              {patient.needsFollowUp && <FollowUpDot />}
+            </PatientAvatar>
+            
+            <PatientDetails>
+              <PatientName>{safeName}</PatientName>
+              <PatientMeta>
+                <span>#{safePatientId}</span>
+                <Separator>•</Separator>
+                <span>{safeAge}y</span>
+                <Separator>•</Separator>
+                <span>{safeGender.charAt(0).toUpperCase()}</span>
+              </PatientMeta>
+            </PatientDetails>
+          </PatientInfo>
 
-        <PatientCardContent>
-          <ContactInfo>
-            <ContactItem>
-              <FiPhone size={12} />
-              <span>{safePhone}</span>
-            </ContactItem>
-            <ContactItem>
-              <FiMail size={12} />
-              <span>{safeEmail}</span>
-            </ContactItem>
-            <ContactItem>
-              <FiMapPin size={12} />
-              <span>{safeAddress}</span>
-            </ContactItem>
-          </ContactInfo>
+          <ActionMenu>
+            <ActionButton
+              variant="ghost"
+              size="xs"
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+            >
+              <FiMoreVertical size={12} />
+            </ActionButton>
+          </ActionMenu>
+        </CardHeader>
 
-          <VisitInfo>
-            <div className="last-visit">
-              <strong>Last Visit:</strong> {patient.lastVisit && patient.lastVisit !== 'null' ? formatDate(patient.lastVisit) : 'Never'}
-            </div>
-            <div className="total-visits">
-              <strong>Total Visits:</strong> {patient.totalVisits || 0}
-            </div>
-            {patient.lastDiagnosis && (
-              <div className="last-diagnosis">
-                <strong>Last Diagnosis:</strong> {patient.lastDiagnosis}
-              </div>
-            )}
-          </VisitInfo>
+        <CardContent>
+          <ContactRow>
+            <ContactItem>
+              <FiPhone size={10} />
+              <ContactText>{safePhone}</ContactText>
+            </ContactItem>
+            <ContactItem>
+              <FiMail size={10} />
+              <ContactText>{safeEmail}</ContactText>
+            </ContactItem>
+          </ContactRow>
+
+          <StatsRow>
+            <StatItem>
+              <StatLabel>Last Visit</StatLabel>
+              <StatValue>
+                {patient.lastVisit && patient.lastVisit !== 'null' ? formatDate(patient.lastVisit) : 'Never'}
+              </StatValue>
+            </StatItem>
+            <StatItem>
+              <StatLabel>Visits</StatLabel>
+              <StatValue>{patient.totalVisits || 0}</StatValue>
+            </StatItem>
+          </StatsRow>
 
           {safeConditions.length > 0 && (
-            <ConditionsInfo>
-              <strong>Conditions:</strong>
-              <ConditionTags>
+            <ConditionsRow>
+              <ConditionsList>
                 {safeConditions.slice(0, 2).map((condition, index) => (
-                  <ConditionTag key={index}>{condition}</ConditionTag>
+                  <ConditionChip key={index}>{condition}</ConditionChip>
                 ))}
                 {safeConditions.length > 2 && (
-                  <ConditionTag>+{safeConditions.length - 2} more</ConditionTag>
+                  <ConditionChip variant="more">+{safeConditions.length - 2}</ConditionChip>
                 )}
-              </ConditionTags>
-            </ConditionsInfo>
+              </ConditionsList>
+            </ConditionsRow>
           )}
-        </PatientCardContent>
+        </CardContent>
 
-        <PatientCardActions>
+        <CardFooter>
           <ActionButton
             variant="primary"
+            size="xs"
             onClick={(e) => {
               e.stopPropagation();
-              // Schedule appointment
             }}
           >
-            <FiCalendar size={14} />
-            Schedule
+            <FiCalendar size={10} />
+            <span>Schedule</span>
           </ActionButton>
           <ActionButton
             variant="secondary"
+            size="xs"
             onClick={(e) => {
               e.stopPropagation();
-              // Call patient
             }}
           >
-            <FiPhone size={14} />
-            Call
+            <FiPhone size={10} />
+            <span>Call</span>
           </ActionButton>
-        </PatientCardActions>
-      </PatientCardContainer>
+        </CardFooter>
+      </CompactPatientCard>
     );
   };
 
+  // Compact Patient Details Panel
   const PatientDetailsPanel: React.FC = () => {
     if (!selectedPatient) {
       return (
-        <EmptyPatientSelection>
+        <EmptySelectionState>
           <EmptyIcon>
-            <FiUsers size={64} />
+            <FiUsers size={32} />
           </EmptyIcon>
-          <EmptyTitle>Select a patient to view details</EmptyTitle>
+          <EmptyTitle>Select Patient</EmptyTitle>
           <EmptyMessage>
-            Choose a patient from the list to see their medical history, appointments, and contact information.
+            Choose a patient to view their details and medical information.
           </EmptyMessage>
-        </EmptyPatientSelection>
+        </EmptySelectionState>
       );
     }
 
     return (
-      <PatientDetailContainer>
-        <PatientDetailHeader>
-          <PatientDetailBasicInfo>
+      <DetailContainer>
+        <DetailHeader>
+          <PatientHeaderInfo>
             <PatientAvatarLarge>
-              <img 
-                src={selectedPatient.profilePicture || 'https://avatar.iran.liara.run/public'} 
-                alt={selectedPatient.name}
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                  const fallback = target.nextSibling as HTMLElement;
-                  if (fallback) fallback.style.display = 'flex';
-                }}
-              />
-              <div className="avatar-fallback">
-                {(selectedPatient.name || '').split(' ').map(n => n[0]).join('').toUpperCase()}
-              </div>
+              {(selectedPatient.name || '').split(' ').map(n => n[0]).join('').toUpperCase()}
             </PatientAvatarLarge>
             
-            <PatientDetailInfo>
-              <h2>{selectedPatient.name || 'Unknown Patient'}</h2>
-              <p>Patient ID: #{selectedPatient.patientId || 'N/A'}</p>
-              <p>{selectedPatient.age || 0} years • {selectedPatient.gender || 'unknown'}</p>
-              <p>{selectedPatient.phone || 'N/A'} • {selectedPatient.email || 'N/A'}</p>
-            </PatientDetailInfo>
-          </PatientDetailBasicInfo>
+            <HeaderPatientInfo>
+              <DetailPatientName>{selectedPatient.name || 'Unknown Patient'}</DetailPatientName>
+              <DetailPatientMeta>
+                <span>#{selectedPatient.patientId || 'N/A'}</span>
+                <span>•</span>
+                <span>{selectedPatient.age || 0}y</span>
+                <span>•</span>
+                <span>{selectedPatient.gender || 'unknown'}</span>
+              </DetailPatientMeta>
+              <DetailContactInfo>
+                <span>{selectedPatient.phone || 'N/A'}</span>
+                <span>•</span>
+                <span>{selectedPatient.email || 'N/A'}</span>
+              </DetailContactInfo>
+            </HeaderPatientInfo>
+          </PatientHeaderInfo>
           
-          <PatientDetailActions>
-            <ActionButton variant="primary">
-              <FiCalendar size={16} />
-              Schedule Appointment
+          <HeaderActions>
+            <ActionButton variant="primary" size="sm">
+              <FiCalendar size={12} />
+              <span>Schedule</span>
             </ActionButton>
-            <ActionButton variant="secondary">
-              <FiPhone size={16} />
-              Call Patient
+            <ActionButton variant="secondary" size="sm">
+              <FiPhone size={12} />
+              <span>Call</span>
             </ActionButton>
-            <ActionButton variant="ghost" onClick={() => setSelectedPatient(null)}>
-              <FiX size={16} />
+            <ActionButton variant="ghost" size="sm" onClick={() => setSelectedPatient(null)}>
+              <FiX size={12} />
             </ActionButton>
-          </PatientDetailActions>
-        </PatientDetailHeader>
+          </HeaderActions>
+        </DetailHeader>
 
-        <PatientTabNavigation>
-          <TabButton 
-            active={activeDetailTab === 'overview'} 
-            onClick={() => setActiveDetailTab('overview')}
-          >
-            Overview
-          </TabButton>
-          <TabButton 
-            active={activeDetailTab === 'history'} 
-            onClick={() => setActiveDetailTab('history')}
-          >
-            Medical History
-          </TabButton>
-          <TabButton 
-            active={activeDetailTab === 'appointments'} 
-            onClick={() => setActiveDetailTab('appointments')}
-          >
-            Appointments
-          </TabButton>
-          <TabButton 
-            active={activeDetailTab === 'documents'} 
-            onClick={() => setActiveDetailTab('documents')}
-          >
-            Documents
-          </TabButton>
-        </PatientTabNavigation>
+        <TabsContainer>
+          {(['overview', 'history', 'appointments', 'documents'] as ActiveTab[]).map((tab) => (
+            <TabButton 
+              key={tab}
+              active={activeDetailTab === tab} 
+              onClick={() => setActiveDetailTab(tab)}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </TabButton>
+          ))}
+        </TabsContainer>
 
-        <PatientTabContent>
+        <TabContentContainer>
           {activeDetailTab === 'overview' && <PatientOverviewTab patient={selectedPatient} />}
           {activeDetailTab === 'history' && (
             <PatientHistoryTab 
@@ -585,75 +573,76 @@ const PatientManagement: React.FC = () => {
           )}
           {activeDetailTab === 'appointments' && <PatientAppointmentsTab patient={selectedPatient} />}
           {activeDetailTab === 'documents' && <PatientDocumentsTab patient={selectedPatient} />}
-        </PatientTabContent>
-      </PatientDetailContainer>
+        </TabContentContainer>
+      </DetailContainer>
     );
   };
 
+  // Compact Tab Components
   const PatientOverviewTab: React.FC<{ patient: Patient }> = ({ patient }) => (
-    <OverviewContent>
-      <OverviewSection>
-        <SectionTitle>Contact Information</SectionTitle>
+    <TabContent>
+      <InfoSection>
+        <SectionHeader>Contact</SectionHeader>
         <InfoGrid>
-          <InfoItem>
-            <InfoLabel>Phone</InfoLabel>
-            <InfoValue>{patient.phone || 'N/A'}</InfoValue>
-          </InfoItem>
-          <InfoItem>
-            <InfoLabel>Email</InfoLabel>
-            <InfoValue>{patient.email || 'N/A'}</InfoValue>
-          </InfoItem>
-          <InfoItem>
-            <InfoLabel>Address</InfoLabel>
-            <InfoValue>{patient.address || 'N/A'}</InfoValue>
-          </InfoItem>
-          <InfoItem>
-            <InfoLabel>Registered</InfoLabel>
-            <InfoValue>{patient.registeredDate ? formatDate(patient.registeredDate) : 'N/A'}</InfoValue>
-          </InfoItem>
+          <InfoField>
+            <FieldLabel>Phone</FieldLabel>
+            <FieldValue>{patient.phone || 'N/A'}</FieldValue>
+          </InfoField>
+          <InfoField>
+            <FieldLabel>Email</FieldLabel>
+            <FieldValue>{patient.email || 'N/A'}</FieldValue>
+          </InfoField>
+          <InfoField>
+            <FieldLabel>Address</FieldLabel>
+            <FieldValue>{patient.address || 'N/A'}</FieldValue>
+          </InfoField>
+          <InfoField>
+            <FieldLabel>Registered</FieldLabel>
+            <FieldValue>{patient.registeredDate ? formatDate(patient.registeredDate) : 'N/A'}</FieldValue>
+          </InfoField>
         </InfoGrid>
-      </OverviewSection>
+      </InfoSection>
 
-      <OverviewSection>
-        <SectionTitle>Medical Summary</SectionTitle>
+      <InfoSection>
+        <SectionHeader>Medical Summary</SectionHeader>
         <InfoGrid>
-          <InfoItem>
-            <InfoLabel>Total Visits</InfoLabel>
-            <InfoValue>{patient.totalVisits || 0}</InfoValue>
-          </InfoItem>
-          <InfoItem>
-            <InfoLabel>Last Visit</InfoLabel>
-            <InfoValue>{patient.lastVisit && patient.lastVisit !== 'null' ? formatDate(patient.lastVisit) : 'Never'}</InfoValue>
-          </InfoItem>
-          <InfoItem>
-            <InfoLabel>Known Conditions</InfoLabel>
-            <InfoValue>{(patient.conditions || []).length}</InfoValue>
-          </InfoItem>
-          <InfoItem>
-            <InfoLabel>Follow-up Required</InfoLabel>
-            <InfoValue>
-              <StatusBadge status={patient.needsFollowUp ? 'warning' : 'success'}>
-                {patient.needsFollowUp ? 'Yes' : 'No'}
-              </StatusBadge>
-            </InfoValue>
-          </InfoItem>
+          <InfoField>
+            <FieldLabel>Total Visits</FieldLabel>
+            <FieldValue>{patient.totalVisits || 0}</FieldValue>
+          </InfoField>
+          <InfoField>
+            <FieldLabel>Last Visit</FieldLabel>
+            <FieldValue>{patient.lastVisit && patient.lastVisit !== 'null' ? formatDate(patient.lastVisit) : 'Never'}</FieldValue>
+          </InfoField>
+          <InfoField>
+            <FieldLabel>Conditions</FieldLabel>
+            <FieldValue>{(patient.conditions || []).length}</FieldValue>
+          </InfoField>
+          <InfoField>
+            <FieldLabel>Follow-up</FieldLabel>
+            <FieldValue>
+              <StatusChip status={patient.needsFollowUp ? 'warning' : 'success'}>
+                {patient.needsFollowUp ? 'Required' : 'None'}
+              </StatusChip>
+            </FieldValue>
+          </InfoField>
         </InfoGrid>
-      </OverviewSection>
+      </InfoSection>
 
       {(patient.conditions || []).length > 0 && (
-        <OverviewSection>
-          <SectionTitle>Active Conditions</SectionTitle>
-          <ConditionList>
+        <InfoSection>
+          <SectionHeader>Active Conditions</SectionHeader>
+          <ConditionsGrid>
             {(patient.conditions || []).map((condition, index) => (
-              <ConditionItem key={index}>
+              <ConditionRow key={index}>
                 <ConditionName>{condition}</ConditionName>
-                <ConditionStatus>Active</ConditionStatus>
-              </ConditionItem>
+                <StatusChip status="success">Active</StatusChip>
+              </ConditionRow>
             ))}
-          </ConditionList>
-        </OverviewSection>
+          </ConditionsGrid>
+        </InfoSection>
       )}
-    </OverviewContent>
+    </TabContent>
   );
 
   const PatientHistoryTab: React.FC<{
@@ -663,102 +652,118 @@ const PatientManagement: React.FC = () => {
   }> = ({ history, loading, onRefresh }) => {
     if (loading) {
       return (
-        <LoadingContainer>
-          <LoadingSpinner />
-          <LoadingText>Loading patient history...</LoadingText>
-        </LoadingContainer>
+        <LoadingState>
+          <LoadingSpinner size="sm" />
+          <LoadingText>Loading history...</LoadingText>
+        </LoadingState>
       );
     }
 
     if (!history) {
       return (
-        <EmptyHistoryState>
-          <p>No medical history available for this patient.</p>
-          <ActionButton variant="primary">Add First Consultation</ActionButton>
-        </EmptyHistoryState>
+        <EmptyTabState>
+          <EmptyIcon>
+            <FiFileText size={32} />
+          </EmptyIcon>
+          <EmptyTitle>No History</EmptyTitle>
+          <EmptyMessage>No medical history available for this patient.</EmptyMessage>
+          <ActionButton variant="primary" size="sm">Add Consultation</ActionButton>
+        </EmptyTabState>
       );
     }
 
     return (
-      <HistoryContent>
+      <TabContent>
         <HistoryHeader>
-          <HistoryStats>
-            <StatCard>
+          <HistoryStatsGrid>
+            <CompactStatCard>
               <StatValue>{(history.visits || []).length}</StatValue>
-              <StatLabel>Total Visits</StatLabel>
-            </StatCard>
-            <StatCard>
+              <StatLabel>Visits</StatLabel>
+            </CompactStatCard>
+            <CompactStatCard>
               <StatValue>{(history.conditions || []).filter(c => c.status === 'active').length}</StatValue>
-              <StatLabel>Active Conditions</StatLabel>
-            </StatCard>
-            <StatCard>
+              <StatLabel>Conditions</StatLabel>
+            </CompactStatCard>
+            <CompactStatCard>
               <StatValue>{(history.medications || []).filter(m => m.status === 'active').length}</StatValue>
-              <StatLabel>Current Medications</StatLabel>
-            </StatCard>
-            <StatCard>
+              <StatLabel>Medications</StatLabel>
+            </CompactStatCard>
+            <CompactStatCard>
               <StatValue>{(history.allergies || []).length}</StatValue>
-              <StatLabel>Known Allergies</StatLabel>
-            </StatCard>
-          </HistoryStats>
+              <StatLabel>Allergies</StatLabel>
+            </CompactStatCard>
+          </HistoryStatsGrid>
           
-          <ActionButton onClick={onRefresh}>
-            <FiRefreshCw size={16} />
-            Refresh
+          <ActionButton onClick={onRefresh} variant="ghost" size="sm">
+            <FiRefreshCw size={12} />
           </ActionButton>
         </HistoryHeader>
 
         <HistoryTimeline>
-          <TimelineTitle>Recent Visits</TimelineTitle>
+          <SectionHeader>Recent Visits</SectionHeader>
           {(history.visits || []).map(visit => (
             <TimelineItem key={visit.id}>
-              <TimelineDate>{formatDate(visit.date)}</TimelineDate>
+              <TimelineMarker />
               <TimelineContent>
+                <TimelineDate>{formatDate(visit.date)}</TimelineDate>
                 <TimelineTitle>{visit.type}</TimelineTitle>
-                <TimelineDescription>
+                <TimelineDetail>
                   <strong>Chief Complaint:</strong> {visit.chiefComplaint}
-                </TimelineDescription>
-                <TimelineDescription>
+                </TimelineDetail>
+                <TimelineDetail>
                   <strong>Diagnosis:</strong> {visit.diagnosis}
-                </TimelineDescription>
+                </TimelineDetail>
               </TimelineContent>
             </TimelineItem>
           ))}
         </HistoryTimeline>
-      </HistoryContent>
+      </TabContent>
     );
   };
 
   const PatientAppointmentsTab: React.FC<{ patient: Patient }> = ({ patient }) => (
-    <AppointmentsContent>
-      <AppointmentsHeader>
-        <h3>Appointments for {patient.name || 'Patient'}</h3>
-        <ActionButton variant="primary">
-          <FiPlus size={16} />
-          Schedule New
+    <TabContent>
+      <TabHeader>
+        <SectionHeader>Appointments</SectionHeader>
+        <ActionButton variant="primary" size="sm">
+          <FiPlus size={12} />
+          <span>Schedule</span>
         </ActionButton>
-      </AppointmentsHeader>
-      <p>Appointment history and scheduling will be displayed here.</p>
-    </AppointmentsContent>
+      </TabHeader>
+      <EmptyTabState>
+        <EmptyIcon>
+          <FiCalendar size={32} />
+        </EmptyIcon>
+        <EmptyTitle>No Appointments</EmptyTitle>
+        <EmptyMessage>No appointments scheduled for this patient.</EmptyMessage>
+      </EmptyTabState>
+    </TabContent>
   );
 
   const PatientDocumentsTab: React.FC<{ patient: Patient }> = ({ patient }) => (
-    <DocumentsContent>
-      <DocumentsHeader>
-        <h3>Documents for {patient.name || 'Patient'}</h3>
-        <ActionButton variant="primary">
-          <FiPlus size={16} />
-          Upload Document
+    <TabContent>
+      <TabHeader>
+        <SectionHeader>Documents</SectionHeader>
+        <ActionButton variant="primary" size="sm">
+          <FiPlus size={12} />
+          <span>Upload</span>
         </ActionButton>
-      </DocumentsHeader>
-      <p>Patient documents and files will be displayed here.</p>
-    </DocumentsContent>
+      </TabHeader>
+      <EmptyTabState>
+        <EmptyIcon>
+          <FiFileText size={32} />
+        </EmptyIcon>
+        <EmptyTitle>No Documents</EmptyTitle>
+        <EmptyMessage>No documents uploaded for this patient.</EmptyMessage>
+      </EmptyTabState>
+    </TabContent>
   );
 
   // Loading state
   if (patientsLoading) {
     return (
       <LoadingContainer>
-        <LoadingSpinner />
+        <LoadingSpinner size="lg" />
         <LoadingText>Loading patients...</LoadingText>
       </LoadingContainer>
     );
@@ -768,211 +773,242 @@ const PatientManagement: React.FC = () => {
   if (patientsError) {
     return (
       <ErrorContainer>
-        <ErrorMessage>Failed to load patients. Please try again.</ErrorMessage>
-        <ActionButton onClick={refetchPatients}>
-          <FiRefreshCw size={16} />
-          Retry
+        <ErrorIcon>
+          <FiAlertCircle size={32} />
+        </ErrorIcon>
+        <ErrorTitle>Error Loading Patients</ErrorTitle>
+        <ErrorMessage>Unable to load patient data. Please try again.</ErrorMessage>
+        <ActionButton onClick={refetchPatients} variant="primary" size="sm">
+          <FiRefreshCw size={12} />
+          <span>Retry</span>
         </ActionButton>
       </ErrorContainer>
     );
   }
 
   return (
-    <Container>
-      <Header>
+    <AppContainer>
+      <CompactHeader>
         <HeaderContent>
-          <Title>
-            My Patients
-            <TotalCount>({patientStats.total} total)</TotalCount>
-          </Title>
-          <Subtitle>Manage your patients and their medical records</Subtitle>
+          <HeaderTop>
+            <Title>Patient Management</Title>
+            <HeaderActions>
+              <ActionButton onClick={refetchPatients} variant="ghost" size="sm">
+                <FiRefreshCw size={12} />
+              </ActionButton>
+              <ActionButton variant="secondary" size="sm">
+                <FiDownload size={12} />
+                <span>Export</span>
+              </ActionButton>
+              <ActionButton variant="primary" size="sm">
+                <FiPlus size={12} />
+                <span>Add Patient</span>
+              </ActionButton>
+            </HeaderActions>
+          </HeaderTop>
           
-          <StatsContainer>
-            <StatCard>
-              <FiUsers size={16} />
-              <StatValue>{patientStats.total}</StatValue>
-              <StatLabel>Total Patients</StatLabel>
-            </StatCard>
-            <StatCard>
-              <FiTrendingUp size={16} />
-              <StatValue>{patientStats.newThisWeek}</StatValue>
-              <StatLabel>New This Week</StatLabel>
-            </StatCard>
-            <StatCard>
-              <FiActivity size={16} />
-              <StatValue>{patientStats.seenThisMonth}</StatValue>
-              <StatLabel>Seen This Month</StatLabel>
-            </StatCard>
-            <StatCard>
-              <FiAlertCircle size={16} />
-              <StatValue>{patientStats.needFollowUp}</StatValue>
-              <StatLabel>Need Follow-up</StatLabel>
-            </StatCard>
-          </StatsContainer>
+          <HeaderSubtitle>
+            Manage your patients and their medical records
+            <PatientCount>({patientStats.total} patients)</PatientCount>
+          </HeaderSubtitle>
+          
+          <CompactStatsGrid>
+            <CompactStatCard>
+              <StatIcon>
+                <FiUsers size={14} />
+              </StatIcon>
+              <StatContent>
+                <StatValue>{patientStats.total}</StatValue>
+                <StatLabel>Total</StatLabel>
+              </StatContent>
+            </CompactStatCard>
+            <CompactStatCard>
+              <StatIcon>
+                <FiTrendingUp size={14} />
+              </StatIcon>
+              <StatContent>
+                <StatValue>{patientStats.newThisWeek}</StatValue>
+                <StatLabel>New Week</StatLabel>
+              </StatContent>
+            </CompactStatCard>
+            <CompactStatCard>
+              <StatIcon>
+                <FiActivity size={14} />
+              </StatIcon>
+              <StatContent>
+                <StatValue>{patientStats.seenThisMonth}</StatValue>
+                <StatLabel>Seen Month</StatLabel>
+              </StatContent>
+            </CompactStatCard>
+            <CompactStatCard>
+              <StatIcon>
+                <FiAlertCircle size={14} />
+              </StatIcon>
+              <StatContent>
+                <StatValue>{patientStats.needFollowUp}</StatValue>
+                <StatLabel>Follow-up</StatLabel>
+              </StatContent>
+            </CompactStatCard>
+          </CompactStatsGrid>
         </HeaderContent>
-        
-        <HeaderActions>
-          <RefreshButton onClick={refetchPatients}>
-            <FiRefreshCw size={16} />
-            Refresh
-          </RefreshButton>
-          <ExportButton>
-            <FiDownload size={16} />
-            Export
-          </ExportButton>
-        </HeaderActions>
-      </Header>
+      </CompactHeader>
 
-      <Content>
-        <PatientListPanel>
-          <SearchAndFilters>
-            <SearchContainer>
-              <SearchInput
-                type="text"
-                placeholder="Search patients by name, phone, email, or ID..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <SearchIcon>
-                <FiSearch size={16} />
-              </SearchIcon>
-              {searchQuery && (
-                <ClearSearchButton onClick={() => setSearchQuery('')}>
-                  <FiX size={16} />
-                </ClearSearchButton>
-              )}
-            </SearchContainer>
+      <MainLayout>
+        <PatientListSection>
+          <SearchFiltersSection>
+            <SearchRow>
+              <CompactSearchContainer>
+                <SearchIcon>
+                  <FiSearch size={14} />
+                </SearchIcon>
+                <CompactSearchInput
+                  type="text"
+                  placeholder="Search patients..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                  <ClearButton onClick={() => setSearchQuery('')}>
+                    <FiX size={12} />
+                  </ClearButton>
+                )}
+              </CompactSearchContainer>
+            </SearchRow>
 
-            <FilterControls>
-              <ViewModeToggle>
-                <ViewModeButton 
-                  active={viewMode === 'cards'} 
-                  onClick={() => setViewMode('cards')}
+            <FiltersRow>
+              <FilterGroup>
+                <ViewToggle>
+                  <ViewButton 
+                    active={viewMode === 'cards'} 
+                    onClick={() => setViewMode('cards')}
+                  >
+                    <FiGrid size={12} />
+                  </ViewButton>
+                  <ViewButton 
+                    active={viewMode === 'table'} 
+                    onClick={() => setViewMode('table')}
+                  >
+                    <FiList size={12} />
+                  </ViewButton>
+                </ViewToggle>
+
+                <CompactSelect
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortBy)}
                 >
-                  <FiGrid size={16} />
-                </ViewModeButton>
-                <ViewModeButton 
-                  active={viewMode === 'table'} 
-                  onClick={() => setViewMode('table')}
-                >
-                  <FiList size={16} />
-                </ViewModeButton>
-              </ViewModeToggle>
+                  <option value="name_asc">Name A-Z</option>
+                  <option value="name_desc">Name Z-A</option>
+                  <option value="last_visit_desc">Recent Visit</option>
+                  <option value="last_visit_asc">Oldest Visit</option>
+                  <option value="age_asc">Youngest</option>
+                  <option value="age_desc">Oldest</option>
+                </CompactSelect>
 
-              <SortSelect
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortBy)}
-              >
-                <option value="name_asc">Name A-Z</option>
-                <option value="name_desc">Name Z-A</option>
-                <option value="last_visit_desc">Recent Visit First</option>
-                <option value="last_visit_asc">Oldest Visit First</option>
-                <option value="age_asc">Youngest First</option>
-                <option value="age_desc">Oldest First</option>
-              </SortSelect>
+                <FilterButton onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}>
+                  <FiFilter size={12} />
+                  <span>Filters</span>
+                  {showAdvancedFilters ? <FiChevronUp size={10} /> : <FiChevronDown size={10} />}
+                </FilterButton>
+              </FilterGroup>
 
-              <FilterButton onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}>
-                <FiFilter size={16} />
-                Filters
-                {showAdvancedFilters ? <FiChevronUp size={14} /> : <FiChevronDown size={14} />}
-              </FilterButton>
-            </FilterControls>
+              <ResultsCount>
+                {filteredAndSortedPatients.length} of {patients.length}
+                {searchQuery && ` for "${searchQuery}"`}
+              </ResultsCount>
+            </FiltersRow>
 
             {showAdvancedFilters && (
-              <AdvancedFilters>
-                <FilterSelect
-                  value={filters.gender}
-                  onChange={(e) => setFilters(prev => ({ ...prev, gender: e.target.value as Filters['gender'] }))}
-                >
-                  <option value="all">All Genders</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
-                </FilterSelect>
+              <AdvancedFiltersContainer>
+                <FiltersGrid>
+                  <CompactSelect
+                    value={filters.gender}
+                    onChange={(e) => setFilters(prev => ({ ...prev, gender: e.target.value as Filters['gender'] }))}
+                  >
+                    <option value="all">All Genders</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </CompactSelect>
 
-                <FilterSelect
-                  value={filters.ageRange}
-                  onChange={(e) => setFilters(prev => ({ ...prev, ageRange: e.target.value as Filters['ageRange'] }))}
-                >
-                  <option value="all">All Ages</option>
-                  <option value="0-18">Children (0-18)</option>
-                  <option value="19-35">Young Adults (19-35)</option>
-                  <option value="36-55">Adults (36-55)</option>
-                  <option value="56+">Seniors (56+)</option>
-                </FilterSelect>
+                  <CompactSelect
+                    value={filters.ageRange}
+                    onChange={(e) => setFilters(prev => ({ ...prev, ageRange: e.target.value as Filters['ageRange'] }))}
+                  >
+                    <option value="all">All Ages</option>
+                    <option value="0-18">0-18 years</option>
+                    <option value="19-35">19-35 years</option>
+                    <option value="36-55">36-55 years</option>
+                    <option value="56+">56+ years</option>
+                  </CompactSelect>
 
-                <FilterSelect
-                  value={filters.lastVisit}
-                  onChange={(e) => setFilters(prev => ({ ...prev, lastVisit: e.target.value as Filters['lastVisit'] }))}
-                >
-                  <option value="all">Any Time</option>
-                  <option value="last_week">Last Week</option>
-                  <option value="last_month">Last Month</option>
-                  <option value="last_3_months">Last 3 Months</option>
-                  <option value="last_6_months">Last 6 Months</option>
-                  <option value="over_6_months">Over 6 Months Ago</option>
-                  <option value="never">Never Visited</option>
-                </FilterSelect>
+                  <CompactSelect
+                    value={filters.lastVisit}
+                    onChange={(e) => setFilters(prev => ({ ...prev, lastVisit: e.target.value as Filters['lastVisit'] }))}
+                  >
+                    <option value="all">Any Time</option>
+                    <option value="last_week">Last Week</option>
+                    <option value="last_month">Last Month</option>
+                    <option value="last_3_months">Last 3 Months</option>
+                    <option value="last_6_months">Last 6 Months</option>
+                    <option value="over_6_months">Over 6 Months</option>
+                    <option value="never">Never</option>
+                  </CompactSelect>
 
-                <ClearFiltersButton onClick={() => setFilters({ gender: 'all', ageRange: 'all', lastVisit: 'all', status: 'active' })}>
-                  Clear Filters
-                </ClearFiltersButton>
-              </AdvancedFilters>
+                  <ActionButton 
+                    variant="ghost" 
+                    size="xs"
+                    onClick={() => setFilters({ gender: 'all', ageRange: 'all', lastVisit: 'all', status: 'active' })}
+                  >
+                    Clear
+                  </ActionButton>
+                </FiltersGrid>
+              </AdvancedFiltersContainer>
             )}
+          </SearchFiltersSection>
 
-            {searchQuery.trim() && (
-              <SearchInfo>
-                <span>Showing results for "{searchQuery}"</span>
-                <ClearSearchButton onClick={() => setSearchQuery('')}>
-                  Clear Search
-                </ClearSearchButton>
-              </SearchInfo>
-            )}
-          </SearchAndFilters>
-
-          <PatientListContent>
+          <ListContent>
             {filteredAndSortedPatients.length === 0 ? (
               <EmptyState>
                 <EmptyIcon>
-                  <FiUsers size={48} />
+                  <FiUsers size={32} />
                 </EmptyIcon>
                 <EmptyTitle>
-                  {searchQuery ? `No patients found for "${searchQuery}"` : "No patients found"}
+                  {searchQuery ? `No results for "${searchQuery}"` : "No patients found"}
                 </EmptyTitle>
                 <EmptyMessage>
                   {searchQuery 
-                    ? "Try adjusting your search terms or filters"
-                    : "No patients match the current filters"
+                    ? "Try adjusting your search or filters"
+                    : "No patients match current filters"
                   }
                 </EmptyMessage>
+                {searchQuery && (
+                  <ActionButton variant="secondary" size="sm" onClick={() => setSearchQuery('')}>
+                    Clear Search
+                  </ActionButton>
+                )}
               </EmptyState>
             ) : (
-              <>
-                <ResultsInfo>
-                  Showing {filteredAndSortedPatients.length} of {patients.length} patients
-                  {searchQuery && ` matching "${searchQuery}"`}
-                </ResultsInfo>
-                
-                {viewMode === 'cards' ? (
-                  <PatientsGrid>
-                    {filteredAndSortedPatients.map(patient => (
-                      <PatientCard
-                        key={patient.id}
-                        patient={patient}
-                        isSelected={selectedPatient?.id === patient.id}
-                        onClick={() => handlePatientSelect(patient)}
-                      />
-                    ))}
-                  </PatientsGrid>
-                ) : (
-                  <PatientsTable>
+              viewMode === 'cards' ? (
+                <PatientsGrid>
+                  {filteredAndSortedPatients.map(patient => (
+                    <PatientCard
+                      key={patient.id}
+                      patient={patient}
+                      isSelected={selectedPatient?.id === patient.id}
+                      onClick={() => handlePatientSelect(patient)}
+                    />
+                  ))}
+                </PatientsGrid>
+              ) : (
+                <TableContainer>
+                  <CompactTable>
                     <TableHeader>
                       <TableRow>
                         <TableHeaderCell>Patient</TableHeaderCell>
                         <TableHeaderCell>Age/Gender</TableHeaderCell>
                         <TableHeaderCell>Contact</TableHeaderCell>
                         <TableHeaderCell>Last Visit</TableHeaderCell>
-                        <TableHeaderCell>Total Visits</TableHeaderCell>
+                        <TableHeaderCell>Visits</TableHeaderCell>
                         <TableHeaderCell>Status</TableHeaderCell>
                         <TableHeaderCell>Actions</TableHeaderCell>
                       </TableRow>
@@ -987,88 +1023,72 @@ const PatientManagement: React.FC = () => {
                           <TableCell>
                             <TablePatientInfo>
                               <PatientAvatar small>
-                                <img 
-                                  src={patient.profilePicture || 'https://avatar.iran.liara.run/public'} 
-                                  alt={patient.name || 'Patient'}
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.style.display = 'none';
-                                    const fallback = target.nextSibling as HTMLElement;
-                                    if (fallback) fallback.style.display = 'flex';
-                                  }}
-                                />
-                                <div className="avatar-fallback">
-                                  {(patient.name || '').split(' ').map(n => n[0]).join('').toUpperCase()}
-                                </div>
+                                {(patient.name || '').split(' ').map(n => n[0]).join('').toUpperCase()}
                               </PatientAvatar>
                               <div>
-                                <PatientName>{patient.name || 'Unknown Patient'}</PatientName>
-                                <PatientId>#{patient.patientId || 'N/A'}</PatientId>
+                                <TablePatientName>{patient.name || 'Unknown Patient'}</TablePatientName>
+                                <TablePatientId>#{patient.patientId || 'N/A'}</TablePatientId>
                               </div>
                             </TablePatientInfo>
                           </TableCell>
-                          <TableCell>{patient.age || 0} • {patient.gender || 'unknown'}</TableCell>
+                          <TableCell>{patient.age || 0}y • {patient.gender || 'unknown'}</TableCell>
                           <TableCell>
                             <div>{patient.phone || 'N/A'}</div>
-                            <div style={{ fontSize: '12px', color: theme.colors.gray[500] }}>
-                              {patient.email || 'N/A'}
-                            </div>
+                            <TableSecondaryText>{patient.email || 'N/A'}</TableSecondaryText>
                           </TableCell>
                           <TableCell>
                             {patient.lastVisit && patient.lastVisit !== 'null' ? formatDate(patient.lastVisit) : 'Never'}
                           </TableCell>
                           <TableCell>{patient.totalVisits || 0}</TableCell>
                           <TableCell>
-                            <StatusBadge status={patient.status === 'active' ? 'success' : 'danger'}>
+                            <StatusChip status={patient.status === 'active' ? 'success' : 'danger'}>
                               {patient.status || 'inactive'}
-                            </StatusBadge>
+                            </StatusChip>
                             {patient.needsFollowUp && (
-                              <FollowUpBadge>Follow-up</FollowUpBadge>
+                              <FollowUpChip>Follow-up</FollowUpChip>
                             )}
                           </TableCell>
                           <TableCell>
                             <TableActions>
                               <ActionButton 
-                                size="sm" 
+                                size="xs" 
                                 variant="primary"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  // Schedule appointment
                                 }}
                               >
-                                <FiCalendar size={12} />
+                                <FiCalendar size={10} />
                               </ActionButton>
                               <ActionButton 
-                                size="sm" 
+                                size="xs" 
                                 variant="secondary"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  // Call patient
                                 }}
                               >
-                                <FiPhone size={12} />
+                                <FiPhone size={10} />
                               </ActionButton>
                             </TableActions>
                           </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
-                  </PatientsTable>
-                )}
-              </>
+                  </CompactTable>
+                </TableContainer>
+              )
             )}
-          </PatientListContent>
-        </PatientListPanel>
+          </ListContent>
+        </PatientListSection>
 
-        <PatientDetailPanel>
+        <DetailSection>
           <PatientDetailsPanel />
-        </PatientDetailPanel>
-      </Content>
-    </Container>
+        </DetailSection>
+      </MainLayout>
+    </AppContainer>
   );
 };
 
-// Utility function for debouncing
+// Utility functions
 function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T {
   let timeout: NodeJS.Timeout;
   return ((...args: Parameters<T>) => {
@@ -1081,7 +1101,6 @@ function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T 
   }) as T;
 }
 
-// Utility function for date formatting
 const formatDate = (dateString: string): string => {
   try {
     return new Date(dateString).toLocaleDateString('en-IN', {
@@ -1094,146 +1113,177 @@ const formatDate = (dateString: string): string => {
   }
 };
 
-// Styled Components
-const Container = styled.div`
+// Compact Styled Components
+const AppContainer = styled.div`
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: ${theme.colors.gray[50]};
+  background: ${theme.colors.gray[25]};
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
 `;
 
-const Header = styled.header`
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 24px 32px;
-  background: white;
+const CompactHeader = styled.header`
+  background: ${theme.colors.white};
   border-bottom: 1px solid ${theme.colors.gray[200]};
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  padding: ${theme.spacing.lg} ${theme.spacing.xl};
+  box-shadow: ${theme.shadows.sm};
 `;
 
 const HeaderContent = styled.div`
-  flex: 1;
+  max-width: 1600px;
+  margin: 0 auto;
+`;
+
+const HeaderTop = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: ${theme.spacing.sm};
 `;
 
 const Title = styled.h1`
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 600;
   color: ${theme.colors.gray[900]};
-  margin: 0 0 8px 0;
+  margin: 0;
+`;
+
+const HeaderSubtitle = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
-`;
-
-const TotalCount = styled.span`
-  font-size: 16px;
-  font-weight: 500;
-  color: ${theme.colors.gray[500]};
-`;
-
-const Subtitle = styled.p`
-  font-size: 16px;
+  gap: ${theme.spacing.sm};
+  font-size: 12px;
   color: ${theme.colors.gray[600]};
-  margin: 0 0 24px 0;
+  margin-bottom: ${theme.spacing.lg};
 `;
 
-const StatsContainer = styled.div`
+const PatientCount = styled.span`
+  font-size: 11px;
+  color: ${theme.colors.gray[500]};
+  font-weight: 500;
+`;
+
+const CompactStatsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  max-width: 600px;
+  gap: ${theme.spacing.md};
+  
+  @media (max-width: 1024px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
-const StatCard = styled.div`
+const CompactStatCard = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  background: ${theme.colors.gray[100]};
-  border-radius: 8px;
-  color: ${theme.colors.gray[700]};
-  
-  svg {
-    color: ${theme.colors.primary};
+  gap: ${theme.spacing.sm};
+  padding: ${theme.spacing.sm} ${theme.spacing.md};
+  background: ${theme.colors.white};
+  border: 1px solid ${theme.colors.gray[200]};
+  border-radius: ${theme.borderRadius.lg};
+  box-shadow: ${theme.shadows.xs};
+  transition: all 0.2s ease;
+
+  &:hover {
+    box-shadow: ${theme.shadows.sm};
   }
+`;
+
+const StatIcon = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: ${theme.colors.primary}10;
+  border-radius: ${theme.borderRadius.md};
+  color: ${theme.colors.primary};
+`;
+
+const StatContent = styled.div`
+  flex: 1;
+  min-width: 0;
 `;
 
 const StatValue = styled.div`
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 600;
   color: ${theme.colors.gray[900]};
+  line-height: 1.2;
 `;
 
 const StatLabel = styled.div`
-  font-size: 12px;
-  color: ${theme.colors.gray[600]};
-  margin-top: 2px;
+  font-size: 10px;
+  color: ${theme.colors.gray[500]};
+  margin-top: 1px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 `;
 
-const HeaderActions = styled.div`
-  display: flex;
-  gap: 12px;
-`;
-
-const RefreshButton = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border: 1px solid ${theme.colors.gray[300]};
-  background: white;
-  color: ${theme.colors.gray[700]};
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    background: ${theme.colors.gray[50]};
-    border-color: ${theme.colors.gray[400]};
+const MainLayout = styled.div`
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  overflow: hidden;
+  
+  @media (max-width: 1200px) {
+    grid-template-columns: 1fr 300px;
+  }
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
   }
 `;
 
-const ExportButton = styled(RefreshButton)``;
-
-const Content = styled.div`
-  flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 400px;
-  gap: 0;
-  overflow: hidden;
-`;
-
-const PatientListPanel = styled.div`
+const PatientListSection = styled.div`
   display: flex;
   flex-direction: column;
-  background: white;
+  background: ${theme.colors.white};
   border-right: 1px solid ${theme.colors.gray[200]};
 `;
 
-const SearchAndFilters = styled.div`
-  padding: 24px;
+const SearchFiltersSection = styled.div`
+  padding: ${theme.spacing.md};
   border-bottom: 1px solid ${theme.colors.gray[200]};
+  background: ${theme.colors.gray[25]};
 `;
 
-const SearchContainer = styled.div`
+const SearchRow = styled.div`
+  margin-bottom: ${theme.spacing.md};
+`;
+
+const CompactSearchContainer = styled.div`
   position: relative;
-  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
 `;
 
-const SearchInput = styled.input`
+const SearchIcon = styled.div`
+  position: absolute;
+  left: ${theme.spacing.sm};
+  color: ${theme.colors.gray[400]};
+  z-index: 2;
+`;
+
+const CompactSearchInput = styled.input`
   width: 100%;
-  padding: 12px 16px 12px 44px;
+  height: 32px;
+  padding: 0 32px 0 32px;
   border: 1px solid ${theme.colors.gray[300]};
-  border-radius: 8px;
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.2s;
+  border-radius: ${theme.borderRadius.md};
+  font-size: 12px;
+  background: ${theme.colors.white};
+  transition: all 0.2s ease;
 
   &:focus {
+    outline: none;
     border-color: ${theme.colors.primary};
+    box-shadow: 0 0 0 2px ${theme.colors.primary}15;
   }
 
   &::placeholder {
@@ -1241,26 +1291,16 @@ const SearchInput = styled.input`
   }
 `;
 
-const SearchIcon = styled.div`
+const ClearButton = styled.button`
   position: absolute;
-  left: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: ${theme.colors.gray[400]};
-`;
-
-const ClearSearchButton = styled.button`
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  padding: 4px;
+  right: ${theme.spacing.xs};
+  padding: ${theme.spacing.xs};
   border: none;
   background: none;
   color: ${theme.colors.gray[400]};
   cursor: pointer;
-  border-radius: 4px;
-  transition: all 0.2s;
+  border-radius: ${theme.borderRadius.sm};
+  transition: all 0.2s ease;
 
   &:hover {
     background: ${theme.colors.gray[100]};
@@ -1268,43 +1308,62 @@ const ClearSearchButton = styled.button`
   }
 `;
 
-const FilterControls = styled.div`
+const FiltersRow = styled.div`
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: ${theme.spacing.sm};
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
 `;
 
-const ViewModeToggle = styled.div`
+const FilterGroup = styled.div`
   display: flex;
+  align-items: center;
+  gap: ${theme.spacing.sm};
+  
+  @media (max-width: 768px) {
+    justify-content: space-between;
+  }
+`;
+
+const ViewToggle = styled.div`
+  display: flex;
+  background: ${theme.colors.white};
   border: 1px solid ${theme.colors.gray[300]};
-  border-radius: 6px;
+  border-radius: ${theme.borderRadius.md};
   overflow: hidden;
 `;
 
-const ViewModeButton = styled.button<{ active: boolean }>`
-  padding: 8px 12px;
+const ViewButton = styled.button<{ active: boolean }>`
+  padding: ${theme.spacing.xs} ${theme.spacing.sm};
   border: none;
-  background: ${props => props.active ? theme.colors.primary : 'white'};
-  color: ${props => props.active ? 'white' : theme.colors.gray[600]};
+  background: ${props => props.active ? theme.colors.primary : 'transparent'};
+  color: ${props => props.active ? theme.colors.white : theme.colors.gray[600]};
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 
   &:hover {
     background: ${props => props.active ? theme.colors.primary : theme.colors.gray[50]};
   }
 `;
 
-const SortSelect = styled.select`
-  padding: 8px 12px;
+const CompactSelect = styled.select`
+  height: 28px;
+  padding: 0 ${theme.spacing.sm};
   border: 1px solid ${theme.colors.gray[300]};
-  border-radius: 6px;
-  font-size: 14px;
-  background: white;
+  border-radius: ${theme.borderRadius.md};
+  font-size: 11px;
+  background: ${theme.colors.white};
   color: ${theme.colors.gray[700]};
   cursor: pointer;
-  outline: none;
+  transition: all 0.2s ease;
 
   &:focus {
+    outline: none;
     border-color: ${theme.colors.primary};
   }
 `;
@@ -1312,256 +1371,250 @@ const SortSelect = styled.select`
 const FilterButton = styled.button`
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: ${theme.spacing.xs};
+  height: 28px;
+  padding: 0 ${theme.spacing.sm};
   border: 1px solid ${theme.colors.gray[300]};
-  background: white;
+  background: ${theme.colors.white};
   color: ${theme.colors.gray[700]};
-  border-radius: 6px;
-  font-size: 14px;
+  border-radius: ${theme.borderRadius.md};
+  font-size: 11px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    background: ${theme.colors.gray[50]};
-  }
-`;
-
-const AdvancedFilters = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, 1fr) auto;
-  gap: 12px;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid ${theme.colors.gray[200]};
-`;
-
-const FilterSelect = styled.select`
-  padding: 8px 12px;
-  border: 1px solid ${theme.colors.gray[300]};
-  border-radius: 6px;
-  font-size: 14px;
-  background: white;
-  color: ${theme.colors.gray[700]};
-  cursor: pointer;
-  outline: none;
-
-  &:focus {
-    border-color: ${theme.colors.primary};
-  }
-`;
-
-const ClearFiltersButton = styled.button`
-  padding: 8px 16px;
-  border: 1px solid ${theme.colors.gray[300]};
-  background: white;
-  color: ${theme.colors.gray[700]};
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   white-space: nowrap;
 
   &:hover {
     background: ${theme.colors.gray[50]};
+    border-color: ${theme.colors.gray[400]};
   }
 `;
 
-const SearchInfo = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 12px;
-  padding: 8px 12px;
-  background: ${theme.colors.gray[50]};
-  border-radius: 6px;
-  font-size: 14px;
+const ResultsCount = styled.div`
+  font-size: 11px;
   color: ${theme.colors.gray[600]};
+  white-space: nowrap;
+  
+  @media (max-width: 768px) {
+    text-align: center;
+    margin-top: ${theme.spacing.xs};
+  }
 `;
 
-const PatientListContent = styled.div`
+const AdvancedFiltersContainer = styled.div`
+  margin-top: ${theme.spacing.md};
+  padding-top: ${theme.spacing.md};
+  border-top: 1px solid ${theme.colors.gray[200]};
+`;
+
+const FiltersGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr) auto;
+  gap: ${theme.spacing.sm};
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const ListContent = styled.div`
   flex: 1;
   overflow-y: auto;
-`;
-
-const ResultsInfo = styled.div`
-  padding: 16px 24px;
-  font-size: 14px;
-  color: ${theme.colors.gray[600]};
-  border-bottom: 1px solid ${theme.colors.gray[200]};
+  padding: ${theme.spacing.md};
 `;
 
 const PatientsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 16px;
-  padding: 24px;
-`;
-
-const PatientCardContainer = styled.div<{ selected: boolean }>`
-  background: white;
-  border: 2px solid ${props => props.selected ? theme.colors.primary : theme.colors.gray[200]};
-  border-radius: 12px;
-  padding: 20px;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-
-  &:hover {
-    border-color: ${props => props.selected ? theme.colors.primary : theme.colors.gray[300]};
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: ${theme.spacing.md};
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
   }
 `;
 
-const PatientCardHeader = styled.div`
+const CompactPatientCard = styled.div<{ selected: boolean }>`
+  background: ${theme.colors.white};
+  border: 1px solid ${props => props.selected ? theme.colors.primary : theme.colors.gray[200]};
+  border-radius: ${theme.borderRadius.lg};
+  padding: ${theme.spacing.md};
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: ${theme.shadows.xs};
+
+  &:hover {
+    border-color: ${props => props.selected ? theme.colors.primary : theme.colors.gray[300]};
+    box-shadow: ${theme.shadows.sm};
+  }
+`;
+
+const CardHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: ${theme.spacing.sm};
+`;
+
+const PatientInfo = styled.div`
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: ${theme.spacing.sm};
+  flex: 1;
+  min-width: 0;
 `;
 
 const PatientAvatar = styled.div<{ small?: boolean }>`
   position: relative;
-  width: ${props => props.small ? '40px' : '60px'};
-  height: ${props => props.small ? '40px' : '60px'};
+  width: ${props => props.small ? '24px' : '36px'};
+  height: ${props => props.small ? '24px' : '36px'};
   border-radius: 50%;
   overflow: hidden;
-  background: ${theme.colors.gray[200]};
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .avatar-fallback {
-    display: none;
-    width: 100%;
-    height: 100%;
-    align-items: center;
-    justify-content: center;
-    background: ${theme.colors.primary};
-    color: white;
-    font-weight: 600;
-    font-size: ${props => props.small ? '14px' : '18px'};
-  }
+  background: linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.primaryLight});
+  color: ${theme.colors.white};
+  font-weight: 600;
+  font-size: ${props => props.small ? '9px' : '12px'};
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `;
 
-const StatusIndicator = styled.div<{ status: PatientStatus }>`
+const StatusDot = styled.div<{ status: PatientStatus }>`
   position: absolute;
-  bottom: 2px;
-  right: 2px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: ${props => props.status === 'active' ? theme.colors.success : theme.colors.gray[400]};
-  border: 2px solid white;
-`;
-
-const FollowUpIndicator = styled.div`
-  position: absolute;
-  top: -2px;
-  right: -2px;
+  bottom: -1px;
+  right: -1px;
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: ${theme.colors.warning};
-  border: 1px solid white;
+  background: ${props => props.status === 'active' ? theme.colors.success : theme.colors.gray[400]};
+  border: 2px solid ${theme.colors.white};
 `;
 
-const PatientBasicInfo = styled.div`
+const FollowUpDot = styled.div`
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: ${theme.colors.warning};
+  border: 1px solid ${theme.colors.white};
+`;
+
+const PatientDetails = styled.div`
   flex: 1;
+  min-width: 0;
 `;
 
 const PatientName = styled.h3`
-  font-size: 18px;
+  font-size: 13px;
   font-weight: 600;
   color: ${theme.colors.gray[900]};
-  margin: 0 0 4px 0;
-`;
-
-const PatientId = styled.div`
-  font-size: 12px;
-  color: ${theme.colors.gray[500]};
-  margin-bottom: 4px;
+  margin: 0 0 2px 0;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 const PatientMeta = styled.div`
-  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: ${theme.spacing.xs};
+  font-size: 10px;
   color: ${theme.colors.gray[600]};
+  line-height: 1.2;
 `;
 
-const PatientCardContent = styled.div`
-  margin-bottom: 16px;
+const Separator = styled.span`
+  color: ${theme.colors.gray[400]};
 `;
 
-const ContactInfo = styled.div`
-  margin-bottom: 12px;
+const ActionMenu = styled.div`
+  display: flex;
+  gap: ${theme.spacing.xs};
+`;
+
+const CardContent = styled.div`
+  margin-bottom: ${theme.spacing.sm};
+`;
+
+const ContactRow = styled.div`
+  margin-bottom: ${theme.spacing.sm};
 `;
 
 const ContactItem = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: ${theme.colors.gray[600]};
-  margin-bottom: 4px;
-
+  gap: ${theme.spacing.xs};
+  margin-bottom: 2px;
+  
   &:last-child {
     margin-bottom: 0;
   }
 `;
 
-const VisitInfo = styled.div`
-  font-size: 12px;
+const ContactText = styled.span`
+  font-size: 10px;
   color: ${theme.colors.gray[600]};
-  margin-bottom: 12px;
-
-  > div {
-    margin-bottom: 4px;
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-  }
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
 `;
 
-const ConditionsInfo = styled.div`
-  font-size: 12px;
-  color: ${theme.colors.gray[600]};
+const StatsRow = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: ${theme.spacing.sm};
+  margin-bottom: ${theme.spacing.sm};
 `;
 
-const ConditionTags = styled.div`
+const StatItem = styled.div`
+  text-align: center;
+`;
+
+const ConditionsRow = styled.div``;
+
+const ConditionsList = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 4px;
+  gap: ${theme.spacing.xs};
 `;
 
-const ConditionTag = styled.span`
-  padding: 2px 6px;
-  background: ${theme.colors.gray[100]};
-  color: ${theme.colors.gray[700]};
-  border-radius: 4px;
-  font-size: 10px;
+const ConditionChip = styled.span<{ variant?: 'more' }>`
+  padding: 2px ${theme.spacing.xs};
+  background: ${props => props.variant === 'more' ? theme.colors.gray[200] : `${theme.colors.primary}10`};
+  color: ${props => props.variant === 'more' ? theme.colors.gray[600] : theme.colors.primary};
+  border-radius: ${theme.borderRadius.sm};
+  font-size: 9px;
+  font-weight: 500;
 `;
 
-const PatientCardActions = styled.div`
+const CardFooter = styled.div`
   display: flex;
-  gap: 8px;
+  gap: ${theme.spacing.xs};
 `;
 
 const ActionButton = styled.button<{ 
   variant?: 'primary' | 'secondary' | 'ghost';
-  size?: 'sm' | 'md';
+  size?: 'xs' | 'sm' | 'md';
 }>`
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: ${props => props.size === 'sm' ? '6px 8px' : '8px 12px'};
+  justify-content: center;
+  gap: ${theme.spacing.xs};
+  padding: ${props => {
+    switch (props.size) {
+      case 'xs': return `${theme.spacing.xs} ${theme.spacing.sm}`;
+      case 'sm': return `${theme.spacing.sm} ${theme.spacing.md}`;
+      default: return `${theme.spacing.md} ${theme.spacing.lg}`;
+    }
+  }};
   border: 1px solid ${props => {
     switch (props.variant) {
       case 'primary': return theme.colors.primary;
+      case 'secondary': return theme.colors.gray[300];
       case 'ghost': return 'transparent';
       default: return theme.colors.gray[300];
     }
@@ -1569,62 +1622,106 @@ const ActionButton = styled.button<{
   background: ${props => {
     switch (props.variant) {
       case 'primary': return theme.colors.primary;
+      case 'secondary': return theme.colors.white;
       case 'ghost': return 'transparent';
-      default: return 'white';
+      default: return theme.colors.white;
     }
   }};
   color: ${props => {
     switch (props.variant) {
-      case 'primary': return 'white';
+      case 'primary': return theme.colors.white;
+      case 'secondary': return theme.colors.gray[700];
       case 'ghost': return theme.colors.gray[600];
       default: return theme.colors.gray[700];
     }
   }};
-  border-radius: 6px;
-  font-size: ${props => props.size === 'sm' ? '12px' : '14px'};
+  border-radius: ${theme.borderRadius.md};
+  font-size: ${props => {
+    switch (props.size) {
+      case 'xs': return '10px';
+      case 'sm': return '11px';
+      default: return '12px';
+    }
+  }};
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   flex: 1;
-  justify-content: center;
+  min-height: ${props => {
+    switch (props.size) {
+      case 'xs': return '24px';
+      case 'sm': return '28px';
+      default: return '32px';
+    }
+  }};
+  white-space: nowrap;
 
   &:hover {
     background: ${props => {
       switch (props.variant) {
-        case 'primary': return `${theme.colors.primary}dd`;
-        case 'ghost': return theme.colors.gray[50];
+        case 'primary': return theme.colors.primaryDark;
+        case 'secondary': return theme.colors.gray[50];
+        case 'ghost': return theme.colors.gray[100];
         default: return theme.colors.gray[50];
+      }
+    }};
+    border-color: ${props => {
+      switch (props.variant) {
+        case 'primary': return theme.colors.primaryDark;
+        case 'ghost': return theme.colors.gray[300];
+        default: return theme.colors.gray[400];
+      }
+    }};
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px ${props => {
+      switch (props.variant) {
+        case 'primary': return `${theme.colors.primary}25`;
+        default: return `${theme.colors.gray[400]}25`;
       }
     }};
   }
 `;
 
 // Table Styles
-const PatientsTable = styled.table`
+const TableContainer = styled.div`
+  overflow-x: auto;
+  border-radius: ${theme.borderRadius.lg};
+  border: 1px solid ${theme.colors.gray[200]};
+`;
+
+const CompactTable = styled.table`
   width: 100%;
   border-collapse: collapse;
+  background: ${theme.colors.white};
+  font-size: 11px;
 `;
 
 const TableHeader = styled.thead`
   background: ${theme.colors.gray[50]};
-  border-bottom: 1px solid ${theme.colors.gray[200]};
 `;
 
 const TableRow = styled.tr<{ selected?: boolean }>`
-  background: ${props => props.selected ? `${theme.colors.primary}10` : 'white'};
+  background: ${props => props.selected ? `${theme.colors.primary}08` : theme.colors.white};
   border-bottom: 1px solid ${theme.colors.gray[200]};
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
 
   &:hover {
-    background: ${props => props.selected ? `${theme.colors.primary}20` : theme.colors.gray[50]};
+    background: ${props => props.selected ? `${theme.colors.primary}15` : theme.colors.gray[25]};
+  }
+
+  &:last-child {
+    border-bottom: none;
   }
 `;
 
 const TableHeaderCell = styled.th`
-  padding: 12px 16px;
+  padding: ${theme.spacing.sm};
   text-align: left;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
   color: ${theme.colors.gray[700]};
   text-transform: uppercase;
@@ -1632,9 +1729,10 @@ const TableHeaderCell = styled.th`
 `;
 
 const TableCell = styled.td`
-  padding: 12px 16px;
-  font-size: 14px;
+  padding: ${theme.spacing.sm};
+  font-size: 11px;
   color: ${theme.colors.gray[900]};
+  vertical-align: middle;
 `;
 
 const TableBody = styled.tbody``;
@@ -1642,25 +1740,46 @@ const TableBody = styled.tbody``;
 const TablePatientInfo = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: ${theme.spacing.sm};
+`;
+
+const TablePatientName = styled.div`
+  font-weight: 600;
+  color: ${theme.colors.gray[900]};
+  margin-bottom: 1px;
+  font-size: 11px;
+`;
+
+const TablePatientId = styled.div`
+  font-size: 9px;
+  color: ${theme.colors.gray[500]};
+`;
+
+const TableSecondaryText = styled.div`
+  font-size: 9px;
+  color: ${theme.colors.gray[500]};
+  margin-top: 1px;
 `;
 
 const TableActions = styled.div`
   display: flex;
-  gap: 8px;
+  gap: ${theme.spacing.xs};
 `;
 
-const StatusBadge = styled.span<{ status: StatusBadgeStatus }>`
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 10px;
+const StatusChip = styled.span<{ status: StatusBadgeStatus }>`
+  display: inline-flex;
+  align-items: center;
+  padding: 2px ${theme.spacing.xs};
+  border-radius: ${theme.borderRadius.sm};
+  font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.3px;
   background: ${props => {
     switch (props.status) {
-      case 'success': return `${theme.colors.success}20`;
-      case 'warning': return `${theme.colors.warning}20`;
-      case 'danger': return `${theme.colors.danger}20`;
+      case 'success': return `${theme.colors.success}15`;
+      case 'warning': return `${theme.colors.warning}15`;
+      case 'danger': return `${theme.colors.danger}15`;
       default: return theme.colors.gray[100];
     }
   }};
@@ -1674,282 +1793,330 @@ const StatusBadge = styled.span<{ status: StatusBadgeStatus }>`
   }};
 `;
 
-const FollowUpBadge = styled.span`
-  padding: 2px 6px;
-  border-radius: 8px;
-  font-size: 9px;
+const FollowUpChip = styled.span`
+  display: inline-flex;
+  align-items: center;
+  padding: 1px ${theme.spacing.xs};
+  border-radius: ${theme.borderRadius.sm};
+  font-size: 8px;
   font-weight: 600;
   text-transform: uppercase;
-  background: ${theme.colors.warning}20;
+  background: ${theme.colors.warning}15;
   color: ${theme.colors.warning};
-  margin-left: 4px;
+  margin-left: ${theme.spacing.xs};
 `;
 
-// Patient Detail Panel Styles
-const PatientDetailPanel = styled.div`
-  background: white;
-  overflow-y: auto;
+// Detail Panel Styles
+const DetailSection = styled.div`
+  background: ${theme.colors.white};
+  overflow: hidden;
+  
+  @media (max-width: 768px) {
+    display: none;
+  }
 `;
 
-const EmptyPatientSelection = styled.div`
+const EmptySelectionState = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100%;
-  padding: 40px;
   text-align: center;
+  padding: ${theme.spacing.xl};
+  height: 100%;
 `;
 
 const EmptyIcon = styled.div`
   color: ${theme.colors.gray[300]};
-  margin-bottom: 16px;
+  margin-bottom: ${theme.spacing.md};
 `;
 
 const EmptyTitle = styled.h3`
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 600;
   color: ${theme.colors.gray[900]};
-  margin: 0 0 8px 0;
+  margin: 0 0 ${theme.spacing.xs} 0;
 `;
 
 const EmptyMessage = styled.p`
-  font-size: 14px;
+  font-size: 11px;
   color: ${theme.colors.gray[600]};
-  margin: 0 0 24px 0;
-  max-width: 300px;
-  line-height: 1.5;
+  margin: 0 0 ${theme.spacing.lg} 0;
+  max-width: 240px;
+  line-height: 1.4;
 `;
 
-const PatientDetailContainer = styled.div`
+const DetailContainer = styled.div`
   height: 100%;
   display: flex;
   flex-direction: column;
 `;
 
-const PatientDetailHeader = styled.div`
+const DetailHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 24px;
+  padding: ${theme.spacing.lg};
   border-bottom: 1px solid ${theme.colors.gray[200]};
+  background: ${theme.colors.gray[25]};
 `;
 
-const PatientDetailBasicInfo = styled.div`
+const PatientHeaderInfo = styled.div`
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: ${theme.spacing.md};
 `;
 
 const PatientAvatarLarge = styled.div`
   position: relative;
-  width: 80px;
-  height: 80px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   overflow: hidden;
-  background: ${theme.colors.gray[200]};
+  background: linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.primaryLight});
+  color: ${theme.colors.white};
+  font-weight: 600;
+  font-size: 18px;
+  box-shadow: ${theme.shadows.sm};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
 
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
+const HeaderPatientInfo = styled.div``;
 
-  .avatar-fallback {
-    display: none;
-    width: 100%;
-    height: 100%;
-    align-items: center;
-    justify-content: center;
-    background: ${theme.colors.primary};
-    color: white;
+const DetailPatientName = styled.h2`
+  font-size: 16px;
+  font-weight: 600;
+  color: ${theme.colors.gray[900]};
+  margin: 0 0 ${theme.spacing.xs} 0;
+`;
+
+const DetailPatientMeta = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${theme.spacing.xs};
+  font-size: 11px;
+  color: ${theme.colors.gray[600]};
+  margin-bottom: ${theme.spacing.xs};
+  
+  span:first-child {
+    color: ${theme.colors.primary};
     font-weight: 600;
-    font-size: 24px;
   }
 `;
 
-const PatientDetailInfo = styled.div`
-  h2 {
-    font-size: 24px;
-    font-weight: 700;
-    color: ${theme.colors.gray[900]};
-    margin: 0 0 8px 0;
-  }
-
-  p {
-    font-size: 14px;
-    color: ${theme.colors.gray[600]};
-    margin: 0 0 4px 0;
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-  }
-`;
-
-const PatientDetailActions = styled.div`
+const DetailContactInfo = styled.div`
   display: flex;
-  gap: 12px;
+  align-items: center;
+  gap: ${theme.spacing.xs};
+  font-size: 10px;
+  color: ${theme.colors.gray[600]};
 `;
 
-const PatientTabNavigation = styled.div`
+const HeaderActions = styled.div`
   display: flex;
-  border-bottom: 1px solid ${theme.colors.gray[200]};
+  gap: ${theme.spacing.sm};
+`;
+
+const TabsContainer = styled.div`
+  display: flex;
   background: ${theme.colors.gray[50]};
+  border-bottom: 1px solid ${theme.colors.gray[200]};
 `;
 
 const TabButton = styled.button<{ active: boolean }>`
-  padding: 16px 20px;
+  padding: ${theme.spacing.sm} ${theme.spacing.md};
   border: none;
-  background: ${props => props.active ? 'white' : 'transparent'};
+  background: ${props => props.active ? theme.colors.white : 'transparent'};
   color: ${props => props.active ? theme.colors.primary : theme.colors.gray[600]};
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
   border-bottom: 2px solid ${props => props.active ? theme.colors.primary : 'transparent'};
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 
   &:hover {
-    background: ${props => props.active ? 'white' : theme.colors.gray[100]};
+    background: ${props => props.active ? theme.colors.white : theme.colors.gray[100]};
     color: ${props => props.active ? theme.colors.primary : theme.colors.gray[700]};
   }
 `;
 
-const PatientTabContent = styled.div`
+const TabContentContainer = styled.div`
   flex: 1;
   overflow-y: auto;
 `;
 
-// Overview Tab Styles
-const OverviewContent = styled.div`
-  padding: 24px;
+// Tab Content Styles
+const TabContent = styled.div`
+  padding: ${theme.spacing.lg};
 `;
 
-const OverviewSection = styled.div`
-  margin-bottom: 32px;
+const TabHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: ${theme.spacing.lg};
+`;
+
+const InfoSection = styled.div`
+  margin-bottom: ${theme.spacing.xl};
 
   &:last-child {
     margin-bottom: 0;
   }
 `;
 
-const SectionTitle = styled.h3`
-  font-size: 16px;
+const SectionHeader = styled.h3`
+  font-size: 12px;
   font-weight: 600;
   color: ${theme.colors.gray[900]};
-  margin: 0 0 16px 0;
+  margin: 0 0 ${theme.spacing.md} 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 `;
 
 const InfoGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  grid-template-columns: 1fr 1fr;
+  gap: ${theme.spacing.md};
+  
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
-const InfoItem = styled.div``;
+const InfoField = styled.div``;
 
-const InfoLabel = styled.div`
-  font-size: 12px;
+const FieldLabel = styled.div`
+  font-size: 9px;
   font-weight: 500;
   color: ${theme.colors.gray[500]};
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 `;
 
-const InfoValue = styled.div`
-  font-size: 14px;
+const FieldValue = styled.div`
+  font-size: 11px;
   color: ${theme.colors.gray[900]};
   font-weight: 500;
 `;
 
-const ConditionList = styled.div`
+const ConditionsGrid = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: ${theme.spacing.sm};
 `;
 
-const ConditionItem = styled.div`
+const ConditionRow = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background: ${theme.colors.gray[50]};
-  border-radius: 8px;
+  padding: ${theme.spacing.sm};
+  background: ${theme.colors.gray[25]};
+  border-radius: ${theme.borderRadius.md};
+  border: 1px solid ${theme.colors.gray[200]};
 `;
 
 const ConditionName = styled.div`
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 500;
   color: ${theme.colors.gray[900]};
 `;
 
-const ConditionStatus = styled.div`
-  font-size: 12px;
-  color: ${theme.colors.success};
-  font-weight: 500;
-`;
-
 // History Tab Styles
-const HistoryContent = styled.div`
-  padding: 24px;
-`;
-
 const HistoryHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 32px;
+  margin-bottom: ${theme.spacing.xl};
+  gap: ${theme.spacing.lg};
 `;
 
-const HistoryStats = styled.div`
+const HistoryStatsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  gap: ${theme.spacing.sm};
   flex: 1;
-  margin-right: 24px;
+  
+  @media (max-width: 1024px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
 `;
 
 const HistoryTimeline = styled.div``;
 
-const TimelineTitle = styled.h3`
-  font-size: 16px;
-  font-weight: 600;
-  color: ${theme.colors.gray[900]};
-  margin: 0 0 16px 0;
-`;
-
-const TimelineItem = styled.div`
-  display: flex;
-  gap: 16px;
-  margin-bottom: 24px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid ${theme.colors.gray[200]};
-
-  &:last-child {
-    margin-bottom: 0;
-    padding-bottom: 0;
-    border-bottom: none;
+const Timeline = styled.div`
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: ${theme.spacing.lg};
+    bottom: ${theme.spacing.lg};
+    width: 1px;
+    background: ${theme.colors.gray[200]};
   }
 `;
 
-const TimelineDate = styled.div`
+const TimelineItem = styled.div`
+  position: relative;
+  display: flex;
+  gap: ${theme.spacing.md};
+  margin-bottom: ${theme.spacing.lg};
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const TimelineMarker = styled.div`
   flex-shrink: 0;
-  width: 80px;
-  font-size: 12px;
-  font-weight: 500;
-  color: ${theme.colors.gray[500]};
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: ${theme.colors.primary};
+  border: 3px solid ${theme.colors.white};
+  box-shadow: 0 0 0 1px ${theme.colors.gray[200]};
+  margin-top: 2px;
+  z-index: 1;
 `;
 
 const TimelineContent = styled.div`
   flex: 1;
+  background: ${theme.colors.white};
+  border: 1px solid ${theme.colors.gray[200]};
+  border-radius: ${theme.borderRadius.lg};
+  padding: ${theme.spacing.md};
+  box-shadow: ${theme.shadows.xs};
 `;
 
-const TimelineDescription = styled.div`
-  font-size: 14px;
-  color: ${theme.colors.gray[700]};
-  margin-bottom: 4px;
+const TimelineDate = styled.div`
+  font-size: 9px;
+  font-weight: 600;
+  color: ${theme.colors.primary};
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: ${theme.spacing.xs};
+`;
 
+const TimelineTitle = styled.h4`
+  font-size: 12px;
+  font-weight: 600;
+  color: ${theme.colors.gray[900]};
+  margin: 0 0 ${theme.spacing.sm} 0;
+`;
+
+const TimelineDetail = styled.div`
+  font-size: 10px;
+  color: ${theme.colors.gray[700]};
+  line-height: 1.4;
+  margin-bottom: ${theme.spacing.xs};
+  
   &:last-child {
     margin-bottom: 0;
   }
@@ -1961,13 +2128,34 @@ const LoadingContainer = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 200px;
-  gap: 16px;
+  height: 100vh;
+  gap: ${theme.spacing.md};
 `;
 
-const LoadingSpinner = styled.div<{ size?: 'small' | 'medium' }>`
-  width: ${props => props.size === 'small' ? '16px' : '32px'};
-  height: ${props => props.size === 'small' ? '16px' : '32px'};
+const LoadingState = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: ${theme.spacing.xl};
+  gap: ${theme.spacing.md};
+`;
+
+const LoadingSpinner = styled.div<{ size?: 'sm' | 'md' | 'lg' }>`
+  width: ${props => {
+    switch (props.size) {
+      case 'sm': return '16px';
+      case 'lg': return '32px';
+      default: return '24px';
+    }
+  }};
+  height: ${props => {
+    switch (props.size) {
+      case 'sm': return '16px';
+      case 'lg': return '32px';
+      default: return '24px';
+    }
+  }};
   border: 2px solid ${theme.colors.gray[200]};
   border-top: 2px solid ${theme.colors.primary};
   border-radius: 50%;
@@ -1980,8 +2168,9 @@ const LoadingSpinner = styled.div<{ size?: 'small' | 'medium' }>`
 `;
 
 const LoadingText = styled.div`
-  font-size: 14px;
+  font-size: 11px;
   color: ${theme.colors.gray[600]};
+  font-weight: 500;
 `;
 
 const ErrorContainer = styled.div`
@@ -1989,14 +2178,29 @@ const ErrorContainer = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 300px;
-  gap: 16px;
+  height: 100vh;
+  gap: ${theme.spacing.md};
+  padding: ${theme.spacing.xl};
+  text-align: center;
 `;
 
-const ErrorMessage = styled.div`
-  font-size: 16px;
+const ErrorIcon = styled.div`
   color: ${theme.colors.danger};
-  text-align: center;
+`;
+
+const ErrorTitle = styled.h2`
+  font-size: 16px;
+  font-weight: 600;
+  color: ${theme.colors.gray[900]};
+  margin: 0;
+`;
+
+const ErrorMessage = styled.p`
+  font-size: 12px;
+  color: ${theme.colors.gray[600]};
+  margin: 0;
+  max-width: 300px;
+  line-height: 1.4;
 `;
 
 const EmptyState = styled.div`
@@ -2004,60 +2208,18 @@ const EmptyState = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 40px;
   text-align: center;
+  padding: ${theme.spacing.xl};
 `;
 
-const EmptyHistoryState = styled.div`
+const EmptyTabState = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 40px;
   text-align: center;
-
-  p {
-    font-size: 16px;
-    color: ${theme.colors.gray[600]};
-    margin: 0 0 24px 0;
-  }
-`;
-
-// Appointments and Documents Tab Styles
-const AppointmentsContent = styled.div`
-  padding: 24px;
-`;
-
-const AppointmentsHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-
-  h3 {
-    font-size: 18px;
-    font-weight: 600;
-    color: ${theme.colors.gray[900]};
-    margin: 0;
-  }
-`;
-
-const DocumentsContent = styled.div`
-  padding: 24px;
-`;
-
-const DocumentsHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-
-  h3 {
-    font-size: 18px;
-    font-weight: 600;
-    color: ${theme.colors.gray[900]};
-    margin: 0;
-  }
+  padding: ${theme.spacing.xl};
+  height: 200px;
 `;
 
 export default PatientManagement;

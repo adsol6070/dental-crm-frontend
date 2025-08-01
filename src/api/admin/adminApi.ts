@@ -23,28 +23,27 @@ import {
 } from "./adminTypes";
 import { Doctor, DoctorsApiResponse } from "../doctor/doctorTypes";
 
-const token = localStorage.getItem("auth_token");
+const getAuthHeader = () => ({
+  Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}`,
+});
+
 export const adminApi = {
   getPatientsWithMeta: async (): Promise<
     ApiResponse<PaginatedPatientsResponse>
   > => {
     const response = await httpClient.get<
       ApiResponse<PaginatedPatientsResponse>
-    >(API_ENDPOINTS.ADMIN.GET_ALL, {
-      headers: {
-        Authorization: token ? `Bearer ${token}` : "",
-      },
-    });
+    >(API_ENDPOINTS.ADMIN.GET_ALL,  {
+        headers: getAuthHeader(),
+      });
     return response.data;
   },
 
   getPatientById: async (id: string): Promise<Patient> => {
     const response = await httpClient.get<ApiResponse<Patient>>(
       API_ENDPOINTS.ADMIN.GET_BY_ID(id),
-      {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+       {
+        headers: getAuthHeader(),
       }
     );
     return response.data.data;
@@ -53,10 +52,8 @@ export const adminApi = {
   getAdminProfile: async (): Promise<GetAdminProfileResponse> => {
     const response = await httpClient.get<GetAdminProfileResponse>(
       API_ENDPOINTS.ADMIN.GET_ADMIN_PROFILE,
-      {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+       {
+        headers: getAuthHeader(),
       }
     );
 
@@ -71,9 +68,7 @@ export const adminApi = {
       API_ENDPOINTS.ADMIN.UPDATE(id),
       data,
       {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+        headers: getAuthHeader(),
       }
     );
     return response.data.data;
@@ -87,9 +82,7 @@ export const adminApi = {
       API_ENDPOINTS.ADMIN.PATIENT_STATUS_UPDATE(id),
       data,
       {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+        headers: getAuthHeader(),
       }
     );
     return response.data.data;
@@ -98,10 +91,8 @@ export const adminApi = {
   deletePatient: async (id: string): Promise<{ message: string }> => {
     const response = await httpClient.delete<ApiResponse<{ message: string }>>(
       API_ENDPOINTS.ADMIN.DELETE(id),
-      {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+       {
+        headers: getAuthHeader(),
       }
     );
     return response.data.data;
@@ -110,10 +101,8 @@ export const adminApi = {
   getDoctors: async (): Promise<Doctor[]> => {
     const response = await httpClient.get<ApiResponse<DoctorsApiResponse>>(
       API_ENDPOINTS.ADMIN.GET_ALL_DOCTORS,
-      {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+     {
+        headers: getAuthHeader(),
       }
     );
     console.log("Response:", response);
@@ -123,10 +112,8 @@ export const adminApi = {
   getDoctorById: async (id: string): Promise<Doctor> => {
     const response = await httpClient.get<ApiResponse<Doctor>>(
       API_ENDPOINTS.ADMIN.GET_DOCTOR_BY_ID(id),
-      {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+     {
+        headers: getAuthHeader(),
       }
     );
     return response.data.data;
@@ -139,10 +126,8 @@ export const adminApi = {
     const response = await httpClient.patch<ApiResponse<Doctor>>(
       API_ENDPOINTS.ADMIN.VERIFY_DOCTOR(id),
       data,
-      {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+     {
+        headers: getAuthHeader(),
       }
     );
     return response.data.data;
@@ -152,9 +137,7 @@ export const adminApi = {
     const response = await httpClient.delete<ApiResponse<{ message: string }>>(
       API_ENDPOINTS.ADMIN.DELETE_DOCTOR(id),
       {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+        headers: getAuthHeader(),
       }
     );
     return response.data.data;
@@ -164,10 +147,8 @@ export const adminApi = {
     const response = await httpClient.post<TwoFAApiResponse>(
       API_ENDPOINTS.ADMIN.ENABLE_2FA,
       {},
-      {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+    {
+        headers: getAuthHeader(),
       }
     );
     return response.data.data;
@@ -178,9 +159,7 @@ export const adminApi = {
       API_ENDPOINTS.ADMIN.VERIFY_TWOFA,
       { token: verifyToken },
       {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+        headers: getAuthHeader(),
       }
     );
     return response.data;
@@ -191,9 +170,7 @@ export const adminApi = {
       API_ENDPOINTS.ADMIN.DISABLE_TWOFA,
       data,
       {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+        headers: getAuthHeader(),
       }
     );
     return response.data;
@@ -206,9 +183,7 @@ export const adminApi = {
       API_ENDPOINTS.ADMIN.CHANGE_PASSWORD,
       data,
       {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+        headers: getAuthHeader(),
       }
     );
     return response.data;
@@ -221,9 +196,7 @@ export const adminApi = {
       API_ENDPOINTS.ADMIN.CREATE_USER,
       data,
       {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+        headers: getAuthHeader(),
       }
     );
     return response.data;
@@ -233,10 +206,8 @@ export const adminApi = {
   const response = await httpClient.get<UsersListApiResponse>(
     API_ENDPOINTS.ADMIN.GET_ALL_USERS,
     {
-      headers: {
-        Authorization: token ? `Bearer ${token}` : "",
-      },
-    }
+        headers: getAuthHeader(),
+      }
   );
   return response.data;
 },
@@ -249,9 +220,7 @@ updateUserStatus: async (
       API_ENDPOINTS.ADMIN.USER_STATUS_UPDATE(id),
       data,
       {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+        headers: getAuthHeader(),
       }
     );
     return response.data.data;
@@ -261,9 +230,7 @@ updateUserStatus: async (
     const response = await httpClient.delete<ApiResponse<{ message: string }>>(
       API_ENDPOINTS.ADMIN.DELETE_USER(id),
       {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+        headers: getAuthHeader(),
       }
     );
     return response.data.data;

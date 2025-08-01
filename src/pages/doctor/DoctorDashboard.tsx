@@ -206,7 +206,7 @@ const DoctorDashboard: React.FC = () => {
         <HeaderStats>
           <StatItem>
             <StatValue>{dashboardData.statistics.totalAppointments}</StatValue>
-            <StatLabel>Total Patients</StatLabel>
+            <StatLabel>Total Appointments</StatLabel>
           </StatItem>
           <StatItem>
             <StatValue>{todayStats.total}</StatValue>

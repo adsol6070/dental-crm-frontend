@@ -11,22 +11,18 @@ import {
   GetMedicalRecordsResponse,
   GetDashboardDataResponse,
 } from "./patientTypes";
-import {
-  GetAppointmentDetailsResponse,
-} from "../appointment/appointmentTypes";
+import { GetAppointmentDetailsResponse } from "../appointment/appointmentTypes";
 
+const getAuthHeader = () => ({
+  Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}`,
+});
 
-const token = localStorage.getItem("auth_token");
 export const patientApi = {
-
   getPatientProfile: async (): Promise<GetPatientProfileResponse> => {
-
     const response = await httpClient.get<GetPatientProfileResponse>(
       API_ENDPOINTS.PATIENT.GET_PATIENT_PROFILE,
       {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+        headers: getAuthHeader(),
       }
     );
 
@@ -34,14 +30,10 @@ export const patientApi = {
   },
 
   getPatientAppointments: async (): Promise<GetPatientAppointmentsResponse> => {
-    const token = localStorage.getItem("auth_token");
-
     const response = await httpClient.get<GetPatientAppointmentsResponse>(
       API_ENDPOINTS.PATIENT.GET_PATIENT_APPOINTMENTS,
       {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+        headers: getAuthHeader(),
       }
     );
 
@@ -52,9 +44,7 @@ export const patientApi = {
     const response = await httpClient.get<GetMedicalRecordsResponse>(
       API_ENDPOINTS.PATIENT.GET_PATIENT_MEDICAL_RECORDS,
       {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+        headers: getAuthHeader(),
       }
     );
 
@@ -66,34 +56,29 @@ export const patientApi = {
       API_ENDPOINTS.PATIENT.CREATE,
       data,
       {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+        headers: getAuthHeader(),
       }
     );
     return response.data.data;
   },
 
-    getPatientDashboard: async (): Promise<GetDashboardDataResponse> => {
-      const response = await httpClient.get<GetDashboardDataResponse>(
-        API_ENDPOINTS.PATIENT.GET_PATIENT_DASHBOARD,
-        {
-          headers: {
-            Authorization: token ? `Bearer ${token}` : "",
-          },
-        }
-      );
-      return response.data;
-    },
-    getPatientAppointmentById: async (id: string): Promise<GetAppointmentDetailsResponse> => {
-      const response = await httpClient.get<ApiResponse<GetAppointmentDetailsResponse>>(
-        API_ENDPOINTS.PATIENT.GET_PATIENT_APPOINTMENT_BY_ID(id),
-        {
-          headers: {
-            Authorization: token ? `Bearer ${token}` : "",
-          },
-        }
-      );
-      return response.data.data;
-    },
-  };
+  getPatientDashboard: async (): Promise<GetDashboardDataResponse> => {
+    const response = await httpClient.get<GetDashboardDataResponse>(
+      API_ENDPOINTS.PATIENT.GET_PATIENT_DASHBOARD,
+      {
+        headers: getAuthHeader(),
+      }
+    );
+    return response.data;
+  },
+  getPatientAppointmentById: async (
+    id: string
+  ): Promise<GetAppointmentDetailsResponse> => {
+    const response = await httpClient.get<
+      ApiResponse<GetAppointmentDetailsResponse>
+    >(API_ENDPOINTS.PATIENT.GET_PATIENT_APPOINTMENT_BY_ID(id), {
+      headers: getAuthHeader(),
+    });
+    return response.data.data;
+  },
+};

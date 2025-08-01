@@ -33,12 +33,18 @@ import {
   UpdateAppointmentStatusPayload,
 } from "../appointment/appointmentTypes";
 
-const token = localStorage.getItem("auth_token");
+const getAuthHeader = () => ({
+  Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}`,
+});
+
 export const doctorApi = {
   createDoctor: async (data: DoctorPayload): Promise<Doctor> => {
     const response = await httpClient.post<ApiResponse<Doctor>>(
       API_ENDPOINTS.DOCTOR.CREATE,
-      data
+      data,
+       {
+        headers: getAuthHeader(),
+      }
     );
     return response.data.data;
   },
@@ -46,10 +52,8 @@ export const doctorApi = {
   getDoctorProfile: async (): Promise<DoctorProfileResponse> => {
     const response = await httpClient.get<DoctorProfileResponse>(
       API_ENDPOINTS.DOCTOR.GET_DOCTOR_PROFILE,
-      {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+       {
+        headers: getAuthHeader(),
       }
     );
 
@@ -62,17 +66,18 @@ export const doctorApi = {
   ): Promise<Doctor> => {
     const response = await httpClient.patch<ApiResponse<Doctor>>(
       API_ENDPOINTS.DOCTOR.UPDATE(id),
-      data
+      data,
+       {
+        headers: getAuthHeader(),
+      }
     );
     return response.data.data;
   },
   getUnavailableDates: async (): Promise<UnavailableDate[]> => {
     const response = await httpClient.get<UnavailableDateApiResponse>(
       API_ENDPOINTS.DOCTOR.GET_UNAVAILABLE_DATES,
-      {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+       {
+        headers: getAuthHeader(),
       }
     );
     return response.data.data.unavailableDates;
@@ -82,10 +87,8 @@ export const doctorApi = {
   getUnavailableDatesSummary: async (): Promise<any> => {
     const response = await httpClient.get<UnavailableDateSummaryApiResponse>(
       API_ENDPOINTS.DOCTOR.GET_UNAVAILABLE_DATES_SUMMARY,
-      {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+     {
+        headers: getAuthHeader(),
       }
     );
     return response.data.data.summary;
@@ -99,9 +102,7 @@ export const doctorApi = {
       API_ENDPOINTS.DOCTOR.CREATE_UNAVAILABLE_DATES,
       data,
       {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+        headers: getAuthHeader(),
       }
     );
     return response.data.data;
@@ -114,10 +115,8 @@ export const doctorApi = {
     const response = await httpClient.post<ApiResponse<UnavailableDate[]>>(
       API_ENDPOINTS.DOCTOR.CREATE_UNAVAILABLE_DATE_RANGE,
       data,
-      {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+       {
+        headers: getAuthHeader(),
       }
     );
     return response.data.data;
@@ -130,10 +129,8 @@ export const doctorApi = {
     const response = await httpClient.post<ApiResponse<UnavailableDate[]>>(
       API_ENDPOINTS.DOCTOR.BULK_DELETE_UNAVAILABLE_DATES,
       data,
-      {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+       {
+        headers: getAuthHeader(),
       }
     );
     return response.data.data;
@@ -145,21 +142,17 @@ export const doctorApi = {
   ): Promise<{ deletedCount: number }> => {
     const response = await httpClient.delete<
       ApiResponse<{ deletedCount: number }>
-    >(API_ENDPOINTS.DOCTOR.DELETE_UNAVAILABLE_DATES(dateId), {
-      headers: {
-        Authorization: token ? `Bearer ${token}` : "",
-      },
-    });
+    >(API_ENDPOINTS.DOCTOR.DELETE_UNAVAILABLE_DATES(dateId),  {
+        headers: getAuthHeader(),
+      });
     return response.data.data;
   },
 
   getDoctorFees: async (): Promise<any> => {
     const response = await httpClient.get<UpdateFeesApiResponse>(
       API_ENDPOINTS.DOCTOR.GET_DOCTOR_FEES,
-      {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+       {
+        headers: getAuthHeader(),
       }
     );
     return response.data;
@@ -172,9 +165,7 @@ export const doctorApi = {
       API_ENDPOINTS.DOCTOR.UPDATE_DOCTOR_FEES,
       data,
       {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+        headers: getAuthHeader(),
       }
     );
     return response.data;
@@ -183,10 +174,8 @@ export const doctorApi = {
     const response = await httpClient.post<ApiResponse<null>>(
       API_ENDPOINTS.DOCTOR.ADD_BREAK, // <-- Add this endpoint in config
       data,
-      {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+       {
+        headers: getAuthHeader(),
       }
     );
     return response.data;
@@ -196,9 +185,7 @@ export const doctorApi = {
     const response = await httpClient.delete<ApiResponse<null>>(
       API_ENDPOINTS.DOCTOR.REMOVE_BREAK(breakId),
       {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+        headers: getAuthHeader(),
       }
     );
     return response.data;
@@ -207,10 +194,8 @@ export const doctorApi = {
   getSchedule: async (): Promise<ApiResponse<null>> => {
     const response = await httpClient.get<ApiResponse<null>>(
       API_ENDPOINTS.DOCTOR.GET_SCHEDULE,
-      {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+    {
+        headers: getAuthHeader(),
       }
     );
     return response.data;
@@ -221,11 +206,9 @@ export const doctorApi = {
   ): Promise<ApiResponse<{ availability: Availability }>> => {
     const response = await httpClient.patch<
       ApiResponse<{ availability: Availability }>
-    >(API_ENDPOINTS.DOCTOR.UPDATE_AVAILABILITY, data, {
-      headers: {
-        Authorization: token ? `Bearer ${token}` : "",
-      },
-    });
+    >(API_ENDPOINTS.DOCTOR.UPDATE_AVAILABILITY, data,  {
+        headers: getAuthHeader(),
+      });
     return response.data;
   },
 
@@ -235,10 +218,8 @@ export const doctorApi = {
     const response = await httpClient.put<ApiResponse<{ schedule: Schedule }>>(
       API_ENDPOINTS.DOCTOR.UPDATE_SCHEDULE,
       scheduleData,
-      {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+       {
+        headers: getAuthHeader(),
       }
     );
 
@@ -249,9 +230,7 @@ export const doctorApi = {
     const response = await httpClient.get<DoctorDashboardApiResponse>(
       API_ENDPOINTS.DOCTOR.GET_DOCTOR_DASHBOARD,
       {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+        headers: getAuthHeader(),
       }
     );
     return response.data;
@@ -261,9 +240,7 @@ export const doctorApi = {
     const response = await httpClient.get<AppointmentStatisticsApiResponse>(
       API_ENDPOINTS.DOCTOR.GET_DOCTOR_ANALYTICS,
       {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+        headers: getAuthHeader(),
       }
     );
     return response.data;
@@ -273,11 +250,9 @@ export const doctorApi = {
   ): Promise<ApiResponse<{ complete: CompleteUpdateProfilePayload }>> => {
     const response = await httpClient.patch<
       ApiResponse<{ complete: CompleteUpdateProfilePayload }>
-    >(API_ENDPOINTS.DOCTOR.UPDATE_DOCTOR_PROFILE, completeData, {
-      headers: {
-        Authorization: token ? `Bearer ${token}` : "",
-      },
-    });
+    >(API_ENDPOINTS.DOCTOR.UPDATE_DOCTOR_PROFILE, completeData,  {
+        headers: getAuthHeader(),
+      });
 
     return response.data;
   },
@@ -286,11 +261,9 @@ export const doctorApi = {
   ): Promise<ApiResponse<{ contact: PersonalInfoPayload }>> => {
     const response = await httpClient.patch<
       ApiResponse<{ contact: PersonalInfoPayload }>
-    >(API_ENDPOINTS.DOCTOR.UPDATE_DOCTOR_PROFILE_CONTACT_INFO, contactData, {
-      headers: {
-        Authorization: token ? `Bearer ${token}` : "",
-      },
-    });
+    >(API_ENDPOINTS.DOCTOR.UPDATE_DOCTOR_PROFILE_CONTACT_INFO, contactData,  {
+        headers: getAuthHeader(),
+      });
 
     return response.data;
   },
@@ -303,9 +276,7 @@ export const doctorApi = {
       API_ENDPOINTS.DOCTOR.UPDATE_DOCTOR_PROFILE_PROFESSIONAL_INFO,
       professionalData,
       {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+        headers: getAuthHeader(),
       }
     );
 
@@ -316,10 +287,8 @@ export const doctorApi = {
       const response = await httpClient.get<GetAllDoctorAppointmentsResponse>(
         API_ENDPOINTS.DOCTOR.GET_DOCTOR_APPOINTMENTS,
         {
-          headers: {
-            Authorization: token ? `Bearer ${token}` : "",
-          },
-        }
+        headers: getAuthHeader(),
+      }
       );
 
       return response.data;
@@ -329,10 +298,8 @@ export const doctorApi = {
   ): Promise<GetDoctorAppointmentByIdResponse> => {
     const response = await httpClient.get<GetDoctorAppointmentByIdResponse>(
       API_ENDPOINTS.DOCTOR.GET_DOCTOR_APPOINTMENT_BY_ID(id),
-      {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+     {
+        headers: getAuthHeader(),
       }
     );
     return response.data;
@@ -341,10 +308,8 @@ export const doctorApi = {
       const response = await httpClient.get<GetAllDoctorAppointmentsResponse>(
         API_ENDPOINTS.DOCTOR.GET_DOCTOR_TODAY_APPOINTMENTS,
         {
-          headers: {
-            Authorization: token ? `Bearer ${token}` : "",
-          },
-        }
+        headers: getAuthHeader(),
+      }
       );
 
       return response.data;
@@ -352,11 +317,9 @@ export const doctorApi = {
   getDoctorUpcomingAppointments: async (): Promise<GetAllDoctorAppointmentsResponse> => {
       const response = await httpClient.get<GetAllDoctorAppointmentsResponse>(
         API_ENDPOINTS.DOCTOR.GET_DOCTOR_UPCOMING_APPOINTMENTS,
-        {
-          headers: {
-            Authorization: token ? `Bearer ${token}` : "",
-          },
-        }
+       {
+        headers: getAuthHeader(),
+      }
       );
 
       return response.data;
@@ -368,11 +331,9 @@ export const doctorApi = {
   ): Promise<ApiResponse<{ consultation: AddConsultationPayload }>> => {
     const response = await httpClient.post<
       ApiResponse<{ consultation: AddConsultationPayload }>
-    >(API_ENDPOINTS.DOCTOR.UPDATE_CONSULTATION(id), consultationData, {
-      headers: {
-        Authorization: token ? `Bearer ${token}` : "",
-      },
-    });
+    >(API_ENDPOINTS.DOCTOR.UPDATE_CONSULTATION(id), consultationData,  {
+        headers: getAuthHeader(),
+      });
     return response.data;
   },
   updateDoctorAppointmentStatus: async (
@@ -381,21 +342,17 @@ export const doctorApi = {
   ): Promise<ApiResponse<{ consultation: UpdateAppointmentStatusPayload }>> => {
     const response = await httpClient.patch<
       ApiResponse<{ consultation: UpdateAppointmentStatusPayload }>
-    >(API_ENDPOINTS.DOCTOR.UPDATE_APPOINTMENT_STATUS(id), statusData, {
-      headers: {
-        Authorization: token ? `Bearer ${token}` : "",
-      },
-    });
+    >(API_ENDPOINTS.DOCTOR.UPDATE_APPOINTMENT_STATUS(id), statusData,  {
+        headers: getAuthHeader(),
+      });
     return response.data;
   },
    getAllDoctorPatients: async (
   ): Promise<PaginatedPatientsResponse> => {
     const response = await httpClient.get<PaginatedPatientsResponse>(
       API_ENDPOINTS.DOCTOR.GET_ALL_DOCTOR_PATIENT,
-      {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+       {
+        headers: getAuthHeader(),
       }
     );
     return response.data;
@@ -407,9 +364,7 @@ export const doctorApi = {
     const response = await httpClient.get<PatientConsultationHistoryResponse>(
       API_ENDPOINTS.DOCTOR.GET_DOCTOR_PATIENT_HISTORY(patientId),
       {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
+        headers: getAuthHeader(),
       }
     );
     return response.data;
