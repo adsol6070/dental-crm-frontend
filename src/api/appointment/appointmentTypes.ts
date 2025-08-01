@@ -339,3 +339,27 @@ export interface GetAppointmentDetailsResponse {
     appointment: Appointment;
   };
 }
+
+export interface CancelAppointmentResponse {
+  success: boolean;
+  message: string;
+  data: {
+    appointment: Appointment;
+    refundEligible: boolean;
+  };
+}
+export interface RescheduleAppointmentPayload {
+  newDateTime: string; 
+  reason: string;
+}
+export interface UpdateAppointmentStatusPayload {
+  status: AppointmentStatus;
+  notes?: string; 
+}
+export interface UpdateAppointmentStatusResponse {
+  success: boolean;
+  message: string;
+  data: {
+    appointment: Appointment;
+  };
+}

@@ -4,6 +4,12 @@ import {
   CreateAppointmentPayload,
   GetAppointmentByIdResponse,
   AppointmentListResponse,
+  CancelAppointmentResponse,
+  RescheduleAppointmentPayload,
+  ApiResponse,
+  GetAppointmentDetailsResponse,
+  UpdateAppointmentStatusPayload,
+  UpdateAppointmentStatusResponse,
 } from "@/api/appointment/appointmentTypes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
@@ -98,3 +104,31 @@ export const useAppointmentById = (id: string) =>
     queryFn: () => appointmentApi.getAppointmentById(id),
     enabled: !!id,
   });
+
+export const useCancelAppointment = () =>
+  useCustomAppointmentMutation<CancelAppointmentResponse, string>(
+    (id) => appointmentApi.cancelAppointment(id),
+    ["appointments"],
+    "Appointment cancelled successfully!"
+  );
+
+export const useRescheduleAppointment = () =>
+  useCustomAppointmentMutation<
+    ApiResponse<GetAppointmentDetailsResponse>,
+    { id: string; data: RescheduleAppointmentPayload }
+  >(
+    ({ id, data }) => appointmentApi.rescheduleAppointment(id, data),
+    ["appointments"],
+    "Appointment rescheduled successfully!"
+  );
+
+export const useUpdateAppointmentStatus = (id: string) =>
+  useCustomAppointmentMutation<
+    ApiResponse<UpdateAppointmentStatusResponse>,
+    UpdateAppointmentStatusPayload
+  >(
+    (data: UpdateAppointmentStatusPayload) =>
+      appointmentApi.updateAppointmentStatus(id, data),
+    ["appointments", id],
+    "Appointment status updated successfully!"
+  );

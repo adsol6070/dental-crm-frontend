@@ -346,12 +346,12 @@ const AdminPatientView = () => {
         >
           Activity Log
         </Tab>
-        <Tab
+        {/* <Tab
           active={activeTab === "notes"}
           onClick={() => setActiveTab("notes")}
         >
           Notes
-        </Tab>
+        </Tab> */}
       </TabNavigation>
 
       <TabContent>
@@ -836,7 +836,7 @@ const AdminPatientView = () => {
           </ActivityTab>
         )}
 
-        {activeTab === "notes" && (
+        {/* {activeTab === "notes" && (
           <NotesTab>
             <SectionTitle>Patient Notes</SectionTitle>
             <NotesContainer>
@@ -846,7 +846,7 @@ const AdminPatientView = () => {
               <ActionButton>Add Note</ActionButton>
             </NotesContainer>
           </NotesTab>
-        )}
+        )} */}
       </TabContent>
     </Container>
   );

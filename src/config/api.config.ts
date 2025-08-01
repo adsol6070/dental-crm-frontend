@@ -46,6 +46,9 @@ export const API_ENDPOINTS = {
     GET_BY_ID: (id: string) => `/api/appointments/${id}`,
     BOOK_APPOINTMENT: `/api/appointments/book`,
     GET_ALL: `/api/appointments/`,
+    CANCEL_APPOINTMENT: (id: string) => `/api/appointments/${id}`,
+    RESCHEDULE_APPOINTMENT: (id: string) => `/api/appointments/${id}/reschedule`,
+    UPDATE_APPOINTMENT_STATUS: (id: string) => `/api/appointments/${id}/status`,
   },
   DOCTOR: {
     CREATE: `/api/doctors/register`,
