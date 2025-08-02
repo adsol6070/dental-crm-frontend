@@ -194,25 +194,6 @@ const AppointmentDetailPage = () => {
     navigate(-1);
   };
 
-  const handleEdit = () => {
-    // Navigate to edit appointment page
-    navigate(`/appointments/${appointmentId}/edit`);
-  };
-
-  const handleReschedule = () => {
-    // Handle reschedule logic
-    console.log("Reschedule appointment");
-  };
-
-  const handleCancel = () => {
-    // Handle cancel logic
-    console.log("Cancel appointment");
-  };
-
-  const handlePrint = () => {
-    window.print();
-  };
-
   const handleDownload = () => {
     // Handle download logic
     console.log("Download appointment details");
@@ -299,25 +280,10 @@ const AppointmentDetailPage = () => {
           </HeaderInfo>
         </HeaderLeft>
         <HeaderActions>
-          <ActionButton variant="ghost" onClick={handlePrint}>
-            <FiPrinter size={16} />
-            Print
-          </ActionButton>
           <ActionButton variant="ghost" onClick={handleDownload}>
             <FiDownload size={16} />
             Download
           </ActionButton>
-          <ActionButton variant="secondary" onClick={handleReschedule}>
-            <FiClock size={16} />
-            Reschedule
-          </ActionButton>
-          <ActionButton variant="primary" onClick={handleEdit}>
-            <FiEdit3 size={16} />
-            Edit
-          </ActionButton>
-          <MoreButton>
-            <FiMoreVertical size={16} />
-          </MoreButton>
         </HeaderActions>
       </Header>
 

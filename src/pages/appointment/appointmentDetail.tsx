@@ -1,16 +1,22 @@
-import React, { useState } from 'react';
-import styled from 'styled-components';
-import { useAppointmentById } from '@/hooks/useAppointment'; // Adjust import path as needed
-import { useParams } from 'react-router-dom'; // Assuming you're using React Router
+import React, { useState } from "react";
+import styled from "styled-components";
+import {
+  useAppointmentById,
+  useCancelAppointment,
+  useRescheduleAppointment,
+  useUpdateAppointmentStatus,
+} from "@/hooks/useAppointment";
+import { useNavigate, useParams } from "react-router-dom";
+import Swal from "sweetalert2";
 
 const theme = {
   colors: {
-    primary: '#6366f1',
-    success: '#10b981',
-    danger: '#ef4444',
-    warning: '#f59e0b',
-    info: '#3b82f6'
-  }
+    primary: "#6366f1",
+    success: "#10b981",
+    danger: "#ef4444",
+    warning: "#f59e0b",
+    info: "#3b82f6",
+  },
 };
 
 interface PersonalInfo {
@@ -134,59 +140,109 @@ interface ApiResponse {
   };
 }
 
+interface RescheduleData {
+  newDate: string;
+  newTime: string;
+  reason: string;
+}
+
 const AppointmentDetail = () => {
   const { appointmentId } = useParams<{ appointmentId: string }>(); // Get appointment ID from URL
-  const { data, isLoading, error, refetch } = useAppointmentById(appointmentId!);
+  const { data, isLoading, error, refetch } = useAppointmentById(
+    appointmentId!
+  );
+  const { mutate: cancelAppointment, isPending: isCancelling } =
+    useCancelAppointment();
+  const { mutate: rescheduleAppointment, isPending: isRescheduling } =
+    useRescheduleAppointment();
+  const { mutate: updateAppointmentStatus, isPending: isUpdatingStatus } =
+    useUpdateAppointmentStatus(appointmentId!);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [statusData, setStatusData] = useState({
+    newStatus: "",
+    notes: "",
+  });
+  const [statusErrors, setStatusErrors] = useState<{
+    newStatus?: string;
+    notes?: string;
+  }>({});
+
   const [isEditing, setIsEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview');
-  console.log("appointment data", data);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [rescheduleData, setRescheduleData] = useState<RescheduleData>({
+    newDate: "",
+    newTime: "",
+    reason: "",
+  });
+  const [rescheduleErrors, setRescheduleErrors] = useState<
+    Partial<RescheduleData>
+  >({});
+  const navigate = useNavigate();
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'scheduled': return '#6b7280';
-      case 'confirmed': return theme.colors.info;
-      case 'in-progress': return theme.colors.warning;
-      case 'completed': return theme.colors.success;
-      case 'cancelled': return theme.colors.danger;
-      case 'no-show': return '#9333ea';
-      default: return '#6b7280';
+      case "scheduled":
+        return "#6b7280";
+      case "confirmed":
+        return theme.colors.info;
+      case "in-progress":
+        return theme.colors.warning;
+      case "completed":
+        return theme.colors.success;
+      case "cancelled":
+        return theme.colors.danger;
+      case "no-show":
+        return "#9333ea";
+      default:
+        return "#6b7280";
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'low': return theme.colors.success;
-      case 'medium': return theme.colors.warning;
-      case 'high': return '#f97316';
-      case 'urgent': return theme.colors.danger;
-      default: return theme.colors.warning;
+      case "low":
+        return theme.colors.success;
+      case "medium":
+        return theme.colors.warning;
+      case "high":
+        return "#f97316";
+      case "urgent":
+        return theme.colors.danger;
+      default:
+        return theme.colors.warning;
     }
   };
 
   const getPaymentStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return theme.colors.warning;
-      case 'paid': return theme.colors.success;
-      case 'failed': return theme.colors.danger;
-      case 'refunded': return '#6b7280';
-      default: return theme.colors.warning;
+      case "pending":
+        return theme.colors.warning;
+      case "paid":
+        return theme.colors.success;
+      case "failed":
+        return theme.colors.danger;
+      case "refunded":
+        return "#6b7280";
+      default:
+        return theme.colors.warning;
     }
   };
 
   const formatDateTime = (dateTime: string) => {
     const date = new Date(dateTime);
     return {
-      date: date.toLocaleDateString('en-IN', { 
-        weekday: 'long',
-        day: 'numeric', 
-        month: 'long', 
-        year: 'numeric' 
+      date: date.toLocaleDateString("en-IN", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
       }),
-      time: date.toLocaleTimeString('en-IN', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: true 
-      })
+      time: date.toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      }),
     };
   };
 
@@ -195,29 +251,101 @@ const AppointmentDetail = () => {
     const birthDate = new Date(dateOfBirth);
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birthDate.getDate())
+    ) {
       age--;
     }
-    
+
     return age;
   };
 
   const getPatientName = (patient: PatientInfo) => {
-    return patient.fullName || `${patient.personalInfo.firstName} ${patient.personalInfo.lastName}`;
+    return (
+      patient.fullName ||
+      `${patient.personalInfo.firstName} ${patient.personalInfo.lastName}`
+    );
   };
 
   const getDoctorName = (doctor: DoctorInfo) => {
-    return doctor.fullName || `Dr. ${doctor.personalInfo.firstName} ${doctor.personalInfo.lastName}`;
+    return (
+      doctor.fullName ||
+      `Dr. ${doctor.personalInfo.firstName} ${doctor.personalInfo.lastName}`
+    );
   };
 
-  const getFullAddress = (address: ContactInfo['address']) => {
+  const getFullAddress = (address: ContactInfo["address"]) => {
     return `${address.street}, ${address.city}, ${address.state} ${address.zipCode}, ${address.country}`;
   };
 
-  const handleStatusChange = (newStatus: string) => {
-    console.log('Status changed to:', newStatus);
-    // Implement status update API call here
+  const handleOpenStatusModal = (newStatus: string) => {
+    setStatusData({
+      newStatus,
+      notes: "",
+    });
+    setStatusErrors({});
+    setShowStatusModal(true);
+  };
+
+  const handleCloseStatusModal = () => {
+    setShowStatusModal(false);
+    setStatusData({ newStatus: "", notes: "" });
+    setStatusErrors({});
+  };
+
+  const handleStatusInputChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setStatusData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    if (statusErrors[name as keyof typeof statusErrors]) {
+      setStatusErrors((prev) => ({
+        ...prev,
+        [name]: "",
+      }));
+    }
+  };
+
+  const handleStatusUpdate = () => {
+    const errors: { newStatus?: string; notes?: string } = {};
+
+    if (!statusData.newStatus) {
+      errors.newStatus = "Status is required";
+    }
+
+    setStatusErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
+    updateAppointmentStatus(
+      {
+        status: statusData.newStatus,
+        notes: statusData.notes.trim() || undefined,
+      },
+      {
+        onSuccess: () => {
+          setShowStatusModal(false);
+          refetch();
+          Swal.fire(
+            "Updated!",
+            "Appointment status has been updated successfully.",
+            "success"
+          );
+        },
+        onError: (error: any) => {
+          Swal.fire(
+            "Error!",
+            error.message || "Failed to update appointment status.",
+            "error"
+          );
+        },
+      }
+    );
   };
 
   const handleEdit = () => {
@@ -226,7 +354,7 @@ const AppointmentDetail = () => {
 
   const handleSave = () => {
     setIsEditing(false);
-    console.log('Appointment saved');
+    console.log("Appointment saved");
     // Implement save API call here
   };
 
@@ -234,20 +362,151 @@ const AppointmentDetail = () => {
     setIsEditing(false);
   };
 
-  const handleReschedule = () => {
-    console.log('Reschedule appointment');
-    // Implement reschedule logic here
+  // Reschedule Modal Functions
+  const handleOpenRescheduleModal = () => {
+    const currentDateTime = new Date(appointment.appointmentDateTime);
+    const currentDate = currentDateTime.toISOString().split("T")[0];
+    const currentTime = currentDateTime.toTimeString().slice(0, 5);
+
+    setRescheduleData({
+      newDate: currentDate,
+      newTime: currentTime,
+      reason: "",
+    });
+    setRescheduleErrors({});
+    setShowRescheduleModal(true);
   };
 
-  const handleCancelAppointment = () => {
-    console.log('Cancel appointment');
-    // Implement cancel API call here
+  const handleCloseRescheduleModal = () => {
+    setShowRescheduleModal(false);
+    setRescheduleData({ newDate: "", newTime: "", reason: "" });
+    setRescheduleErrors({});
+  };
+
+  const handleRescheduleInputChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => {
+    const { name, value } = e.target;
+    setRescheduleData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    // Clear error when user starts typing
+    if (rescheduleErrors[name as keyof RescheduleData]) {
+      setRescheduleErrors((prev) => ({
+        ...prev,
+        [name]: "",
+      }));
+    }
+  };
+
+  const validateRescheduleForm = (): boolean => {
+    const errors: Partial<RescheduleData> = {};
+
+    if (!rescheduleData.newDate) {
+      errors.newDate = "New date is required";
+    } else {
+      const selectedDate = new Date(rescheduleData.newDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (selectedDate < today) {
+        errors.newDate = "Date cannot be in the past";
+      }
+    }
+
+    if (!rescheduleData.newTime) {
+      errors.newTime = "New time is required";
+    }
+
+    if (!rescheduleData.reason.trim()) {
+      errors.reason = "Reason for rescheduling is required";
+    } else if (rescheduleData.reason.trim().length < 10) {
+      errors.reason =
+        "Please provide a more detailed reason (at least 10 characters)";
+    }
+
+    setRescheduleErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleRescheduleSubmit = () => {
+    if (!validateRescheduleForm()) return;
+
+    const newDateTime = new Date(
+      `${rescheduleData.newDate}T${rescheduleData.newTime}`
+    );
+
+    rescheduleAppointment(
+      {
+        id: appointment._id,
+        data: {
+          newDateTime: newDateTime.toISOString(),
+          reason: rescheduleData.reason.trim(),
+        },
+      },
+      {
+        onSuccess: () => {
+          setShowRescheduleModal(false);
+          refetch(); // Refresh appointment data
+          Swal.fire(
+            "Rescheduled!",
+            "The appointment has been rescheduled successfully.",
+            "success"
+          );
+        },
+        onError: (error: any) => {
+          Swal.fire(
+            "Error!",
+            error.message || "Failed to reschedule appointment.",
+            "error"
+          );
+        },
+      }
+    );
+  };
+
+  const handleCancelAppointment = (appointmentId: string) => {
+    Swal.fire({
+      title: "Are you sure?",
+      text: "Do you really want to cancel this appointment?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, cancel it!",
+      cancelButtonText: "No, keep it",
+    }).then((result: any) => {
+      if (result.isConfirmed) {
+        cancelAppointment(appointmentId, {
+          onSuccess: () => {
+            refetch(); // Refresh appointment data
+            Swal.fire(
+              "Cancelled!",
+              "The appointment has been cancelled.",
+              "success"
+            );
+          },
+          onError: (error: any) => {
+            Swal.fire(
+              "Error!",
+              error.message || "Something went wrong.",
+              "error"
+            );
+          },
+        });
+      }
+    });
   };
 
   const handleSendReminder = () => {
-    console.log('Send reminder');
+    console.log("Send reminder");
     // Implement send reminder API call here
   };
+
+  // Get today's date for date input minimum
+  const today = new Date().toISOString().split("T")[0];
 
   // Loading state
   if (isLoading) {
@@ -269,11 +528,11 @@ const AppointmentDetail = () => {
           <ErrorIcon>⚠️</ErrorIcon>
           <ErrorTitle>Failed to load appointment</ErrorTitle>
           <ErrorMessage>
-            {error instanceof Error ? error.message : 'Unable to fetch appointment details. Please try again.'}
+            {error instanceof Error
+              ? error.message
+              : "Unable to fetch appointment details. Please try again."}
           </ErrorMessage>
-          <RetryButton onClick={() => refetch()}>
-            🔄 Retry
-          </RetryButton>
+          <RetryButton onClick={() => refetch()}>🔄 Retry</RetryButton>
         </ErrorContainer>
       </PageContainer>
     );
@@ -289,18 +548,19 @@ const AppointmentDetail = () => {
       {/* Header */}
       <PageHeader>
         <HeaderLeft>
-          <BackButton>← Back to Appointments</BackButton>
+          <BackButton onClick={() => { navigate(-1) }}>← Back to Appointments</BackButton>
           <HeaderInfo>
             <Title>Appointment Details</Title>
             <AppointmentId>{appointment.appointmentId}</AppointmentId>
           </HeaderInfo>
         </HeaderLeft>
-        
+
         <HeaderActions>
-          <StatusSelect 
+          <StatusSelect
             value={appointment.status}
-            onChange={(e) => handleStatusChange(e.target.value)}
+            onChange={(e) => handleOpenStatusModal(e.target.value)}
             color={getStatusColor(appointment.status)}
+            disabled={isUpdatingStatus}
           >
             <option value="scheduled">Scheduled</option>
             <option value="confirmed">Confirmed</option>
@@ -309,7 +569,6 @@ const AppointmentDetail = () => {
             <option value="cancelled">Cancelled</option>
             <option value="no-show">No Show</option>
           </StatusSelect>
-          
           {!isEditing ? (
             <>
               <ActionButton variant="secondary" onClick={handleEdit}>
@@ -336,7 +595,9 @@ const AppointmentDetail = () => {
       <QuickInfoBar>
         <QuickInfoItem>
           <QuickInfoLabel>Date & Time</QuickInfoLabel>
-          <QuickInfoValue>{date} at {time}</QuickInfoValue>
+          <QuickInfoValue>
+            {date} at {time}
+          </QuickInfoValue>
         </QuickInfoItem>
         <QuickInfoItem>
           <QuickInfoLabel>Duration</QuickInfoLabel>
@@ -356,27 +617,27 @@ const AppointmentDetail = () => {
 
       {/* Tab Navigation */}
       <TabNavigation>
-        <TabButton 
-          active={activeTab === 'overview'} 
-          onClick={() => setActiveTab('overview')}
+        <TabButton
+          active={activeTab === "overview"}
+          onClick={() => setActiveTab("overview")}
         >
           Overview
         </TabButton>
-        <TabButton 
-          active={activeTab === 'patient'} 
-          onClick={() => setActiveTab('patient')}
+        <TabButton
+          active={activeTab === "patient"}
+          onClick={() => setActiveTab("patient")}
         >
           Patient Info
         </TabButton>
-        <TabButton 
-          active={activeTab === 'doctor'} 
-          onClick={() => setActiveTab('doctor')}
+        <TabButton
+          active={activeTab === "doctor"}
+          onClick={() => setActiveTab("doctor")}
         >
           Doctor Info
         </TabButton>
-        <TabButton 
-          active={activeTab === 'payment'} 
-          onClick={() => setActiveTab('payment')}
+        <TabButton
+          active={activeTab === "payment"}
+          onClick={() => setActiveTab("payment")}
         >
           Payment
         </TabButton>
@@ -384,7 +645,7 @@ const AppointmentDetail = () => {
 
       {/* Tab Content */}
       <TabContent>
-        {activeTab === 'overview' && (
+        {activeTab === "overview" && (
           <OverviewTab>
             <ContentGrid>
               {/* Appointment Information */}
@@ -400,11 +661,15 @@ const AppointmentDetail = () => {
                   </InfoRow>
                   <InfoRow>
                     <InfoLabel>Date & Time:</InfoLabel>
-                    <InfoValue>{date} at {time}</InfoValue>
+                    <InfoValue>
+                      {date} at {time}
+                    </InfoValue>
                   </InfoRow>
                   <InfoRow>
                     <InfoLabel>End Time:</InfoLabel>
-                    <InfoValue>{formatDateTime(appointment.endDateTime).time}</InfoValue>
+                    <InfoValue>
+                      {formatDateTime(appointment.endDateTime).time}
+                    </InfoValue>
                   </InfoRow>
                   <InfoRow>
                     <InfoLabel>Duration:</InfoLabel>
@@ -422,7 +687,9 @@ const AppointmentDetail = () => {
                   </InfoRow>
                   <InfoRow>
                     <InfoLabel>Priority:</InfoLabel>
-                    <PriorityBadge color={getPriorityColor(appointment.priority)}>
+                    <PriorityBadge
+                      color={getPriorityColor(appointment.priority)}
+                    >
                       {appointment.priority}
                     </PriorityBadge>
                   </InfoRow>
@@ -443,10 +710,15 @@ const AppointmentDetail = () => {
                   <PatientSummary>
                     <PatientName>{patientName}</PatientName>
                     <PatientDetails>
-                      {appointment.patient.patientId} • {calculateAge(appointment.patient.personalInfo.dateOfBirth)} years old
+                      {appointment.patient.patientId} •{" "}
+                      {calculateAge(
+                        appointment.patient.personalInfo.dateOfBirth
+                      )}{" "}
+                      years old
                     </PatientDetails>
                     <ContactInfo>
-                      📞 {appointment.patient.contactInfo.phone}<br/>
+                      📞 {appointment.patient.contactInfo.phone}
+                      <br />
                       ✉️ {appointment.patient.contactInfo.email}
                     </ContactInfo>
                   </PatientSummary>
@@ -463,8 +735,14 @@ const AppointmentDetail = () => {
                   <DoctorSummary>
                     <DoctorName>{doctorName}</DoctorName>
                     <DoctorDetails>
-                      {appointment.doctor.professionalInfo.qualifications.join(', ')}<br/>
-                      {appointment.doctor.professionalInfo.specialization} • {appointment.doctor.professionalInfo.experience} years experience
+                      {appointment.doctor.professionalInfo.qualifications.join(
+                        ", "
+                      )}
+                      <br />
+                      {
+                        appointment.doctor.professionalInfo.specialization
+                      } • {appointment.doctor.professionalInfo.experience} years
+                      experience
                     </DoctorDetails>
                   </DoctorSummary>
                 </CardBody>
@@ -481,24 +759,28 @@ const AppointmentDetail = () => {
                     <SymptomsSection>
                       <SectionTitle>Symptoms:</SectionTitle>
                       <SymptomsList>
-                        {appointment.symptoms.map((symptom: string, index: number) => (
-                          <SymptomTag key={index}>{symptom}</SymptomTag>
-                        ))}
+                        {appointment.symptoms.map(
+                          (symptom: string, index: number) => (
+                            <SymptomTag key={index}>{symptom}</SymptomTag>
+                          )
+                        )}
                       </SymptomsList>
                     </SymptomsSection>
                   )}
-                  
+
                   {appointment.notes && (
                     <NotesSection>
                       <SectionTitle>Notes:</SectionTitle>
                       <NotesText>{appointment.notes}</NotesText>
                     </NotesSection>
                   )}
-                  
+
                   {appointment.specialRequirements && (
                     <RequirementsSection>
                       <SectionTitle>Special Requirements:</SectionTitle>
-                      <RequirementsText>{appointment.specialRequirements}</RequirementsText>
+                      <RequirementsText>
+                        {appointment.specialRequirements}
+                      </RequirementsText>
                     </RequirementsSection>
                   )}
                 </CardBody>
@@ -507,7 +789,7 @@ const AppointmentDetail = () => {
           </OverviewTab>
         )}
 
-        {activeTab === 'patient' && (
+        {activeTab === "patient" && (
           <PatientTab>
             <ContentGrid>
               <InfoCard>
@@ -527,19 +809,32 @@ const AppointmentDetail = () => {
                     </InfoRow>
                     <InfoRow>
                       <InfoLabel>Date of Birth:</InfoLabel>
-                      <InfoValue>{new Date(appointment.patient.personalInfo.dateOfBirth).toLocaleDateString('en-IN')}</InfoValue>
+                      <InfoValue>
+                        {new Date(
+                          appointment.patient.personalInfo.dateOfBirth
+                        ).toLocaleDateString("en-IN")}
+                      </InfoValue>
                     </InfoRow>
                     <InfoRow>
                       <InfoLabel>Age:</InfoLabel>
-                      <InfoValue>{calculateAge(appointment.patient.personalInfo.dateOfBirth)} years</InfoValue>
+                      <InfoValue>
+                        {calculateAge(
+                          appointment.patient.personalInfo.dateOfBirth
+                        )}{" "}
+                        years
+                      </InfoValue>
                     </InfoRow>
                     <InfoRow>
                       <InfoLabel>Gender:</InfoLabel>
-                      <InfoValue>{appointment.patient.personalInfo.gender}</InfoValue>
+                      <InfoValue>
+                        {appointment.patient.personalInfo.gender}
+                      </InfoValue>
                     </InfoRow>
                     <InfoRow>
                       <InfoLabel>Blood Group:</InfoLabel>
-                      <InfoValue>{appointment.patient.personalInfo.bloodGroup}</InfoValue>
+                      <InfoValue>
+                        {appointment.patient.personalInfo.bloodGroup}
+                      </InfoValue>
                     </InfoRow>
                   </PatientGrid>
                 </CardBody>
@@ -554,19 +849,29 @@ const AppointmentDetail = () => {
                   <PatientGrid>
                     <InfoRow>
                       <InfoLabel>Primary Phone:</InfoLabel>
-                      <InfoValue>{appointment.patient.contactInfo.phone}</InfoValue>
+                      <InfoValue>
+                        {appointment.patient.contactInfo.phone}
+                      </InfoValue>
                     </InfoRow>
                     <InfoRow>
                       <InfoLabel>Alternate Phone:</InfoLabel>
-                      <InfoValue>{appointment.patient.contactInfo.alternatePhone}</InfoValue>
+                      <InfoValue>
+                        {appointment.patient.contactInfo.alternatePhone}
+                      </InfoValue>
                     </InfoRow>
                     <InfoRow>
                       <InfoLabel>Email:</InfoLabel>
-                      <InfoValue>{appointment.patient.contactInfo.email}</InfoValue>
+                      <InfoValue>
+                        {appointment.patient.contactInfo.email}
+                      </InfoValue>
                     </InfoRow>
                     <InfoRow>
                       <InfoLabel>Address:</InfoLabel>
-                      <InfoValue>{getFullAddress(appointment.patient.contactInfo.address)}</InfoValue>
+                      <InfoValue>
+                        {getFullAddress(
+                          appointment.patient.contactInfo.address
+                        )}
+                      </InfoValue>
                     </InfoRow>
                   </PatientGrid>
                 </CardBody>
@@ -575,7 +880,7 @@ const AppointmentDetail = () => {
           </PatientTab>
         )}
 
-        {activeTab === 'doctor' && (
+        {activeTab === "doctor" && (
           <DoctorTab>
             <ContentGrid>
               <InfoCard>
@@ -595,11 +900,15 @@ const AppointmentDetail = () => {
                     </InfoRow>
                     <InfoRow>
                       <InfoLabel>Email:</InfoLabel>
-                      <InfoValue>{appointment.doctor.personalInfo.email}</InfoValue>
+                      <InfoValue>
+                        {appointment.doctor.personalInfo.email}
+                      </InfoValue>
                     </InfoRow>
                     <InfoRow>
                       <InfoLabel>Phone:</InfoLabel>
-                      <InfoValue>{appointment.doctor.personalInfo.phone}</InfoValue>
+                      <InfoValue>
+                        {appointment.doctor.personalInfo.phone}
+                      </InfoValue>
                     </InfoRow>
                   </DoctorGrid>
                 </CardBody>
@@ -614,23 +923,35 @@ const AppointmentDetail = () => {
                   <DoctorGrid>
                     <InfoRow>
                       <InfoLabel>Specialization:</InfoLabel>
-                      <InfoValue>{appointment.doctor.professionalInfo.specialization}</InfoValue>
+                      <InfoValue>
+                        {appointment.doctor.professionalInfo.specialization}
+                      </InfoValue>
                     </InfoRow>
                     <InfoRow>
                       <InfoLabel>Department:</InfoLabel>
-                      <InfoValue>{appointment.doctor.professionalInfo.department}</InfoValue>
+                      <InfoValue>
+                        {appointment.doctor.professionalInfo.department}
+                      </InfoValue>
                     </InfoRow>
                     <InfoRow>
                       <InfoLabel>Experience:</InfoLabel>
-                      <InfoValue>{appointment.doctor.professionalInfo.experience} years</InfoValue>
+                      <InfoValue>
+                        {appointment.doctor.professionalInfo.experience} years
+                      </InfoValue>
                     </InfoRow>
                     <InfoRow>
                       <InfoLabel>License Number:</InfoLabel>
-                      <InfoValue>{appointment.doctor.professionalInfo.licenseNumber}</InfoValue>
+                      <InfoValue>
+                        {appointment.doctor.professionalInfo.licenseNumber}
+                      </InfoValue>
                     </InfoRow>
                     <InfoRow>
                       <InfoLabel>Qualifications:</InfoLabel>
-                      <InfoValue>{appointment.doctor.professionalInfo.qualifications.join(', ')}</InfoValue>
+                      <InfoValue>
+                        {appointment.doctor.professionalInfo.qualifications.join(
+                          ", "
+                        )}
+                      </InfoValue>
                     </InfoRow>
                   </DoctorGrid>
                 </CardBody>
@@ -645,15 +966,21 @@ const AppointmentDetail = () => {
                   <DoctorGrid>
                     <InfoRow>
                       <InfoLabel>Consultation Fee:</InfoLabel>
-                      <InfoValue>₹{appointment.doctor.fees.consultationFee}</InfoValue>
+                      <InfoValue>
+                        ₹{appointment.doctor.fees.consultationFee}
+                      </InfoValue>
                     </InfoRow>
                     <InfoRow>
                       <InfoLabel>Follow-up Fee:</InfoLabel>
-                      <InfoValue>₹{appointment.doctor.fees.followUpFee}</InfoValue>
+                      <InfoValue>
+                        ₹{appointment.doctor.fees.followUpFee}
+                      </InfoValue>
                     </InfoRow>
                     <InfoRow>
                       <InfoLabel>Emergency Fee:</InfoLabel>
-                      <InfoValue>₹{appointment.doctor.fees.emergencyFee}</InfoValue>
+                      <InfoValue>
+                        ₹{appointment.doctor.fees.emergencyFee}
+                      </InfoValue>
                     </InfoRow>
                   </DoctorGrid>
                 </CardBody>
@@ -668,22 +995,31 @@ const AppointmentDetail = () => {
                   <ScheduleGrid>
                     {appointment.doctor.schedule.workingDays.map((day: any) => (
                       <ScheduleItem key={day._id} isWorking={day.isWorking}>
-                        <ScheduleDay>{day.day.charAt(0).toUpperCase() + day.day.slice(1)}</ScheduleDay>
+                        <ScheduleDay>
+                          {day.day.charAt(0).toUpperCase() + day.day.slice(1)}
+                        </ScheduleDay>
                         <ScheduleTime>
-                          {day.isWorking ? `${day.startTime} - ${day.endTime}` : 'Off'}
+                          {day.isWorking
+                            ? `${day.startTime} - ${day.endTime}`
+                            : "Off"}
                         </ScheduleTime>
                       </ScheduleItem>
                     ))}
                   </ScheduleGrid>
-                  
+
                   {appointment.doctor.schedule.breakTimes.length > 0 && (
                     <BreakTimesSection>
                       <SectionTitle>Break Times:</SectionTitle>
-                      {appointment.doctor.schedule.breakTimes.map((breakTime: any) => (
-                        <BreakTimeItem key={breakTime._id}>
-                          <strong>{breakTime.startTime} - {breakTime.endTime}</strong>: {breakTime.description}
-                        </BreakTimeItem>
-                      ))}
+                      {appointment.doctor.schedule.breakTimes.map(
+                        (breakTime: any) => (
+                          <BreakTimeItem key={breakTime._id}>
+                            <strong>
+                              {breakTime.startTime} - {breakTime.endTime}
+                            </strong>
+                            : {breakTime.description}
+                          </BreakTimeItem>
+                        )
+                      )}
                     </BreakTimesSection>
                   )}
                 </CardBody>
@@ -692,7 +1028,7 @@ const AppointmentDetail = () => {
           </DoctorTab>
         )}
 
-        {activeTab === 'payment' && (
+        {activeTab === "payment" && (
           <PaymentTab>
             <InfoCard>
               <CardHeader>
@@ -703,7 +1039,9 @@ const AppointmentDetail = () => {
                 <PaymentGrid>
                   <InfoRow>
                     <InfoLabel>Payment Status:</InfoLabel>
-                    <PaymentBadge color={getPaymentStatusColor(appointment.paymentStatus)}>
+                    <PaymentBadge
+                      color={getPaymentStatusColor(appointment.paymentStatus)}
+                    >
                       {appointment.paymentStatus}
                     </PaymentBadge>
                   </InfoRow>
@@ -728,13 +1066,252 @@ const AppointmentDetail = () => {
 
       {/* Action Buttons */}
       <ActionSection>
-        <ActionButton variant="secondary" onClick={handleReschedule}>
-          📅 Reschedule
+        <ActionButton
+          variant="secondary"
+          onClick={handleOpenRescheduleModal}
+          disabled={
+            isRescheduling ||
+            appointment.status === "cancelled" ||
+            appointment.status === "completed"
+          }
+        >
+          {isRescheduling ? (
+            <>
+              <LoadingSpinnerSmall />
+              Rescheduling...
+            </>
+          ) : (
+            <>📅 Reschedule</>
+          )}
         </ActionButton>
-        <ActionButton variant="danger" onClick={handleCancelAppointment}>
-          ❌ Cancel Appointment
-        </ActionButton>
+        {(appointment.status === "scheduled" ||
+          appointment.status === "confirmed") && (
+          <ActionButton
+            variant="danger"
+            onClick={() => handleCancelAppointment(appointment._id)}
+            disabled={isCancelling}
+          >
+            {isCancelling ? (
+              <>
+                <LoadingSpinnerSmall />
+                Cancelling...
+              </>
+            ) : (
+              <>❌ Cancel Appointment</>
+            )}
+          </ActionButton>
+        )}
       </ActionSection>
+
+      {/* Reschedule Modal */}
+      {showRescheduleModal && (
+        <ModalOverlay
+          onClick={(e) =>
+            e.target === e.currentTarget && handleCloseRescheduleModal()
+          }
+        >
+          <ModalContainer>
+            <ModalHeader>
+              <ModalTitle>Reschedule Appointment</ModalTitle>
+              <ModalCloseButton onClick={handleCloseRescheduleModal}>
+                ×
+              </ModalCloseButton>
+            </ModalHeader>
+
+            <ModalBody>
+              <CurrentAppointmentInfo>
+                <InfoLabel>Current Appointment:</InfoLabel>
+                <InfoValue>
+                  {formatDateTime(appointment.appointmentDateTime).date} at{" "}
+                  {formatDateTime(appointment.appointmentDateTime).time}
+                </InfoValue>
+              </CurrentAppointmentInfo>
+
+              <ModalFormGrid>
+                <ModalFormGroup>
+                  <ModalLabel>New Date *</ModalLabel>
+                  <ModalInput
+                    type="date"
+                    name="newDate"
+                    value={rescheduleData.newDate}
+                    onChange={handleRescheduleInputChange}
+                    hasError={!!rescheduleErrors.newDate}
+                    min={today}
+                  />
+                  {rescheduleErrors.newDate && (
+                    <ModalErrorText>{rescheduleErrors.newDate}</ModalErrorText>
+                  )}
+                </ModalFormGroup>
+
+                <ModalFormGroup>
+                  <ModalLabel>New Time *</ModalLabel>
+                  <ModalSelect
+                    name="newTime"
+                    value={rescheduleData.newTime}
+                    onChange={handleRescheduleInputChange}
+                    hasError={!!rescheduleErrors.newTime}
+                  >
+                    <option value="">Select time</option>
+                    <option value="09:00">9:00 AM</option>
+                    <option value="09:30">9:30 AM</option>
+                    <option value="10:00">10:00 AM</option>
+                    <option value="10:30">10:30 AM</option>
+                    <option value="11:00">11:00 AM</option>
+                    <option value="11:30">11:30 AM</option>
+                    <option value="14:00">2:00 PM</option>
+                    <option value="14:30">2:30 PM</option>
+                    <option value="15:00">3:00 PM</option>
+                    <option value="15:30">3:30 PM</option>
+                    <option value="16:00">4:00 PM</option>
+                    <option value="16:30">4:30 PM</option>
+                    <option value="17:00">5:00 PM</option>
+                    <option value="17:30">5:30 PM</option>
+                    <option value="18:00">6:00 PM</option>
+                  </ModalSelect>
+                  {rescheduleErrors.newTime && (
+                    <ModalErrorText>{rescheduleErrors.newTime}</ModalErrorText>
+                  )}
+                </ModalFormGroup>
+
+                <ModalFormGroup className="full-width">
+                  <ModalLabel>Reason for Rescheduling *</ModalLabel>
+                  <ModalTextArea
+                    name="reason"
+                    value={rescheduleData.reason}
+                    onChange={handleRescheduleInputChange}
+                    placeholder="Please provide a reason for rescheduling this appointment..."
+                    rows={4}
+                    hasError={!!rescheduleErrors.reason}
+                  />
+                  {rescheduleErrors.reason && (
+                    <ModalErrorText>{rescheduleErrors.reason}</ModalErrorText>
+                  )}
+                  <ModalHelperText>
+                    This reason will be included in the notification sent to the
+                    patient.
+                  </ModalHelperText>
+                </ModalFormGroup>
+              </ModalFormGrid>
+            </ModalBody>
+
+            <ModalFooter>
+              <ModalButton
+                variant="secondary"
+                onClick={handleCloseRescheduleModal}
+              >
+                Cancel
+              </ModalButton>
+              <ModalButton
+                variant="primary"
+                onClick={handleRescheduleSubmit}
+                disabled={isRescheduling}
+              >
+                {isRescheduling ? (
+                  <>
+                    <LoadingSpinnerSmall />
+                    Rescheduling...
+                  </>
+                ) : (
+                  "Reschedule Appointment"
+                )}
+              </ModalButton>
+            </ModalFooter>
+          </ModalContainer>
+        </ModalOverlay>
+      )}
+      {/* Status Update Modal */}
+      {showStatusModal && (
+        <ModalOverlay
+          onClick={(e) =>
+            e.target === e.currentTarget && handleCloseStatusModal()
+          }
+        >
+          <ModalContainer>
+            <ModalHeader>
+              <ModalTitle>Update Appointment Status</ModalTitle>
+              <ModalCloseButton onClick={handleCloseStatusModal}>
+                ×
+              </ModalCloseButton>
+            </ModalHeader>
+
+            <ModalBody>
+              <CurrentAppointmentInfo>
+                <InfoLabel>Current Status:</InfoLabel>
+                <StatusBadge color={getStatusColor(appointment.status)}>
+                  {appointment.status}
+                </StatusBadge>
+              </CurrentAppointmentInfo>
+
+              <ModalFormGrid>
+                <ModalFormGroup className="full-width">
+                  <ModalLabel>New Status *</ModalLabel>
+                  <ModalSelect
+                    name="newStatus"
+                    value={statusData.newStatus}
+                    onChange={(e) =>
+                      setStatusData((prev) => ({
+                        ...prev,
+                        newStatus: e.target.value,
+                      }))
+                    }
+                    hasError={!!statusErrors.newStatus}
+                  >
+                    <option value="">Select new status</option>
+                    <option value="scheduled">Scheduled</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="in-progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="no-show">No Show</option>
+                  </ModalSelect>
+                  {statusErrors.newStatus && (
+                    <ModalErrorText>{statusErrors.newStatus}</ModalErrorText>
+                  )}
+                </ModalFormGroup>
+
+                <ModalFormGroup className="full-width">
+                  <ModalLabel>Notes (Optional)</ModalLabel>
+                  <ModalTextArea
+                    name="notes"
+                    value={statusData.notes}
+                    onChange={handleStatusInputChange}
+                    placeholder="Add any notes about this status change..."
+                    rows={4}
+                    hasError={!!statusErrors.notes}
+                  />
+                  {statusErrors.notes && (
+                    <ModalErrorText>{statusErrors.notes}</ModalErrorText>
+                  )}
+                  <ModalHelperText>
+                    These notes will be added to the appointment record for
+                    future reference.
+                  </ModalHelperText>
+                </ModalFormGroup>
+              </ModalFormGrid>
+            </ModalBody>
+
+            <ModalFooter>
+              <ModalButton variant="secondary" onClick={handleCloseStatusModal}>
+                Cancel
+              </ModalButton>
+              <ModalButton
+                variant="primary"
+                onClick={handleStatusUpdate}
+                disabled={isUpdatingStatus}
+              >
+                {isUpdatingStatus ? (
+                  <>
+                    <LoadingSpinnerSmall />
+                    Updating...
+                  </>
+                ) : (
+                  "Update Status"
+                )}
+              </ModalButton>
+            </ModalFooter>
+          </ModalContainer>
+        </ModalOverlay>
+      )}
 
       {/* Metadata */}
       <MetadataSection>
@@ -742,11 +1319,17 @@ const AppointmentDetail = () => {
         <MetadataGrid>
           <MetadataItem>
             <MetadataLabel>Created:</MetadataLabel>
-            <MetadataValue>{formatDateTime(appointment.createdAt).date} at {formatDateTime(appointment.createdAt).time}</MetadataValue>
+            <MetadataValue>
+              {formatDateTime(appointment.createdAt).date} at{" "}
+              {formatDateTime(appointment.createdAt).time}
+            </MetadataValue>
           </MetadataItem>
           <MetadataItem>
             <MetadataLabel>Last Updated:</MetadataLabel>
-            <MetadataValue>{formatDateTime(appointment.updatedAt).date} at {formatDateTime(appointment.updatedAt).time}</MetadataValue>
+            <MetadataValue>
+              {formatDateTime(appointment.updatedAt).date} at{" "}
+              {formatDateTime(appointment.updatedAt).time}
+            </MetadataValue>
           </MetadataItem>
           <MetadataItem>
             <MetadataLabel>Reminders Sent:</MetadataLabel>
@@ -767,7 +1350,7 @@ const PageContainer = styled.div`
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
-  
+
   @media (max-width: 768px) {
     padding: 16px;
   }
@@ -789,10 +1372,33 @@ const LoadingSpinner = styled.div`
   border-top: 3px solid #3b82f6;
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  
+
   @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+`;
+
+const LoadingSpinnerSmall = styled.div`
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 8px;
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
   }
 `;
 
@@ -842,7 +1448,7 @@ const RetryButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: #2563eb;
     transform: translateY(-1px);
@@ -854,7 +1460,7 @@ const PageHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
-  
+
   @media (max-width: 768px) {
     flex-direction: column;
     gap: 16px;
@@ -880,7 +1486,7 @@ const BackButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: color 0.2s ease;
-  
+
   &:hover {
     color: ${theme.colors.primary}dd;
   }
@@ -893,7 +1499,7 @@ const Title = styled.h1`
   font-weight: 700;
   color: #1f2937;
   margin: 0 0 4px 0;
-  
+
   @media (max-width: 768px) {
     font-size: 24px;
   }
@@ -904,35 +1510,41 @@ const AppointmentId = styled.div`
   color: #6b7280;
   font-weight: 500;
 `;
+const StatusSelect = styled.select<{ color: string }>`
+  padding: 8px 12px;
+  border: 1px solid ${(props) => props.color}30;
+  border-radius: 6px;
+  background: ${(props) => props.color}10;
+  color: ${(props) => props.color};
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    border-color: ${(props) => props.color};
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
 
 const HeaderActions = styled.div`
   display: flex;
   gap: 12px;
   align-items: center;
-  
+
   @media (max-width: 768px) {
     width: 100%;
     justify-content: space-between;
   }
 `;
 
-const StatusSelect = styled.select<{ color: string }>`
-  padding: 8px 12px;
-  border: 1px solid ${props => props.color}30;
-  border-radius: 6px;
-  background: ${props => props.color}10;
-  color: ${props => props.color};
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  
-  &:focus {
-    outline: none;
-    border-color: ${props => props.color};
-  }
-`;
-
-const ActionButton = styled.button<{ variant: 'primary' | 'secondary' | 'danger' }>`
+const ActionButton = styled.button<{
+  variant: "primary" | "secondary" | "danger";
+}>`
   display: flex;
   align-items: center;
   gap: 6px;
@@ -943,42 +1555,47 @@ const ActionButton = styled.button<{ variant: 'primary' | 'secondary' | 'danger'
   cursor: pointer;
   transition: all 0.2s ease;
   border: 1px solid;
-  
-  ${props => {
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  ${(props) => {
     switch (props.variant) {
-      case 'primary':
+      case "primary":
         return `
           background: ${theme.colors.primary};
           color: white;
           border-color: ${theme.colors.primary};
           
-          &:hover {
+          &:hover:not(:disabled) {
             background: ${theme.colors.primary}dd;
             transform: translateY(-1px);
           }
         `;
-      case 'secondary':
+      case "secondary":
         return `
           background: white;
           color: #374151;
           border-color: #d1d5db;
           
-          &:hover {
+          &:hover:not(:disabled) {
             background: #f9fafb;
           }
         `;
-      case 'danger':
+      case "danger":
         return `
           background: white;
           color: ${theme.colors.danger};
           border-color: ${theme.colors.danger}30;
           
-          &:hover {
+          &:hover:not(:disabled) {
             background: ${theme.colors.danger}10;
           }
         `;
       default:
-        return '';
+        return "";
     }
   }}
 `;
@@ -992,7 +1609,7 @@ const QuickInfoBar = styled.div`
   background: white;
   border-radius: 8px;
   border: 1px solid #e5e7eb;
-  
+
   @media (max-width: 768px) {
     grid-template-columns: 1fr 1fr;
     gap: 12px;
@@ -1024,7 +1641,7 @@ const TabNavigation = styled.div`
   background: white;
   border-radius: 8px 8px 0 0;
   padding: 0 16px;
-  
+
   @media (max-width: 768px) {
     overflow-x: auto;
     padding: 0 12px;
@@ -1041,11 +1658,14 @@ const TabButton = styled.button<{ active: boolean }>`
   transition: all 0.2s ease;
   border-bottom: 2px solid transparent;
   white-space: nowrap;
-  
-  ${props => props.active ? `
+
+  ${(props) =>
+    props.active
+      ? `
     color: ${theme.colors.primary};
     border-bottom-color: ${theme.colors.primary};
-  ` : `
+  `
+      : `
     color: #6b7280;
     
     &:hover {
@@ -1067,11 +1687,11 @@ const ContentGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 20px;
-  
+
   .full-width {
     grid-column: 1 / -1;
   }
-  
+
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
     gap: 16px;
@@ -1115,7 +1735,7 @@ const InfoRow = styled.div`
   align-items: center;
   padding: 8px 0;
   border-bottom: 1px solid #f9fafb;
-  
+
   &:last-child {
     border-bottom: none;
   }
@@ -1142,9 +1762,9 @@ const StatusBadge = styled.span<{ color: string }>`
   font-size: 11px;
   font-weight: 500;
   text-transform: capitalize;
-  background: ${props => props.color}15;
-  color: ${props => props.color};
-  border: 1px solid ${props => props.color}30;
+  background: ${(props) => props.color}15;
+  color: ${(props) => props.color};
+  border: 1px solid ${(props) => props.color}30;
 `;
 
 const PriorityBadge = styled.span<{ color: string }>`
@@ -1153,9 +1773,9 @@ const PriorityBadge = styled.span<{ color: string }>`
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  background: ${props => props.color}15;
-  color: ${props => props.color};
-  border: 1px solid ${props => props.color}30;
+  background: ${(props) => props.color}15;
+  color: ${(props) => props.color};
+  border: 1px solid ${(props) => props.color}30;
 `;
 
 const PaymentBadge = styled.span<{ color: string }>`
@@ -1164,9 +1784,9 @@ const PaymentBadge = styled.span<{ color: string }>`
   font-size: 11px;
   font-weight: 500;
   text-transform: capitalize;
-  background: ${props => props.color}15;
-  color: ${props => props.color};
-  border: 1px solid ${props => props.color}30;
+  background: ${(props) => props.color}15;
+  color: ${(props) => props.color};
+  border: 1px solid ${(props) => props.color}30;
 `;
 
 const PaymentAmount = styled.span`
@@ -1289,9 +1909,9 @@ const ScheduleGrid = styled.div`
 
 const ScheduleItem = styled.div<{ isWorking: boolean }>`
   padding: 8px;
-  border: 1px solid ${props => props.isWorking ? '#d1fae5' : '#fee2e2'};
+  border: 1px solid ${(props) => (props.isWorking ? "#d1fae5" : "#fee2e2")};
   border-radius: 6px;
-  background: ${props => props.isWorking ? '#f0fdf4' : '#fef2f2'};
+  background: ${(props) => (props.isWorking ? "#f0fdf4" : "#fef2f2")};
   text-align: center;
 `;
 
@@ -1323,7 +1943,7 @@ const ActionSection = styled.div`
   display: flex;
   gap: 12px;
   margin: 24px 0;
-  
+
   @media (max-width: 768px) {
     flex-direction: column;
   }
@@ -1348,7 +1968,7 @@ const MetadataGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 12px;
-  
+
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
   }
@@ -1370,6 +1990,244 @@ const MetadataValue = styled.span`
   font-size: 12px;
   color: #374151;
   font-weight: 500;
+`;
+
+// Modal Styled Components
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+`;
+
+const ModalContainer = styled.div`
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+`;
+
+const ModalTitle = styled.h3`
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+`;
+
+const ModalCloseButton = styled.button`
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #f3f4f6;
+    color: #374151;
+  }
+`;
+
+const ModalBody = styled.div`
+  padding: 24px;
+`;
+
+const CurrentAppointmentInfo = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 24px;
+`;
+
+const ModalFormGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+
+  .full-width {
+    grid-column: 1 / -1;
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const ModalFormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
+const ModalLabel = styled.label`
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 6px;
+`;
+
+const ModalInput = styled.input<{ hasError?: boolean }>`
+  padding: 10px 12px;
+  border: 2px solid
+    ${(props) => (props.hasError ? theme.colors.danger : "#e2e8f0")};
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  background: white;
+
+  &:focus {
+    outline: none;
+    border-color: ${theme.colors.primary};
+    box-shadow: 0 0 0 3px ${theme.colors.primary}20;
+  }
+`;
+
+const ModalSelect = styled.select<{ hasError?: boolean }>`
+  padding: 10px 12px;
+  border: 2px solid
+    ${(props) => (props.hasError ? theme.colors.danger : "#e2e8f0")};
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: ${theme.colors.primary};
+    box-shadow: 0 0 0 3px ${theme.colors.primary}20;
+  }
+`;
+
+const ModalTextArea = styled.textarea<{ hasError?: boolean }>`
+  padding: 10px 12px;
+  border: 2px solid
+    ${(props) => (props.hasError ? theme.colors.danger : "#e2e8f0")};
+  border-radius: 6px;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 80px;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  background: white;
+
+  &:focus {
+    outline: none;
+    border-color: ${theme.colors.primary};
+    box-shadow: 0 0 0 3px ${theme.colors.primary}20;
+  }
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+`;
+
+const ModalErrorText = styled.span`
+  color: ${theme.colors.danger};
+  font-size: 12px;
+  margin-top: 4px;
+  font-weight: 500;
+`;
+
+const ModalHelperText = styled.span`
+  color: #6b7280;
+  font-size: 12px;
+  margin-top: 4px;
+  line-height: 1.3;
+`;
+
+const ModalFooter = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 20px 24px;
+  border-top: 1px solid #e5e7eb;
+  background: #f8fafc;
+
+  @media (max-width: 480px) {
+    flex-direction: column-reverse;
+  }
+`;
+
+const ModalButton = styled.button<{ variant: "primary" | "secondary" }>`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid;
+  min-width: 120px;
+  justify-content: center;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  ${(props) => {
+    switch (props.variant) {
+      case "primary":
+        return `
+          background: ${theme.colors.primary};
+          color: white;
+          border-color: ${theme.colors.primary};
+          
+          &:hover:not(:disabled) {
+            background: ${theme.colors.primary}dd;
+            transform: translateY(-1px);
+          }
+        `;
+      case "secondary":
+        return `
+          background: white;
+          color: #374151;
+          border-color: #d1d5db;
+          
+          &:hover:not(:disabled) {
+            background: #f9fafb;
+          }
+        `;
+      default:
+        return "";
+    }
+  }}
+
+  @media (max-width: 480px) {
+    width: 100%;
+    min-width: auto;
+  }
 `;
 
 export default AppointmentDetail;

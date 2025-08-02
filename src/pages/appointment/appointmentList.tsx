@@ -1,8 +1,9 @@
 import { useState } from "react";
 import styled from "styled-components";
-import { useAllAppointments } from "@/hooks/useAppointment"; // Adjust import path as needed
+import { useAllAppointments, useCancelAppointment } from "@/hooks/useAppointment"; // Adjust import path as needed
 import { useNavigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
+import Swal from "sweetalert2";
 
 const theme = {
   colors: {
@@ -101,7 +102,7 @@ const AppointmentListPage = () => {
 
   // Fetch appointments from backend
   const { data, isLoading, error, refetch } = useAllAppointments();
-  console.log("Appointments Data:", data);
+  const { mutate: cancelAppointment, isPending: isCancelling } = useCancelAppointment();
 
   // Extract appointments array from the response
   const appointments = data?.data?.appointments || [];
@@ -223,7 +224,25 @@ const AppointmentListPage = () => {
   };
 
   const handleCancelAppointment = (appointmentId: string) => {
-    console.log("Cancel appointment:", appointmentId);
+    Swal.fire({
+      title: "Are you sure?",
+      text: "Do you really want to cancel this appointment?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, cancel it!",
+      cancelButtonText: "No, keep it",
+    }).then((result: any) => {
+      if (result.isConfirmed) {
+        cancelAppointment(appointmentId, {
+          onSuccess: () => {
+            Swal.fire("Cancelled!", "The appointment has been cancelled.", "success");
+          },
+          onError: (error: any) => {
+            Swal.fire("Error!", error.message || "Something went wrong.", "error");
+          },
+        });
+      }
+    });
   };
 
   const handleRefresh = () => {
@@ -270,7 +289,7 @@ const AppointmentListPage = () => {
             <Subtitle>Manage and view all patient appointments</Subtitle>
           </HeaderContent>
           <HeaderActions>
-            <CreateButton>
+            <CreateButton onClick={() => navigate("/admin/appointments/create")}>
               <span>➕</span>
               Create New Appointment
             </CreateButton>
@@ -283,7 +302,7 @@ const AppointmentListPage = () => {
           <EmptyMessage>
             Get started by creating your first appointment.
           </EmptyMessage>
-          <CreateButton>
+          <CreateButton onClick={() => navigate("/admin/appointments/create")}>
             <span>➕</span>
             Create New Appointment
           </CreateButton>
@@ -305,7 +324,7 @@ const AppointmentListPage = () => {
             <span>🔄</span>
             Refresh
           </RefreshButton>
-          <CreateButton>
+          <CreateButton onClick={() => navigate("/admin/appointments/create")}>
             <span>➕</span>
             Create New Appointment
           </CreateButton>
@@ -482,11 +501,19 @@ const AppointmentListPage = () => {
                   {appointment.status === "scheduled" ||
                   appointment.status === "confirmed" ? (
                     <ActionButton
-                      variant="danger"
-                      onClick={() => handleCancelAppointment(appointment._id)}
-                    >
-                      Cancel
-                    </ActionButton>
+            variant="danger"
+            onClick={() => handleCancelAppointment(appointment._id)}
+            disabled={isCancelling}
+          >
+            {isCancelling ? (
+              <>
+                <LoadingSpinnerSmall />
+                Cancelling...
+              </>
+            ) : (
+              <>Cancel</>
+            )}
+          </ActionButton>
                   ) : null}
                 </CardActions>
               </AppointmentCard>
@@ -552,6 +579,24 @@ const LoadingSpinner = styled.div`
   }
 `;
 
+const LoadingSpinnerSmall = styled.div`
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 8px;
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+`;
 const LoadingText = styled.div`
   font-size: 16px;
   color: #6b7280;
