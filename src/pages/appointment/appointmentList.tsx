@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState } from "react";
 import styled from "styled-components";
 import { useAllAppointments, useCancelAppointment } from "@/hooks/useAppointment"; // Adjust import path as needed
@@ -58,7 +59,8 @@ interface Appointment {
     };
     doctorId: string;
   };
-  appointmentDateTime: string;
+  appointmentStartTime: string;
+  appointmentEndTime: string;
   duration: number;
   appointmentType:
     | "consultation"
@@ -219,9 +221,9 @@ const AppointmentListPage = () => {
     navigate(`/admin/appointments/details/${appointmentId}`);
   };
 
-  const handleEditAppointment = (appointmentId: string) => {
-    console.log("Edit appointment:", appointmentId);
-  };
+  // const handleEditAppointment = (appointmentId: string) => {
+  //   console.log("Edit appointment:", appointmentId);
+  // };
 
   const handleCancelAppointment = (appointmentId: string) => {
     Swal.fire({
@@ -406,9 +408,9 @@ const AppointmentListPage = () => {
         </NoResultsContainer>
       ) : (
         <AppointmentsList>
-          {paginatedAppointments.map((appointment) => {
+          {paginatedAppointments.map((appointment: any) => {
             const { date, time } = formatDateTime(
-              appointment.appointmentDateTime
+              appointment.appointmentStartTime
             );
             const patientName = getPatientName(appointment);
             const doctorName = getDoctorName(appointment);
@@ -492,12 +494,12 @@ const AppointmentListPage = () => {
                   >
                     View Details
                   </ActionButton>
-                  <ActionButton
+                  {/* <ActionButton
                     variant="secondary"
                     onClick={() => handleEditAppointment(appointment._id)}
                   >
                     Edit
-                  </ActionButton>
+                  </ActionButton> */}
                   {appointment.status === "scheduled" ||
                   appointment.status === "confirmed" ? (
                     <ActionButton

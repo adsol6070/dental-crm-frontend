@@ -235,13 +235,6 @@ const RequirementItem = styled.li<{ met: boolean }>`
   }
 `;
 
-const HelpText = styled.p`
-  font-size: 12px;
-  color: #6b7280;
-  margin: 6px 0 0 0;
-  line-height: 1.4;
-`;
-
 const ButtonRow = styled.div`
   display: flex;
   justify-content: flex-end;

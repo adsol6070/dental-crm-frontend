@@ -10,7 +10,6 @@ import { apiClient } from "../services/apiClient";
 import { tokenStorage } from "../utils/tokenStorage";
 import { PermissionCategory } from "../types/Permissions";
 import { ROUTES } from "@/config/route-paths.config";
-import { useNavigate } from "react-router-dom";
 
 // ==================== TYPE DEFINITIONS ====================
 
@@ -538,7 +537,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Handle dynamic response structure based on user type
       let token: string;
       let user: any;
-      let expiresAt: Date;
+      let expiresAt: any;
+      console.log("Token expires at:", expiresAt);
 
       // Extract data based on user type and response structure
       switch (credentials.userType) {

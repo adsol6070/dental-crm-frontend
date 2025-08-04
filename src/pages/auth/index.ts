@@ -7,4 +7,3 @@ export const ResetPassword = lazy(() => import("./ResetPassword"));
 export const ResendVerification = lazy(() => import("./ResendVerification"));
 export const VerifyEmail = lazy(() => import("./VerifyEmail"));
 export const ForcePasswordChange = lazy(() => import("./ForcePasswordChange"));
-export const PublicAppointmentForm = lazy(() => import("./AppointmentForm"));

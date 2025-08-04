@@ -49,7 +49,8 @@ export interface MetadataPayload {
 export interface CreateAppointmentPayload {
   patient: string;
   doctor: string;
-  appointmentDateTime: string;
+  appointmentStartTime: string;
+  appointmentEndTime: string;
   duration?: number;
   appointmentType: AppointmentType;
   status?: AppointmentStatus;
@@ -209,8 +210,8 @@ export interface Appointment {
   appointmentId: string;
   patient: Patient;
   doctor: Doctor;
-  appointmentDateTime: string;
-  endDateTime: string;
+  appointmentStartTime: string;
+  appointmentEndTime: string;
   duration: number;
   appointmentType: AppointmentType;
   status: AppointmentStatus;
@@ -349,7 +350,10 @@ export interface CancelAppointmentResponse {
   };
 }
 export interface RescheduleAppointmentPayload {
-  newDateTime: string; 
+  newStartTime: string; 
+  newEndTime: string; 
+  duration: number;
+  newDate: string;
   reason: string;
 }
 export interface UpdateAppointmentStatusPayload {

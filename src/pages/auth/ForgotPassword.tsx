@@ -25,7 +25,6 @@ const Form = () => {
     handleSubmit,
     formState: { errors },
     reset,
-    getValues,
   } = useForm<{ email: string }>({ resolver: yupResolver(schema) });
 
   const onSubmit = async (data: ForgotPasswordPayload) => {

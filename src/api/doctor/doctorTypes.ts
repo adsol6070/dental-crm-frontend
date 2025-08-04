@@ -401,3 +401,24 @@ export interface PatientConsultationHistoryResponse {
     history: PatientConsultationHistoryItem[];
   };
 }
+export interface DoctorListItem {
+  _id: string;
+  doctorId: string;
+  personalInfo: PersonalInfo;
+  professionalInfo: ProfessionalInfo;
+  fees: Fees;
+  statistics: Statistics;
+}
+
+export interface PublicDoctorListApiResponse {
+  success: boolean;
+  data: {
+    doctors: DoctorListItem[];
+  };
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+}

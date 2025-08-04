@@ -19,9 +19,6 @@ export const ProtectedRoute = ({
   const { state, getRedirectPath } = useAuth();
   const location = useLocation();
 
-  console.log("State:", state);
-  console.log("getRedirectPath:", getRedirectPath());
-
   if (state.isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">

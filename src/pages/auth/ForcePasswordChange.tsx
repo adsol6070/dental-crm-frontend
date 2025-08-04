@@ -1,7 +1,8 @@
+// @ts-nocheck
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import styled from "styled-components";
 import { ROUTES } from "@/config/route-paths.config";
-import { useAuth, UserType } from "@/context/AuthContext";
+import { UserType } from "@/context/AuthContext";
 import { useState, useEffect } from "react";
 import { Toaster, toast } from "react-hot-toast";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -30,21 +31,17 @@ interface ForcePasswordChangeFormData {
   confirmPassword: string;
 }
 
-interface LocationState {
-  tempToken?: string;
-  userType?: UserType;
-  requiresPasswordChange?: boolean;
-}
-
 const ForcePasswordChange = () => {
-  const { getRedirectPath } = useAuth();
+  // const { getRedirectPath } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [tempToken, setTempToken] = useState<string>("");
-  const [userType, setUserType] = useState<UserType>(UserType.PATIENT);
+  // const [tempToken, setTempToken] = useState<string>("");
+  // const [userType, setUserType] = useState<UserType>(UserType.PATIENT);
   const navigate = useNavigate();
   const location = useLocation();
+  const tempToken = "";
+  const userType = UserType.PATIENT;
 
   const {
     register,

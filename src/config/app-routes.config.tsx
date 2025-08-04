@@ -37,6 +37,7 @@ import {
   Analytics,
   MyPatients,
   Reviews,
+  PublicPatientForm,
 } from "@/pages";
 
 export const AUTH_ROUTES = [
@@ -47,6 +48,7 @@ export const AUTH_ROUTES = [
   { path: ROUTE_PATHS.RESEND_VERIFICATION, element: <ResendVerification /> },
   { path: ROUTE_PATHS.VERIFY_EMAIL, element: <VerifyEmail /> },
   { path: ROUTE_PATHS.FORCE_CHANGE_PASSWORD, element: <ForcePasswordChange /> },
+  
 ];
 
 // Patient Routes - Only for patients
@@ -99,9 +101,9 @@ export const ADMIN_ROUTES = [
   { path: ROUTE_PATHS.ADMIN_PROFILE, element: <AdminProfile /> },
 
   // Patient Management
-  { path: ROUTE_PATHS.CREATE_PATIENT, element: <CreatePatientForm /> },
+  { path: ROUTE_PATHS.CREATE_PATIENT, element: <CreatePatientForm mode="create"/> },
   { path: ROUTE_PATHS.PATIENT_LIST, element: <PatientList /> },
-  { path: ROUTE_PATHS.EDIT_PATIENT, element: <CreatePatientForm /> },
+  { path: ROUTE_PATHS.EDIT_PATIENT, element: <CreatePatientForm mode="edit"/> },
   { path: ROUTE_PATHS.PATIENT_VIEW, element: <PatientView /> },
 
   // Doctor Management
@@ -122,4 +124,8 @@ export const ADMIN_ROUTES = [
   // Common Routes
   // { path: ROUTE_PATHS.PROFILE, element: <Profile /> },
   // { path: ROUTE_PATHS.SETTINGS, element: <Settings /> },
+];
+
+export const PUBLIC_ROUTES = [
+  { path: ROUTE_PATHS.PUBLIC_PATIENT_FORM, element: <PublicPatientForm /> },
 ];

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
-import { FiEye, FiEdit2, FiTrash, FiCalendar, FiClock, FiFileText } from "react-icons/fi";
+import { FiEye, FiCalendar, FiClock, FiFileText } from "react-icons/fi";
 import { usePatientAppointments } from '@/hooks/usePatient';
 import { ROUTE_PATHS } from '@/config/route-paths.config';
 
@@ -17,56 +17,6 @@ const theme = {
     textSecondary: '#6b7280'
   }
 };
-
-interface Doctor {
-  _id: string;
-  doctorId: string;
-  personalInfo: {
-    firstName: string;
-    lastName: string;
-    gender: string;
-  };
-  professionalInfo: {
-    specialization: string;
-    experience: number;
-  };
-}
-
-interface Appointments {
-  _id: string;
-  appointmentId: string;
-  patient: string;
-  doctor: Doctor;
-  appointmentDateTime: string;
-  duration: number;
-  appointmentType: string;
-  status: string;
-  priority: string;
-  bookingSource: string;
-  symptoms: string[];
-  notes: string;
-  specialRequirements?: string;
-  remindersSent: number;
-  lastReminderSent: string;
-  paymentStatus: string;
-  paymentAmount: number;
-  paymentMethod: string;
-  consultation?: {
-    diagnosis: string;
-    prescription: string;
-    nextAppointment: string;
-    followUpRequired: boolean;
-  };
-  metadata: {
-    ipAddress: string;
-    userAgent: string;
-    referralSource: string;
-    campaignId: string;
-  };
-  createdAt: string;
-  updatedAt: string;
-  endDateTime?: string;
-}
 
 const AppointmentsDashboard = () => {
   const navigate = useNavigate();
@@ -141,7 +91,7 @@ const AppointmentsDashboard = () => {
         .sort((a, b) => {
           switch (sortBy) {
             case 'date':
-              return new Date(b.appointmentDateTime).getTime() - new Date(a.appointmentDateTime).getTime();
+              return new Date(b.appointmentStartTime).getTime() - new Date(a.appointmentStartTime).getTime();
             case 'doctor':
               return `${a.doctor.personalInfo.firstName} ${a.doctor.personalInfo.lastName}`
                 .localeCompare(`${b.doctor.personalInfo.firstName} ${b.doctor.personalInfo.lastName}`);
@@ -166,18 +116,18 @@ const AppointmentsDashboard = () => {
     navigate(`/patient${route}`);
   };
 
-  const handleEditAppointment = (appointmentId: string) => {
-    navigate(`/patient/appointments/edit/${appointmentId}`);
-  };
+  // const handleEditAppointment = (appointmentId: string) => {
+  //   navigate(`/patient/appointments/edit/${appointmentId}`);
+  // };
 
   const handleNewAppointment = () => {
     navigate('/patient/appointments/create');
   };
 
-  const handleDeleteAppointment = (appointmentId: string) => {
-    // TODO: Implement delete logic with API call
-    console.log('Delete appointment:', appointmentId);
-  };
+  // const handleDeleteAppointment = (appointmentId: string) => {
+  //   // TODO: Implement delete logic with API call
+  //   console.log('Delete appointment:', appointmentId);
+  // };
 
   // Handle loading state
   if (isLoading) {
@@ -340,7 +290,7 @@ const AppointmentsDashboard = () => {
           </TableHeader>
           <TableBody>
             {paginatedAppointments.map((appointment) => {
-              const dateTime = formatDateTime(appointment.appointmentDateTime);
+              const dateTime = formatDateTime(appointment.appointmentStartTime);
               return (
                 <TableRow key={appointment._id}>
                   <TableCell>
@@ -972,18 +922,6 @@ const DoctorInfo = styled.div`
   align-items: center;
   gap: 12px;
   min-width: 180px;
-`;
-
-const DoctorAvatar = styled.div<{ gender: string }>`
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  background: ${props => props.gender === 'female' ? '#fce7f3' : '#e0f2fe'};
-  flex-shrink: 0;
 `;
 
 const DoctorDetails = styled.div``;

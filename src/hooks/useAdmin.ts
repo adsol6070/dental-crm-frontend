@@ -198,10 +198,7 @@ export const useChangePassword = () =>
     "Password changed successfully!"
   );
 
-export const useCreateUserAdmin = (p0: {
-  onSuccess: () => void;
-  onError: (error: any) => void;
-}) =>
+export const useCreateUserAdmin = () =>
   useCustomMutation(
     (data: UserCreatePayload) => adminApi.createUser(data),
     ["adminUsers"],

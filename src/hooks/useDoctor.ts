@@ -2,7 +2,6 @@
 
 import { doctorApi } from "@/api/doctor/doctorApi";
 import {
-  Doctor,
   DoctorPayload,
   DoctorProfileResponse,
   UnavailableDate,
@@ -21,6 +20,7 @@ import {
   ApiResponse,
   AddConsultationPayload,
   PatientConsultationHistoryResponse,
+  PublicDoctorListApiResponse,
 } from "@/api/doctor/doctorTypes";
 import {
   GetAllDoctorAppointmentsResponse,
@@ -313,5 +313,13 @@ export const useDoctorPatientConsultationHistory = (patientId: string) =>
     queryKey: ["doctorPatientConsultationHistory", patientId],
     queryFn: () => doctorApi.getDoctorPatientConsultationHistory(patientId),
     enabled: !!patientId,
+    select: (data) => data,
+  });
+
+
+export const usePublicDoctorList = () =>
+  useQuery<PublicDoctorListApiResponse, Error>({
+    queryKey: ["publicDoctorList"],
+    queryFn: () => doctorApi.getPublicDoctorList(),
     select: (data) => data,
   });

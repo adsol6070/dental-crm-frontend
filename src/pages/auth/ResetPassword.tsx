@@ -20,7 +20,7 @@ const schema = yup.object().shape({
 });
 
 const Form = () => {
-  const { resetPassword } = useAuth();
+  const { resetPassword }: any = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);

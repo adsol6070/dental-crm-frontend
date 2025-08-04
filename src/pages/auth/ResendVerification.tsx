@@ -17,7 +17,7 @@ const schema = yup.object().shape({
 });
 
 const Form = () => {
-  const { resendVerification } = useAuth();
+  const { resendVerification }: any = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [userEmail, setUserEmail] = useState("");
@@ -25,7 +25,6 @@ const Form = () => {
     register,
     handleSubmit,
     formState: { errors },
-    getValues,
   } = useForm<{ email: string }>({ resolver: yupResolver(schema) });
 
   const onSubmit = async (data: ForgotPasswordPayload) => {

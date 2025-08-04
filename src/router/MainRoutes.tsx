@@ -3,6 +3,7 @@ import AuthRoutes from "./AuthRoutes";
 import PatientRoutes from "./PatientRoutes";
 import DoctorRoutes from "./DoctorRoutes";
 import AdminRoutes from "./AdminRoutes";
+import PublicRoutes from "./PublicRoutes";
 import { PREFIXES } from "@/config/route-paths.config";
 import { NotFound } from "@/pages";
 
@@ -13,6 +14,7 @@ const MainRoutes = () => {
       <Route path={`${PREFIXES.PATIENT}/*`} element={<PatientRoutes />} />
       <Route path={`${PREFIXES.DOCTOR}/*`} element={<DoctorRoutes />} />
       <Route path={`${PREFIXES.ADMIN}/*`} element={<AdminRoutes />} />
+      <Route path={`/*`} element={<PublicRoutes />} />
       
       <Route path="*" element={<NotFound />} />
     </Routes>

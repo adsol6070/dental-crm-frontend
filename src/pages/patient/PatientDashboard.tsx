@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { theme } from '@/config/theme.config';
@@ -254,7 +255,7 @@ const UserDashboard = () => {
       </DashboardHeader>
 
       {/* Quick Actions Section */}
-      <QuickActionsSection>
+      {/* <QuickActionsSection>
         <SectionTitle>Quick Actions</SectionTitle>
         <ActionsGrid>
           <ActionCard>
@@ -305,7 +306,7 @@ const UserDashboard = () => {
             </ActionContent>
           </ActionCard>
         </ActionsGrid>
-      </QuickActionsSection>
+      </QuickActionsSection> */}
 
       {/* Main Content Grid */}
       <MainContentGrid>
@@ -486,10 +487,10 @@ const UserDashboard = () => {
               )}
             </AppointmentDetailsCard>
             
-            <AppointmentActions>
+            {/* <AppointmentActions>
               <ActionButton variant="primary">Join Video Call</ActionButton>
               <ActionButton variant="secondary">Reschedule</ActionButton>
-            </AppointmentActions>
+            </AppointmentActions> */}
           </NextAppointmentCard>
         )}
 

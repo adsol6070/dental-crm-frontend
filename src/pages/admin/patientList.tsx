@@ -1,140 +1,80 @@
-import { useState } from 'react';
-import styled from 'styled-components';
-import { useNavigate } from 'react-router-dom';
+import { useState } from "react";
+import styled from "styled-components";
+import { useNavigate } from "react-router-dom";
 import { FiEye, FiEdit2, FiTrash } from "react-icons/fi";
-import { usePatients, useDeletePatient, useUpdatePatientStatus } from '@/hooks/useAdmin';
-import { Patient } from '@/api/patient/patientTypes';
-import { ROUTES } from '@/config/route-paths.config'; 
+import {
+  usePatients,
+  useDeletePatient,
+  useUpdatePatientStatus,
+} from "@/hooks/useAdmin";
+import { Patient } from "@/api/patient/patientTypes";
+import { ROUTES } from "@/config/route-paths.config";
 import Swal from "sweetalert2";
+import { Toaster } from "react-hot-toast";
 
 // Theme configuration
 const theme = {
   colors: {
-    primary: '#6366f1',
-    success: '#10b981',
-    danger: '#ef4444',
-    warning: '#f59e0b'
-  }
+    primary: "#6366f1",
+    success: "#10b981",
+    danger: "#ef4444",
+    warning: "#f59e0b",
+  },
 };
 
-// User type enum - adjust based on your actual user types
-type UserType = 'patient' | 'doctor' | 'admin';
-
-interface PatientListProps {
-  userType?: UserType; // Accept userType as prop
-}
-
-const PatientList = ({ userType = 'admin' }: PatientListProps) => {
+const AdminPatientList = () => {
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
-  const [sortBy, setSortBy] = useState<'name' | 'date' | 'lastVisit'>('name');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState<
+    "all" | "active" | "inactive"
+  >("all");
+  const [sortBy, setSortBy] = useState<"name" | "date" | "lastVisit">("name");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   // Use the API hooks with proper error handling
-  const { 
-    data: apiResponse, 
-    isLoading, 
-    error, 
+  const {
+    data: apiResponse,
+    isLoading,
+    error,
     refetch,
-    isError 
+    isError,
   } = usePatients();
 
-  const { 
-    mutate: deletePatient, 
-    isPending: isDeletingPatient 
-  } = useDeletePatient();
+  const { mutate: deletePatient, isPending: isDeletingPatient } =
+    useDeletePatient();
 
-  const { 
-    mutate: updatePatientStatus, 
-    isPending: isUpdatingPatientStatus 
-  } = useUpdatePatientStatus();
+  const { mutate: updatePatientStatus, isPending: isUpdatingPatientStatus } =
+    useUpdatePatientStatus();
 
   // Extract patients from API response
   const patients = apiResponse?.data?.patients || [];
   const pagination = apiResponse?.pagination;
-
-  // Dynamic route generation based on user type
-  const getRoutes = (userType: UserType) => {
-    switch (userType) {
-      case 'admin':
-        return {
-          create: ROUTES.ADMIN.CREATE_PATIENT,
-          edit: ROUTES.ADMIN.EDIT_PATIENT,
-          view: ROUTES.ADMIN.PATIENT_VIEW,
-          list: ROUTES.ADMIN.PATIENT_LIST
-        };
-      case 'doctor':
-        return {
-          create: ROUTES.DOCTOR.PATIENTS, // Assuming doctors can't create patients
-          edit: ROUTES.DOCTOR.PATIENTS, // Redirect to patients list or specific edit if available
-          view: ROUTES.DOCTOR.PATIENTS, // Doctor view route
-          list: ROUTES.DOCTOR.PATIENTS
-        };
-      case 'patient':
-        return {
-          create: null, // Patients can't create other patients
-          edit: null, // Patients can't edit other patients
-          view: ROUTES.PATIENT.PROFILE, // Patients can only view their own profile
-          list: null // Patients don't have access to patient lists
-        };
-      default:
-        return {
-          create: null,
-          edit: null,
-          view: null,
-          list: null
-        };
-    }
-  };
-
-  const routes = getRoutes(userType);
-
-  // Check permissions based on user type
-  const hasPermission = (action: 'create' | 'edit' | 'view' | 'delete' | 'list') => {
-    switch (userType) {
-      case 'admin':
-        return true; // Admin has all permissions
-      case 'doctor':
-        return ['view', 'list'].includes(action); // Doctors can view and list
-      case 'patient':
-        return ['view'].includes(action); // Patients can only view (their own data)
-      default:
-        return false;
-    }
-  };
 
   const calculateAge = (dateOfBirth: string): number => {
     const today = new Date();
     const birthDate = new Date(dateOfBirth);
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birthDate.getDate())
+    ) {
       age--;
     }
     return age;
   };
 
   const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
+    return new Date(dateString).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     });
   };
 
   const handleDelete = async (id: string, patientName: string) => {
-    if (!hasPermission('delete')) {
-      Swal.fire({
-        title: 'Access Denied',
-        text: 'You do not have permission to delete patients.',
-        icon: 'error'
-      });
-      return;
-    }
-
     const result = await Swal.fire({
       title: `Delete "${patientName}"?`,
       text: "This action cannot be undone.",
@@ -146,116 +86,143 @@ const PatientList = ({ userType = 'admin' }: PatientListProps) => {
     });
 
     if (result.isConfirmed) {
-      deletePatient(id);
+      deletePatient(id, {
+        onSuccess: () => {
+          refetch();
+          Swal.fire("Deleted!", "Patient has been deleted.", "success");
+        },
+        onError: (error: any) => {
+          Swal.fire(
+            "Error!",
+            error.message || "Failed to delete patient.",
+            "error"
+          );
+        },
+      });
     }
   };
 
-  const handleStatusChange = async (id: string, newStatus: boolean, patientName: string) => {
-    if (!hasPermission('edit')) {
-      Swal.fire({
-        title: 'Access Denied',
-        text: 'You do not have permission to edit patient status.',
-        icon: 'error'
-      });
-      return;
-    }
-
+  const handleStatusChange = async (
+    id: string,
+    newStatus: boolean,
+    patientName: string
+  ) => {
     // Show confirmation dialog with reason input
     const { value: reason, isConfirmed } = await Swal.fire({
-      title: `${newStatus ? 'Activate' : 'Deactivate'} Patient`,
-      text: `Are you sure you want to ${newStatus ? 'activate' : 'deactivate'} ${patientName}?`,
-      input: 'textarea',
-      inputLabel: 'Reason (optional)',
-      inputPlaceholder: `Enter reason for ${newStatus ? 'activating' : 'deactivating'} this patient...`,
+      title: `${newStatus ? "Activate" : "Deactivate"} Patient`,
+      text: `Are you sure you want to ${
+        newStatus ? "activate" : "deactivate"
+      } ${patientName}?`,
+      input: "textarea",
+      inputLabel: "Reason (optional)",
+      inputPlaceholder: `Enter reason for ${
+        newStatus ? "activating" : "deactivating"
+      } this patient...`,
       inputAttributes: {
-        'aria-label': 'Reason for status change'
+        "aria-label": "Reason for status change",
       },
       showCancelButton: true,
-      confirmButtonText: `Yes, ${newStatus ? 'activate' : 'deactivate'}!`,
-      confirmButtonColor: newStatus ? theme.colors.success : theme.colors.warning,
-      cancelButtonColor: '#6b7280',
-      inputValidator: (value) => {
-        // Optional: You can make reason required by uncommenting below
-        // if (!value) {
-        //   return 'You need to provide a reason!'
-        // }
-      }
+      confirmButtonText: `Yes, ${newStatus ? "activate" : "deactivate"}!`,
+      confirmButtonColor: newStatus
+        ? theme.colors.success
+        : theme.colors.warning,
+      cancelButtonColor: "#6b7280",
     });
 
     if (isConfirmed) {
       // Show loading state
       Swal.fire({
-        title: 'Updating Status...',
-        text: 'Please wait while we update the patient status.',
+        title: "Updating Status...",
+        text: "Please wait while we update the patient status.",
         allowOutsideClick: false,
         allowEscapeKey: false,
         showConfirmButton: false,
         didOpen: () => {
           Swal.showLoading();
-        }
+        },
       });
 
-      try {
-        // Update patient status using the backend hook
-        await updatePatientStatus({
+      updatePatientStatus(
+        {
           id,
           patientStatusData: {
             isActive: newStatus,
-            reason: reason || `Patient ${newStatus ? 'activated' : 'deactivated'} by admin`
-          }
-        });
-
-        // Close loading and show success
-        Swal.fire({
-          title: 'Success!',
-          text: `Patient has been ${newStatus ? 'activated' : 'deactivated'} successfully.`,
-          icon: 'success',
-          timer: 2000,
-          showConfirmButton: false
-        });
-
-        // Refetch patients to get updated data
-        refetch();
-      } catch (error) {
-        // Handle error
-        Swal.fire({
-          title: 'Error!',
-          text: 'Failed to update patient status. Please try again.',
-          icon: 'error',
-          confirmButtonColor: theme.colors.primary
-        });
-        console.error('Status update error:', error);
-      }
+            reason:
+              reason ||
+              `Patient ${newStatus ? "activated" : "deactivated"} by admin`,
+          },
+        },
+        {
+          onSuccess: () => {
+            // Close loading and show success
+            Swal.fire({
+              title: "Success!",
+              text: `Patient has been ${
+                newStatus ? "activated" : "deactivated"
+              } successfully.`,
+              icon: "success",
+              timer: 2000,
+              showConfirmButton: false,
+            });
+            // Refetch patients to get updated data
+            refetch();
+          },
+          onError: (error: any) => {
+            // Handle error
+            Swal.fire({
+              title: "Error!",
+              text: "Failed to update patient status. Please try again.",
+              icon: "error",
+              confirmButtonColor: theme.colors.primary,
+            });
+            console.error("Status update error:", error);
+          },
+        }
+      );
     }
   };
 
   // Client-side filtering and sorting
   const filteredAndSortedPatients = Array.isArray(patients)
     ? patients
-        .filter(patient => {
-          const matchesSearch = 
-            patient.personalInfo.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            patient.personalInfo.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            patient.contactInfo.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        .filter((patient) => {
+          const matchesSearch =
+            patient.personalInfo.firstName
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase()) ||
+            patient.personalInfo.lastName
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase()) ||
+            patient.contactInfo.email
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase()) ||
             patient.patientId.toLowerCase().includes(searchTerm.toLowerCase());
-          
-          const matchesStatus = 
-            filterStatus === 'all' || 
-            (filterStatus === 'active' && patient.isActive !== false) ||
-            (filterStatus === 'inactive' && patient.isActive === false);
-          
+
+          const matchesStatus =
+            filterStatus === "all" ||
+            (filterStatus === "active" && patient.isActive !== false) ||
+            (filterStatus === "inactive" && patient.isActive === false);
+
           return matchesSearch && matchesStatus;
         })
         .sort((a, b) => {
           switch (sortBy) {
-            case 'name':
-              return `${a.personalInfo.firstName} ${a.personalInfo.lastName}`
-                .localeCompare(`${b.personalInfo.firstName} ${b.personalInfo.lastName}`);
-            case 'date':
-              return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-            case 'lastVisit':
-              const aDate = a.statistics?.lastVisit ? new Date(a.statistics.lastVisit).getTime() : 0;
-              const bDate = b.statistics?.lastVisit ? new Date(b.statistics.lastVisit).getTime() : 0;
+            case "name":
+              return `${a.personalInfo.firstName} ${a.personalInfo.lastName}`.localeCompare(
+                `${b.personalInfo.firstName} ${b.personalInfo.lastName}`
+              );
+            case "date":
+              return (
+                new Date(b.createdAt).getTime() -
+                new Date(a.createdAt).getTime()
+              );
+            case "lastVisit":
+              const aDate = a.statistics?.lastVisit
+                ? new Date(a.statistics.lastVisit).getTime()
+                : 0;
+              const bDate = b.statistics?.lastVisit
+                ? new Date(b.statistics.lastVisit).getTime()
+                : 0;
               return bDate - aDate;
             default:
               return 0;
@@ -265,71 +232,23 @@ const PatientList = ({ userType = 'admin' }: PatientListProps) => {
 
   const totalPages = Math.ceil(filteredAndSortedPatients.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedPatients = filteredAndSortedPatients.slice(startIndex, startIndex + itemsPerPage);
+  const paginatedPatients = filteredAndSortedPatients.slice(
+    startIndex,
+    startIndex + itemsPerPage
+  );
 
   const handleViewPatient = (patientId: string) => {
-    if (!hasPermission('view') || !routes.view) {
-      Swal.fire({
-        title: 'Access Denied',
-        text: 'You do not have permission to view patient details.',
-        icon: 'error'
-      });
-      return;
-    }
-
-    // Handle dynamic route parameters
-    if (typeof routes.view === 'string') {
-      const route = routes.view.replace(':patientId', patientId);
-      navigate(route);
-    } else {
-      navigate(routes.view);
-    }
+    const route = ROUTES.ADMIN.PATIENT_VIEW.replace(":patientId", patientId);
+    navigate(route);
   };
 
   const handleEditPatient = (patientId: string) => {
-    if (!hasPermission('edit') || !routes.edit) {
-      Swal.fire({
-        title: 'Access Denied',
-        text: 'You do not have permission to edit patients.',
-        icon: 'error'
-      });
-      return;
-    }
-
-    // Handle dynamic route parameters
-    if (typeof routes.edit === 'string') {
-      const route = routes.edit.replace(':patientId', patientId);
-      navigate(route);
-    } else {
-      navigate(routes.edit);
-    }
+    const route = ROUTES.ADMIN.EDIT_PATIENT.replace(":patientId", patientId);
+    navigate(route);
   };
 
   const handleNewPatient = () => {
-    if (!hasPermission('create') || !routes.create) {
-      Swal.fire({
-        title: 'Access Denied',
-        text: 'You do not have permission to create patients.',
-        icon: 'error'
-      });
-      return;
-    }
-
-    navigate(routes.create);
-  };
-
-  // User type specific title
-  const getPageTitle = (userType: UserType) => {
-    switch (userType) {
-      case 'admin':
-        return 'Patient Management';
-      case 'doctor':
-        return 'My Patients';
-      case 'patient':
-        return 'Patient Information';
-      default:
-        return 'Patients';
-    }
+    navigate(ROUTES.ADMIN.CREATE_PATIENT);
   };
 
   // Handle loading state
@@ -352,7 +271,9 @@ const PatientList = ({ userType = 'admin' }: PatientListProps) => {
           <ErrorIcon>⚠️</ErrorIcon>
           <ErrorTitle>Failed to load patients</ErrorTitle>
           <ErrorMessage>
-            {error instanceof Error ? error.message : 'An unexpected error occurred while fetching patient data.'}
+            {error instanceof Error
+              ? error.message
+              : "An unexpected error occurred while fetching patient data."}
           </ErrorMessage>
           <RetryButton onClick={() => refetch()}>
             <RefreshIcon>🔄</RefreshIcon>
@@ -369,41 +290,30 @@ const PatientList = ({ userType = 'admin' }: PatientListProps) => {
       <Container>
         <Header>
           <HeaderContent>
-            <Title>{getPageTitle(userType)}</Title>
-            <Subtitle>
-              {userType === 'admin' ? 'Manage and view patient information' :
-               userType === 'doctor' ? 'View your assigned patients' :
-               'View your patient information'}
-            </Subtitle>
+            <Title>Patient Management</Title>
+            <Subtitle>Manage and view patient information</Subtitle>
           </HeaderContent>
           <HeaderActions>
-            {hasPermission('create') && routes.create && (
-              <NewPatientButton onClick={handleNewPatient}>
-                <PlusIcon>+</PlusIcon>
-                New Patient
-              </NewPatientButton>
-            )}
+            <NewPatientButton onClick={handleNewPatient}>
+              <PlusIcon>+</PlusIcon>
+              New Patient
+            </NewPatientButton>
           </HeaderActions>
         </Header>
-        
+
         <EmptyState>
           <EmptyIcon>👥</EmptyIcon>
           <EmptyTitle>No patients found</EmptyTitle>
           <EmptyMessage>
-            {apiResponse?.data ? 
-              (userType === 'admin' ? "No patients have been registered yet. Start by creating your first patient!" :
-               userType === 'doctor' ? "No patients have been assigned to you yet." :
-               "No patient information available.") :
-              "Unable to load patient data. Please try refreshing the page."
-            }
+            {apiResponse?.data
+              ? "No patients have been registered yet. Start by creating your first patient!"
+              : "Unable to load patient data. Please try refreshing the page."}
           </EmptyMessage>
           <EmptyActions>
-            {hasPermission('create') && routes.create && (
-              <NewPatientButton onClick={handleNewPatient}>
-                <PlusIcon>+</PlusIcon>
-                {userType === 'admin' ? 'Create First Patient' : 'Create Patient'}
-              </NewPatientButton>
-            )}
+            <NewPatientButton onClick={handleNewPatient}>
+              <PlusIcon>+</PlusIcon>
+              Create First Patient
+            </NewPatientButton>
             <RefreshButton onClick={() => refetch()}>
               <RefreshIcon>🔄</RefreshIcon>
               Refresh Data
@@ -416,31 +326,26 @@ const PatientList = ({ userType = 'admin' }: PatientListProps) => {
 
   return (
     <Container>
+      <Toaster position="top-right" />
       <Header>
         <HeaderContent>
           <Title>
-            {getPageTitle(userType)}
+            Patient Management
             {pagination?.total && (
               <TotalCount>({pagination.total} total)</TotalCount>
             )}
           </Title>
-          <Subtitle>
-            {userType === 'admin' ? 'Manage and view patient information' :
-             userType === 'doctor' ? 'View your assigned patients' :
-             'View your patient information'}
-          </Subtitle>
+          <Subtitle>Manage and view patient information</Subtitle>
         </HeaderContent>
         <HeaderActions>
           <RefreshButton onClick={() => refetch()} disabled={isLoading}>
             <RefreshIcon>🔄</RefreshIcon>
             Refresh
           </RefreshButton>
-          {hasPermission('create') && routes.create && (
-            <NewPatientButton onClick={handleNewPatient}>
-              <PlusIcon>+</PlusIcon>
-              New Patient
-            </NewPatientButton>
-          )}
+          <NewPatientButton onClick={handleNewPatient}>
+            <PlusIcon>+</PlusIcon>
+            New Patient
+          </NewPatientButton>
         </HeaderActions>
       </Header>
 
@@ -454,7 +359,9 @@ const PatientList = ({ userType = 'admin' }: PatientListProps) => {
           />
           <FilterSelect
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')}
+            onChange={(e) =>
+              setFilterStatus(e.target.value as "all" | "active" | "inactive")
+            }
           >
             <option value="all">All Patients</option>
             <option value="active">Active</option>
@@ -462,19 +369,23 @@ const PatientList = ({ userType = 'admin' }: PatientListProps) => {
           </FilterSelect>
           <SortSelect
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as 'name' | 'date' | 'lastVisit')}
+            onChange={(e) =>
+              setSortBy(e.target.value as "name" | "date" | "lastVisit")
+            }
           >
             <option value="name">Sort by Name</option>
             <option value="date">Sort by Registration Date</option>
             <option value="lastVisit">Sort by Last Visit</option>
           </SortSelect>
         </SearchAndFilter>
-        
+
         <ResultsInfo>
-          Showing {paginatedPatients.length} of {filteredAndSortedPatients.length} patients
-          {pagination?.total && filteredAndSortedPatients.length !== pagination.total && (
-            <span> (filtered from {pagination.total} total)</span>
-          )}
+          Showing {paginatedPatients.length} of{" "}
+          {filteredAndSortedPatients.length} patients
+          {pagination?.total &&
+            filteredAndSortedPatients.length !== pagination.total && (
+              <span> (filtered from {pagination.total} total)</span>
+            )}
         </ResultsInfo>
       </Controls>
 
@@ -488,7 +399,7 @@ const PatientList = ({ userType = 'admin' }: PatientListProps) => {
               <TableHeaderCell>Location</TableHeaderCell>
               <TableHeaderCell>Medical Info</TableHeaderCell>
               <TableHeaderCell>Registration</TableHeaderCell>
-              {hasPermission('edit') && <TableHeaderCell>Status</TableHeaderCell>}
+              <TableHeaderCell>Status</TableHeaderCell>
               <TableHeaderCell>Actions</TableHeaderCell>
             </TableRow>
           </TableHeader>
@@ -503,16 +414,19 @@ const PatientList = ({ userType = 'admin' }: PatientListProps) => {
                     </PatientAvatar>
                     <PatientDetails>
                       <PatientName>
-                        {patient.personalInfo.firstName} {patient.personalInfo.lastName}
+                        {patient.personalInfo.firstName}{" "}
+                        {patient.personalInfo.lastName}
                       </PatientName>
                       <PatientId>{patient.patientId}</PatientId>
                       {patient.personalInfo.bloodGroup && (
-                        <BloodGroup>{patient.personalInfo.bloodGroup}</BloodGroup>
+                        <BloodGroup>
+                          {patient.personalInfo.bloodGroup}
+                        </BloodGroup>
                       )}
                     </PatientDetails>
                   </PatientInfo>
                 </TableCell>
-                
+
                 <TableCell>
                   <ContactInfo>
                     <ContactEmail>{patient.contactInfo.email}</ContactEmail>
@@ -524,26 +438,31 @@ const PatientList = ({ userType = 'admin' }: PatientListProps) => {
                     )}
                   </ContactInfo>
                 </TableCell>
-                
+
                 <TableCell>
                   <AgeGender>
-                    <AgeText>{calculateAge(patient.personalInfo.dateOfBirth)} years</AgeText>
+                    <AgeText>
+                      {calculateAge(patient.personalInfo.dateOfBirth)} years
+                    </AgeText>
                     <GenderBadge gender={patient.personalInfo.gender}>
                       {patient.personalInfo.gender}
                     </GenderBadge>
                   </AgeGender>
                 </TableCell>
-                
+
                 <TableCell>
                   <Location>
                     {patient.contactInfo.address ? (
                       <>
                         <LocationLine>
                           {patient.contactInfo.address.city}
-                          {patient.contactInfo.address.state && `, ${patient.contactInfo.address.state}`}
+                          {patient.contactInfo.address.state &&
+                            `, ${patient.contactInfo.address.state}`}
                         </LocationLine>
                         {patient.contactInfo.address.zipCode && (
-                          <ZipCode>{patient.contactInfo.address.zipCode}</ZipCode>
+                          <ZipCode>
+                            {patient.contactInfo.address.zipCode}
+                          </ZipCode>
                         )}
                       </>
                     ) : (
@@ -551,90 +470,106 @@ const PatientList = ({ userType = 'admin' }: PatientListProps) => {
                     )}
                   </Location>
                 </TableCell>
-                
+
                 <TableCell>
                   <MedicalInfo>
-                    {patient.medicalInfo?.allergies && patient.medicalInfo.allergies.length > 0 && (
-                      <MedicalTag type="allergy">
-                        {patient.medicalInfo.allergies.length} Allerg{patient.medicalInfo.allergies.length > 1 ? 'ies' : 'y'}
-                      </MedicalTag>
-                    )}
-                    {patient.medicalInfo?.chronicConditions && patient.medicalInfo.chronicConditions.length > 0 && (
-                      <MedicalTag type="condition">
-                        {patient.medicalInfo.chronicConditions.length} Condition{patient.medicalInfo.chronicConditions.length > 1 ? 's' : ''}
-                      </MedicalTag>
-                    )}
-                    {patient.medicalInfo?.currentMedications && patient.medicalInfo.currentMedications.length > 0 && (
-                      <MedicalTag type="medication">
-                        {patient.medicalInfo.currentMedications.length} Med{patient.medicalInfo.currentMedications.length > 1 ? 's' : ''}
-                      </MedicalTag>
-                    )}
-                    {(!patient.medicalInfo?.allergies?.length && 
-                      !patient.medicalInfo?.chronicConditions?.length && 
-                      !patient.medicalInfo?.currentMedications?.length) && (
-                      <NoDataText>No medical data</NoDataText>
-                    )}
+                    {patient.medicalInfo?.allergies &&
+                      patient.medicalInfo.allergies.length > 0 && (
+                        <MedicalTag type="allergy">
+                          {patient.medicalInfo.allergies.length} Allerg
+                          {patient.medicalInfo.allergies.length > 1
+                            ? "ies"
+                            : "y"}
+                        </MedicalTag>
+                      )}
+                    {patient.medicalInfo?.chronicConditions &&
+                      patient.medicalInfo.chronicConditions.length > 0 && (
+                        <MedicalTag type="condition">
+                          {patient.medicalInfo.chronicConditions.length}{" "}
+                          Condition
+                          {patient.medicalInfo.chronicConditions.length > 1
+                            ? "s"
+                            : ""}
+                        </MedicalTag>
+                      )}
+                    {patient.medicalInfo?.currentMedications &&
+                      patient.medicalInfo.currentMedications.length > 0 && (
+                        <MedicalTag type="medication">
+                          {patient.medicalInfo.currentMedications.length} Med
+                          {patient.medicalInfo.currentMedications.length > 1
+                            ? "s"
+                            : ""}
+                        </MedicalTag>
+                      )}
+                    {!patient.medicalInfo?.allergies?.length &&
+                      !patient.medicalInfo?.chronicConditions?.length &&
+                      !patient.medicalInfo?.currentMedications?.length && (
+                        <NoDataText>No medical data</NoDataText>
+                      )}
                   </MedicalInfo>
                 </TableCell>
-                
+
                 <TableCell>
                   <RegistrationInfo>
-                    <RegistrationDate>{formatDate(patient.createdAt)}</RegistrationDate>
-                    <RegistrationSource>{patient.registrationSource.replace('-', ' ')}</RegistrationSource>
+                    <RegistrationDate>
+                      {formatDate(patient.createdAt)}
+                    </RegistrationDate>
+                    <RegistrationSource>
+                      {patient.registrationSource.replace("-", " ")}
+                    </RegistrationSource>
                     {patient.authentication?.isVerified && (
                       <VerificationBadge>✓ Verified</VerificationBadge>
                     )}
                   </RegistrationInfo>
                 </TableCell>
-                
-                {hasPermission('edit') && (
-                  <TableCell>
-                    <StatusSelect
-                      value={patient.isActive !== false ? 'active' : 'inactive'}
-                      onChange={(e) => handleStatusChange(
-                        patient._id, 
-                        e.target.value === 'active',
+
+                <TableCell>
+                  <StatusSelect
+                    value={patient.isActive !== false ? "active" : "inactive"}
+                    onChange={(e) =>
+                      handleStatusChange(
+                        patient._id,
+                        e.target.value === "active",
                         `${patient.personalInfo.firstName} ${patient.personalInfo.lastName}`
-                      )}
-                      disabled={isUpdatingPatientStatus}
-                      active={patient.isActive !== false}
-                    >
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                    </StatusSelect>
-                  </TableCell>
-                )}
-                
+                      )
+                    }
+                    disabled={isUpdatingPatientStatus}
+                    active={patient.isActive !== false}
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </StatusSelect>
+                </TableCell>
+
                 <TableCell>
                   <ActionButtons>
-                    {hasPermission('view') && routes.view && (
-                      <ActionButton 
-                        variant="view" 
-                        onClick={() => handleViewPatient(patient._id)}
-                        title="View patient details"
-                      >
-                         <FiEye size={16} />
-                      </ActionButton>
-                    )}
-                    {hasPermission('edit') && routes.edit && (
-                      <ActionButton 
-                        variant="edit" 
-                        onClick={() => handleEditPatient(patient._id)}
-                        title="Edit patient"
-                      >
-                        <FiEdit2 size={16} />
-                      </ActionButton>
-                    )}
-                    {hasPermission('delete') && (
-                      <ActionButton 
-                        variant="delete" 
-                        onClick={() => handleDelete(patient._id, `${patient.personalInfo.firstName} ${patient.personalInfo.lastName}`)}
-                        disabled={isDeletingPatient}
-                        title="Delete patient"
-                      >
-                        <FiTrash size={16} />
-                      </ActionButton>
-                    )}
+                    <ActionButton
+                      variant="view"
+                      onClick={() => handleViewPatient(patient._id)}
+                      title="View patient details"
+                    >
+                      <FiEye size={16} />
+                    </ActionButton>
+                    <ActionButton
+                      variant="edit"
+                      onClick={() => handleEditPatient(patient._id)}
+                      title="Edit patient"
+                    >
+                      <FiEdit2 size={16} />
+                    </ActionButton>
+                    <ActionButton
+                      variant="delete"
+                      onClick={() =>
+                        handleDelete(
+                          patient._id,
+                          `${patient.personalInfo.firstName} ${patient.personalInfo.lastName}`
+                        )
+                      }
+                      disabled={isDeletingPatient}
+                      title="Delete patient"
+                    >
+                      <FiTrash size={16} />
+                    </ActionButton>
                   </ActionButtons>
                 </TableCell>
               </TableRow>
@@ -652,28 +587,33 @@ const PatientList = ({ userType = 'admin' }: PatientListProps) => {
             First
           </PaginationButton>
           <PaginationButton
-            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
           >
             Previous
           </PaginationButton>
-          
+
           {/* Smart pagination with ellipsis */}
           {[...Array(totalPages)].map((_, i) => {
             const pageNumber = i + 1;
             const isCurrentPage = pageNumber === currentPage;
-            const shouldShow = 
-              pageNumber === 1 || 
-              pageNumber === totalPages || 
+            const shouldShow =
+              pageNumber === 1 ||
+              pageNumber === totalPages ||
               (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1);
-            
+
             if (!shouldShow) {
-              if (pageNumber === currentPage - 2 || pageNumber === currentPage + 2) {
-                return <PaginationEllipsis key={pageNumber}>...</PaginationEllipsis>;
+              if (
+                pageNumber === currentPage - 2 ||
+                pageNumber === currentPage + 2
+              ) {
+                return (
+                  <PaginationEllipsis key={pageNumber}>...</PaginationEllipsis>
+                );
               }
               return null;
             }
-            
+
             return (
               <PaginationButton
                 key={pageNumber}
@@ -684,9 +624,11 @@ const PatientList = ({ userType = 'admin' }: PatientListProps) => {
               </PaginationButton>
             );
           })}
-          
+
           <PaginationButton
-            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            onClick={() =>
+              setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+            }
             disabled={currentPage === totalPages}
           >
             Next
@@ -705,7 +647,9 @@ const PatientList = ({ userType = 'admin' }: PatientListProps) => {
         <LoadingOverlay>
           <LoadingSpinner />
           <LoadingText>
-            {isDeletingPatient ? 'Deleting patient...' : 'Updating patient status...'}
+            {isDeletingPatient
+              ? "Deleting patient..."
+              : "Updating patient status..."}
           </LoadingText>
         </LoadingOverlay>
       )}
@@ -713,7 +657,7 @@ const PatientList = ({ userType = 'admin' }: PatientListProps) => {
   );
 };
 
-// Enhanced Styled Components (keeping all existing styles)
+// Styled Components (all existing styles remain the same)
 const Container = styled.div`
   background: white;
   border-radius: 12px;
@@ -729,7 +673,7 @@ const Header = styled.div`
   padding: 24px;
   background: linear-gradient(135deg, ${theme.colors.primary} 0%, #6366f1 100%);
   color: white;
-  
+
   @media (max-width: 768px) {
     flex-direction: column;
     gap: 16px;
@@ -763,7 +707,7 @@ const Subtitle = styled.p`
 const HeaderActions = styled.div`
   display: flex;
   gap: 12px;
-  
+
   @media (max-width: 768px) {
     justify-content: center;
   }
@@ -782,11 +726,11 @@ const RefreshButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.2);
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -806,7 +750,7 @@ const NewPatientButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     background: rgba(255, 255, 255, 0.25);
     transform: translateY(-1px);
@@ -830,7 +774,7 @@ const Controls = styled.div`
   align-items: center;
   flex-wrap: wrap;
   gap: 16px;
-  
+
   @media (max-width: 768px) {
     flex-direction: column;
     align-items: stretch;
@@ -842,7 +786,7 @@ const SearchAndFilter = styled.div`
   gap: 12px;
   flex: 1;
   min-width: 300px;
-  
+
   @media (max-width: 768px) {
     flex-direction: column;
     min-width: auto;
@@ -856,7 +800,7 @@ const SearchInput = styled.input`
   border-radius: 6px;
   font-size: 14px;
   transition: all 0.2s;
-  
+
   &:focus {
     outline: none;
     border-color: ${theme.colors.primary};
@@ -873,7 +817,7 @@ const FilterSelect = styled.select`
   cursor: pointer;
   min-width: 120px;
   transition: all 0.2s;
-  
+
   &:focus {
     outline: none;
     border-color: ${theme.colors.primary};
@@ -890,7 +834,7 @@ const SortSelect = styled.select`
   cursor: pointer;
   min-width: 140px;
   transition: all 0.2s;
-  
+
   &:focus {
     outline: none;
     border-color: ${theme.colors.primary};
@@ -934,7 +878,7 @@ const TableBody = styled.tbody``;
 const TableRow = styled.tr`
   border-bottom: 1px solid #e5e7eb;
   transition: background-color 0.2s;
-  
+
   &:hover {
     background: #f9fafb;
   }
@@ -1034,16 +978,18 @@ const GenderBadge = styled.span<{ gender: string }>`
   font-size: 11px;
   padding: 2px 6px;
   border-radius: 4px;
-  background: ${props => 
-    props.gender === 'male' ? '#dbeafe' : 
-    props.gender === 'female' ? '#fce7f3' : 
-    '#f3f4f6'
-  };
-  color: ${props => 
-    props.gender === 'male' ? '#1e40af' : 
-    props.gender === 'female' ? '#be185d' : 
-    '#374151'
-  };
+  background: ${(props) =>
+    props.gender === "male"
+      ? "#dbeafe"
+      : props.gender === "female"
+      ? "#fce7f3"
+      : "#f3f4f6"};
+  color: ${(props) =>
+    props.gender === "male"
+      ? "#1e40af"
+      : props.gender === "female"
+      ? "#be185d"
+      : "#374151"};
   text-transform: capitalize;
   width: fit-content;
 `;
@@ -1070,21 +1016,25 @@ const MedicalInfo = styled.div`
   min-width: 100px;
 `;
 
-const MedicalTag = styled.span<{ type: 'allergy' | 'condition' | 'medication' }>`
+const MedicalTag = styled.span<{
+  type: "allergy" | "condition" | "medication";
+}>`
   font-size: 10px;
   padding: 2px 4px;
   border-radius: 3px;
   width: fit-content;
-  background: ${props => 
-    props.type === 'allergy' ? '#fee2e2' :
-    props.type === 'condition' ? '#fef3c7' :
-    '#e0f2fe'
-  };
-  color: ${props => 
-    props.type === 'allergy' ? '#991b1b' :
-    props.type === 'condition' ? '#92400e' :
-    '#0369a1'
-  };
+  background: ${(props) =>
+    props.type === "allergy"
+      ? "#fee2e2"
+      : props.type === "condition"
+      ? "#fef3c7"
+      : "#e0f2fe"};
+  color: ${(props) =>
+    props.type === "allergy"
+      ? "#991b1b"
+      : props.type === "condition"
+      ? "#92400e"
+      : "#0369a1"};
 `;
 
 const RegistrationInfo = styled.div`
@@ -1118,18 +1068,18 @@ const StatusSelect = styled.select<{ active: boolean }>`
   border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
-  border: 1px solid ${props => props.active ? '#10b981' : '#ef4444'};
-  background: ${props => props.active ? '#d1fae5' : '#fee2e2'};
-  color: ${props => props.active ? '#065f46' : '#991b1b'};
+  border: 1px solid ${(props) => (props.active ? "#10b981" : "#ef4444")};
+  background: ${(props) => (props.active ? "#d1fae5" : "#fee2e2")};
+  color: ${(props) => (props.active ? "#065f46" : "#991b1b")};
   cursor: pointer;
   min-width: 80px;
   transition: all 0.2s;
-  
+
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
   }
-  
+
   &:hover:not(:disabled) {
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -1143,29 +1093,31 @@ const ActionButtons = styled.div`
   min-width: 120px;
 `;
 
-const ActionButton = styled.button<{ variant: 'view' | 'edit' | 'delete' }>`
+const ActionButton = styled.button<{ variant: "view" | "edit" | "delete" }>`
   padding: 6px 8px;
   border: none;
   border-radius: 4px;
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
-  background: ${props => 
-    props.variant === 'view' ? '#e0f2fe' :
-    props.variant === 'edit' ? '#f0f9ff' :
-    '#fee2e2'
-  };
-  color: ${props => 
-    props.variant === 'view' ? '#0369a1' :
-    props.variant === 'edit' ? '#0284c7' :
-    '#dc2626'
-  };
-  
+  background: ${(props) =>
+    props.variant === "view"
+      ? "#e0f2fe"
+      : props.variant === "edit"
+      ? "#f0f9ff"
+      : "#fee2e2"};
+  color: ${(props) =>
+    props.variant === "view"
+      ? "#0369a1"
+      : props.variant === "edit"
+      ? "#0284c7"
+      : "#dc2626"};
+
   &:hover:not(:disabled) {
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
-  
+
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
@@ -1185,20 +1137,21 @@ const Pagination = styled.div`
 
 const PaginationButton = styled.button<{ active?: boolean }>`
   padding: 8px 12px;
-  border: 1px solid ${props => props.active ? theme.colors.primary : '#d1d5db'};
-  background: ${props => props.active ? theme.colors.primary : 'white'};
-  color: ${props => props.active ? 'white' : '#374151'};
+  border: 1px solid
+    ${(props) => (props.active ? theme.colors.primary : "#d1d5db")};
+  background: ${(props) => (props.active ? theme.colors.primary : "white")};
+  color: ${(props) => (props.active ? "white" : "#374151")};
   border-radius: 6px;
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
   min-width: 40px;
-  
+
   &:hover:not(:disabled) {
-    background: ${props => props.active ? theme.colors.primary : '#f9fafb'};
+    background: ${(props) => (props.active ? theme.colors.primary : "#f9fafb")};
     border-color: ${theme.colors.primary};
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -1226,10 +1179,14 @@ const LoadingSpinner = styled.div`
   border-top: 3px solid ${theme.colors.primary};
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  
+
   @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
   }
 `;
 
@@ -1295,7 +1252,7 @@ const RetryButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     background: ${theme.colors.primary}dd;
     transform: translateY(-1px);
@@ -1345,4 +1302,4 @@ const NoDataText = styled.span`
   font-style: italic;
 `;
 
-export default PatientList;
+export default AdminPatientList;

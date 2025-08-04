@@ -26,6 +26,7 @@ import {
   AddConsultationPayload,
   PaginatedPatientsResponse,
   PatientConsultationHistoryResponse,
+  PublicDoctorListApiResponse,
 } from "./doctorTypes";
 import {
   GetAllDoctorAppointmentsResponse,
@@ -366,6 +367,13 @@ export const doctorApi = {
       {
         headers: getAuthHeader(),
       }
+    );
+    return response.data;
+  },
+    getPublicDoctorList: async (
+  ): Promise<PublicDoctorListApiResponse> => {
+    const response = await httpClient.get<PublicDoctorListApiResponse>(
+      API_ENDPOINTS.PUBLIC.GET_PUBLIC_DOCTOR_LIST,
     );
     return response.data;
   },

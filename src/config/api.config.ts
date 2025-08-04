@@ -82,4 +82,7 @@ export const API_ENDPOINTS = {
     GET_ALL_DOCTOR_PATIENT: `/api/doctors/doctor/patients`,
     GET_DOCTOR_PATIENT_HISTORY: (patientId: string) => `/api/doctors/doctor/patients/${patientId}/history`,
   },
+    PUBLIC: {
+    GET_PUBLIC_DOCTOR_LIST: `/api/doctors/list`,
+  },
 };

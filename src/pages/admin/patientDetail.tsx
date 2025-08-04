@@ -1580,19 +1580,19 @@ const ActivityTime = styled.div`
   color: #6b7280;
 `;
 
-const NotesTab = styled.div``;
+// const NotesTab = styled.div``;
 
-const NotesContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  padding: 40px 20px;
-  text-align: center;
-  background: #f9fafb;
-  border-radius: 8px;
-  border: 1px dashed #d1d5db;
-`;
+// const NotesContainer = styled.div`
+//   display: flex;
+//   flex-direction: column;
+//   align-items: center;
+//   gap: 16px;
+//   padding: 40px 20px;
+//   text-align: center;
+//   background: #f9fafb;
+//   border-radius: 8px;
+//   border: 1px dashed #d1d5db;
+// `;
 
 const NoDataText = styled.div`
   font-size: 14px;

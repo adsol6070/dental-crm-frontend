@@ -1,6 +1,7 @@
+// @ts-nocheck
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
-import { 
+import {
   FiSearch,
   FiFilter,
   FiUser,
@@ -25,9 +26,12 @@ import {
   FiFileText,
   FiUsers,
   FiTrendingUp,
-  FiMoreVertical
+  FiMoreVertical,
 } from "react-icons/fi";
-import {useDoctorPatients, useDoctorPatientConsultationHistory} from "@/hooks/useDoctor";
+import {
+  useDoctorPatients,
+  useDoctorPatientConsultationHistory,
+} from "@/hooks/useDoctor";
 
 // Types (keeping all your existing types)
 interface Patient {
@@ -35,13 +39,13 @@ interface Patient {
   patientId: string;
   name: string;
   age: number;
-  gender: 'male' | 'female' | 'other';
+  gender: "male" | "female" | "other";
   phone: string;
   email: string;
   profilePicture?: string | null;
   lastVisit?: string | null;
   registeredDate: string;
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
   address: string;
   needsFollowUp: boolean;
   totalVisits: number;
@@ -64,13 +68,13 @@ interface Visit {
   type: string;
   chiefComplaint: string;
   diagnosis: string;
-  status: 'completed' | 'cancelled' | 'no-show';
+  status: "completed" | "cancelled" | "no-show";
 }
 
 interface Condition {
   id: number;
   name: string;
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
   diagnosedDate: string;
   notes: string;
 }
@@ -80,7 +84,7 @@ interface Medication {
   name: string;
   dosage: string;
   frequency: string;
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
   startDate: string;
 }
 
@@ -93,10 +97,17 @@ interface Vital {
 }
 
 interface Filters {
-  gender: 'all' | 'male' | 'female' | 'other';
-  ageRange: 'all' | '0-18' | '19-35' | '36-55' | '56+';
-  lastVisit: 'all' | 'last_week' | 'last_month' | 'last_3_months' | 'last_6_months' | 'over_6_months' | 'never';
-  status: 'all' | 'active' | 'inactive';
+  gender: "all" | "male" | "female" | "other";
+  ageRange: "all" | "0-18" | "19-35" | "36-55" | "56+";
+  lastVisit:
+    | "all"
+    | "last_week"
+    | "last_month"
+    | "last_3_months"
+    | "last_6_months"
+    | "over_6_months"
+    | "never";
+  status: "all" | "active" | "inactive";
 }
 
 interface PatientStats {
@@ -106,11 +117,17 @@ interface PatientStats {
   needFollowUp: number;
 }
 
-type SortBy = 'name_asc' | 'name_desc' | 'last_visit_desc' | 'last_visit_asc' | 'age_asc' | 'age_desc';
-type ViewMode = 'cards' | 'table';
-type ActiveTab = 'overview' | 'history' | 'appointments' | 'documents';
-type PatientStatus = 'active' | 'inactive';
-type StatusBadgeStatus = 'success' | 'warning' | 'danger';
+type SortBy =
+  | "name_asc"
+  | "name_desc"
+  | "last_visit_desc"
+  | "last_visit_asc"
+  | "age_asc"
+  | "age_desc";
+type ViewMode = "cards" | "table";
+type ActiveTab = "overview" | "history" | "appointments" | "documents";
+type PatientStatus = "active" | "inactive";
+type StatusBadgeStatus = "success" | "warning" | "danger";
 
 // Compact, professional color palette
 const theme = {
@@ -134,14 +151,14 @@ const theme = {
       600: "#4b5563",
       700: "#374151",
       800: "#1f2937",
-      900: "#111827"
-    }
+      900: "#111827",
+    },
   },
   shadows: {
     xs: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
     sm: "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",
     md: "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
-    lg: "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)"
+    lg: "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
   },
   spacing: {
     xs: "0.25rem",
@@ -149,54 +166,69 @@ const theme = {
     md: "0.75rem",
     lg: "1rem",
     xl: "1.5rem",
-    "2xl": "2rem"
+    "2xl": "2rem",
   },
   borderRadius: {
     sm: "0.25rem",
     md: "0.375rem",
     lg: "0.5rem",
-    xl: "0.75rem"
-  }
+    xl: "0.75rem",
+  },
 };
 
 const PatientManagement: React.FC = () => {
   // API Hooks (keeping your existing hooks)
-  const { 
-    data: patientsData, 
-    isLoading: patientsLoading, 
-    error: patientsError, 
-    refetch: refetchPatients 
+  const {
+    data: patientsData,
+    isLoading: patientsLoading,
+    error: patientsError,
+    refetch: refetchPatients,
   } = useDoctorPatients();
 
   // State (keeping your existing state)
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [viewMode, setViewMode] = useState<ViewMode>('cards');
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
-  const [activeDetailTab, setActiveDetailTab] = useState<ActiveTab>('overview');
-  
-  const [filters, setFilters] = useState<Filters>({
-    gender: 'all',
-    ageRange: 'all',
-    lastVisit: 'all',
-    status: 'active'
-  });
-  
-  const [sortBy, setSortBy] = useState<SortBy>('name_asc');
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [viewMode, setViewMode] = useState<ViewMode>("cards");
+  const [showAdvancedFilters, setShowAdvancedFilters] =
+    useState<boolean>(false);
+  const [activeDetailTab, setActiveDetailTab] = useState<ActiveTab>("overview");
 
-  const { 
-    data: patientHistory, 
-    isLoading: historyLoading, 
-    refetch: refetchHistory 
-  } = useDoctorPatientConsultationHistory(selectedPatient?.id || '');
+  const [filters, setFilters] = useState<Filters>({
+    gender: "all",
+    ageRange: "all",
+    lastVisit: "all",
+    status: "active",
+  });
+
+  const [sortBy, setSortBy] = useState<SortBy>("name_asc");
+
+  const {
+    data,
+    isLoading: historyLoading,
+    refetch: refetchHistory,
+  } = useDoctorPatientConsultationHistory(selectedPatient?.id || "");
+  const patientHistory = data?.data?.history || [];
+  const mappedHistory = {
+  visits: patientHistory.map((item: any) => ({
+    id: item.id,
+    date: item.appointmentDateTime,
+    type: "Consultation",
+    chiefComplaint: item.symptoms.join(", "),
+    diagnosis: item.consultation?.diagnosis || "N/A",
+  })),
+};
+  console.log("patient history", patientHistory);
 
   // Data transformation (keeping your existing logic)
   const patients: Patient[] = useMemo(() => {
     let rawPatients: any[] = [];
-    
+
     if (Array.isArray(patientsData)) {
       rawPatients = patientsData;
-    } else if (patientsData?.data?.patients && Array.isArray(patientsData.data.patients)) {
+    } else if (
+      patientsData?.data?.patients &&
+      Array.isArray(patientsData.data.patients)
+    ) {
       rawPatients = patientsData.data.patients;
     } else if (patientsData?.data && Array.isArray(patientsData.data)) {
       rawPatients = patientsData.data;
@@ -210,7 +242,10 @@ const PatientManagement: React.FC = () => {
         const today = new Date();
         let age = today.getFullYear() - birth.getFullYear();
         const monthDiff = today.getMonth() - birth.getMonth();
-        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+        if (
+          monthDiff < 0 ||
+          (monthDiff === 0 && today.getDate() < birth.getDate())
+        ) {
           age--;
         }
         return age;
@@ -221,20 +256,32 @@ const PatientManagement: React.FC = () => {
 
     return rawPatients.map((rawPatient: any): Patient => {
       return {
-        id: rawPatient._id || rawPatient.id || '',
-        patientId: rawPatient.patientId || '',
-        name: `${rawPatient.personalInfo?.firstName || ''} ${rawPatient.personalInfo?.lastName || ''}`.trim() || 'Unknown Patient',
-        age: rawPatient.personalInfo?.dateOfBirth ? calculateAge(rawPatient.personalInfo.dateOfBirth) : 0,
-        gender: rawPatient.personalInfo?.gender || 'other',
-        phone: rawPatient.contactInfo?.phone || '',
-        email: rawPatient.contactInfo?.email || '',
+        id: rawPatient._id || rawPatient.id || "",
+        patientId: rawPatient.patientId || "",
+        name:
+          `${rawPatient.personalInfo?.firstName || ""} ${
+            rawPatient.personalInfo?.lastName || ""
+          }`.trim() || "Unknown Patient",
+        age: rawPatient.personalInfo?.dateOfBirth
+          ? calculateAge(rawPatient.personalInfo.dateOfBirth)
+          : 0,
+        gender: rawPatient.personalInfo?.gender || "other",
+        phone: rawPatient.contactInfo?.phone || "",
+        email: rawPatient.contactInfo?.email || "",
         profilePicture: rawPatient.personalInfo?.profilePicture || null,
         lastVisit: rawPatient.statistics?.lastVisit || null,
-        registeredDate: rawPatient.createdAt || rawPatient.registeredDate || new Date().toISOString(),
-        status: 'active',
-        address: rawPatient.contactInfo?.address ? 
-          `${rawPatient.contactInfo.address.street || ''} ${rawPatient.contactInfo.address.city || ''} ${rawPatient.contactInfo.address.state || ''} ${rawPatient.contactInfo.address.zipCode || ''}`.trim() 
-          : '',
+        registeredDate:
+          rawPatient.createdAt ||
+          rawPatient.registeredDate ||
+          new Date().toISOString(),
+        status: "active",
+        address: rawPatient.contactInfo?.address
+          ? `${rawPatient.contactInfo.address.street || ""} ${
+              rawPatient.contactInfo.address.city || ""
+            } ${rawPatient.contactInfo.address.state || ""} ${
+              rawPatient.contactInfo.address.zipCode || ""
+            }`.trim()
+          : "",
         needsFollowUp: false,
         totalVisits: rawPatient.statistics?.totalAppointments || 0,
         conditions: rawPatient.medicalHistory?.conditions || [],
@@ -262,45 +309,61 @@ const PatientManagement: React.FC = () => {
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filteredPatients = filteredPatients.filter(patient => {
-        const name = patient.name?.toLowerCase() || '';
-        const phone = patient.phone || '';
-        const email = patient.email?.toLowerCase() || '';
-        const patientId = patient.patientId?.toLowerCase() || '';
-        
-        return name.includes(query) ||
-               phone.includes(query) ||
-               email.includes(query) ||
-               patientId.includes(query);
+      filteredPatients = filteredPatients.filter((patient) => {
+        const name = patient.name?.toLowerCase() || "";
+        const phone = patient.phone || "";
+        const email = patient.email?.toLowerCase() || "";
+        const patientId = patient.patientId?.toLowerCase() || "";
+
+        return (
+          name.includes(query) ||
+          phone.includes(query) ||
+          email.includes(query) ||
+          patientId.includes(query)
+        );
       });
     }
 
-    filteredPatients = filteredPatients.filter(patient => {
+    filteredPatients = filteredPatients.filter((patient) => {
       if (!patient) return false;
-      
-      const matchesGender = filters.gender === 'all' || patient.gender === filters.gender;
-      const matchesAgeRange = filters.ageRange === 'all' || checkAgeRange(patient.age || 0, filters.ageRange);
-      const matchesLastVisit = filters.lastVisit === 'all' || checkLastVisit(patient.lastVisit, filters.lastVisit);
-      const matchesStatus = filters.status === 'all' || patient.status === filters.status;
-      
-      return matchesGender && matchesAgeRange && matchesLastVisit && matchesStatus;
+
+      const matchesGender =
+        filters.gender === "all" || patient.gender === filters.gender;
+      const matchesAgeRange =
+        filters.ageRange === "all" ||
+        checkAgeRange(patient.age || 0, filters.ageRange);
+      const matchesLastVisit =
+        filters.lastVisit === "all" ||
+        checkLastVisit(patient.lastVisit, filters.lastVisit);
+      const matchesStatus =
+        filters.status === "all" || patient.status === filters.status;
+
+      return (
+        matchesGender && matchesAgeRange && matchesLastVisit && matchesStatus
+      );
     });
 
     return filteredPatients.sort((a, b) => {
       if (!a || !b) return 0;
-      
+
       switch (sortBy) {
-        case 'name_asc':
-          return (a.name || '').localeCompare(b.name || '');
-        case 'name_desc':
-          return (b.name || '').localeCompare(a.name || '');
-        case 'last_visit_desc':
-          return new Date(b.lastVisit || 0).getTime() - new Date(a.lastVisit || 0).getTime();
-        case 'last_visit_asc':
-          return new Date(a.lastVisit || 0).getTime() - new Date(b.lastVisit || 0).getTime();
-        case 'age_asc':
+        case "name_asc":
+          return (a.name || "").localeCompare(b.name || "");
+        case "name_desc":
+          return (b.name || "").localeCompare(a.name || "");
+        case "last_visit_desc":
+          return (
+            new Date(b.lastVisit || 0).getTime() -
+            new Date(a.lastVisit || 0).getTime()
+          );
+        case "last_visit_asc":
+          return (
+            new Date(a.lastVisit || 0).getTime() -
+            new Date(b.lastVisit || 0).getTime()
+          );
+        case "age_asc":
           return (a.age || 0) - (b.age || 0);
-        case 'age_desc':
+        case "age_desc":
           return (b.age || 0) - (a.age || 0);
         default:
           return 0;
@@ -310,71 +373,92 @@ const PatientManagement: React.FC = () => {
 
   const checkAgeRange = (age: number, range: string): boolean => {
     const safeAge = age || 0;
-    
+
     switch (range) {
-      case '0-18': return safeAge <= 18;
-      case '19-35': return safeAge >= 19 && safeAge <= 35;
-      case '36-55': return safeAge >= 36 && safeAge <= 55;
-      case '56+': return safeAge >= 56;
-      default: return true;
+      case "0-18":
+        return safeAge <= 18;
+      case "19-35":
+        return safeAge >= 19 && safeAge <= 35;
+      case "36-55":
+        return safeAge >= 36 && safeAge <= 55;
+      case "56+":
+        return safeAge >= 56;
+      default:
+        return true;
     }
   };
 
-  const checkLastVisit = (lastVisit: string | null | undefined, range: string): boolean => {
-    if (!lastVisit || lastVisit === 'null' || lastVisit === 'undefined') {
-      return range === 'never';
+  const checkLastVisit = (
+    lastVisit: string | null | undefined,
+    range: string
+  ): boolean => {
+    if (!lastVisit || lastVisit === "null" || lastVisit === "undefined") {
+      return range === "never";
     }
-    
+
     try {
       const visitDate = new Date(lastVisit);
       if (isNaN(visitDate.getTime())) {
-        return range === 'never';
+        return range === "never";
       }
-      
+
       const now = new Date();
-      const daysDiff = Math.floor((now.getTime() - visitDate.getTime()) / (1000 * 60 * 60 * 24));
-      
+      const daysDiff = Math.floor(
+        (now.getTime() - visitDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
       switch (range) {
-        case 'last_week': return daysDiff <= 7;
-        case 'last_month': return daysDiff <= 30;
-        case 'last_3_months': return daysDiff <= 90;
-        case 'last_6_months': return daysDiff <= 180;
-        case 'over_6_months': return daysDiff > 180;
-        case 'never': return false;
-        default: return true;
+        case "last_week":
+          return daysDiff <= 7;
+        case "last_month":
+          return daysDiff <= 30;
+        case "last_3_months":
+          return daysDiff <= 90;
+        case "last_6_months":
+          return daysDiff <= 180;
+        case "over_6_months":
+          return daysDiff > 180;
+        case "never":
+          return false;
+        default:
+          return true;
       }
     } catch (error) {
-      return range === 'never';
+      return range === "never";
     }
   };
 
   const handlePatientSelect = (patient: Patient): void => {
     setSelectedPatient(patient);
-    setActiveDetailTab('overview');
+    setActiveDetailTab("overview");
   };
 
   const patientStats: PatientStats = useMemo(() => {
     const now = new Date();
     const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const lastMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    
+
     return {
       total: patients.length,
-      newThisWeek: patients.filter(p => {
+      newThisWeek: patients.filter((p) => {
         try {
           return p.registeredDate && new Date(p.registeredDate) > lastWeek;
         } catch {
           return false;
         }
       }).length,
-      seenThisMonth: patients.filter(p => {
+      seenThisMonth: patients.filter((p) => {
         try {
-          return p.lastVisit && p.lastVisit !== 'null' && new Date(p.lastVisit) > lastMonth;
+          return (
+            p.lastVisit &&
+            p.lastVisit !== "null" &&
+            new Date(p.lastVisit) > lastMonth
+          );
         } catch {
           return false;
         }
       }).length,
-      needFollowUp: patients.filter(p => p.needsFollowUp === true).length
+      needFollowUp: patients.filter((p) => p.needsFollowUp === true).length,
     };
   }, [patients]);
 
@@ -385,13 +469,13 @@ const PatientManagement: React.FC = () => {
     onClick: () => void;
   }> = ({ patient, isSelected, onClick }) => {
     if (!patient) return null;
-    
-    const safeName = patient.name || 'Unknown Patient';
-    const safePatientId = patient.patientId || 'N/A';
+
+    const safeName = patient.name || "Unknown Patient";
+    const safePatientId = patient.patientId || "N/A";
     const safeAge = patient.age || 0;
-    const safeGender = patient.gender || 'unknown';
-    const safePhone = patient.phone || 'N/A';
-    const safeEmail = patient.email || 'N/A';
+    const safeGender = patient.gender || "unknown";
+    const safePhone = patient.phone || "N/A";
+    const safeEmail = patient.email || "N/A";
     const safeConditions = patient.conditions || [];
 
     return (
@@ -399,11 +483,15 @@ const PatientManagement: React.FC = () => {
         <CardHeader>
           <PatientInfo>
             <PatientAvatar>
-              {safeName.split(' ').map(n => n[0]).join('').toUpperCase()}
-              <StatusDot status={patient.status || 'inactive'} />
+              {safeName
+                .split(" ")
+                .map((n) => n[0])
+                .join("")
+                .toUpperCase()}
+              <StatusDot status={patient.status || "inactive"} />
               {patient.needsFollowUp && <FollowUpDot />}
             </PatientAvatar>
-            
+
             <PatientDetails>
               <PatientName>{safeName}</PatientName>
               <PatientMeta>
@@ -445,7 +533,9 @@ const PatientManagement: React.FC = () => {
             <StatItem>
               <StatLabel>Last Visit</StatLabel>
               <StatValue>
-                {patient.lastVisit && patient.lastVisit !== 'null' ? formatDate(patient.lastVisit) : 'Never'}
+                {patient.lastVisit && patient.lastVisit !== "null"
+                  ? formatDate(patient.lastVisit)
+                  : "Never"}
               </StatValue>
             </StatItem>
             <StatItem>
@@ -461,7 +551,9 @@ const PatientManagement: React.FC = () => {
                   <ConditionChip key={index}>{condition}</ConditionChip>
                 ))}
                 {safeConditions.length > 2 && (
-                  <ConditionChip variant="more">+{safeConditions.length - 2}</ConditionChip>
+                  <ConditionChip variant="more">
+                    +{safeConditions.length - 2}
+                  </ConditionChip>
                 )}
               </ConditionsList>
             </ConditionsRow>
@@ -515,46 +607,62 @@ const PatientManagement: React.FC = () => {
         <DetailHeader>
           <PatientHeaderInfo>
             <PatientAvatarLarge>
-              {(selectedPatient.name || '').split(' ').map(n => n[0]).join('').toUpperCase()}
+              {(selectedPatient.name || "")
+                .split(" ")
+                .map((n) => n[0])
+                .join("")
+                .toUpperCase()}
             </PatientAvatarLarge>
-            
+
             <HeaderPatientInfo>
-              <DetailPatientName>{selectedPatient.name || 'Unknown Patient'}</DetailPatientName>
+              <DetailPatientName>
+                {selectedPatient.name || "Unknown Patient"}
+              </DetailPatientName>
               <DetailPatientMeta>
-                <span>#{selectedPatient.patientId || 'N/A'}</span>
+                <span>#{selectedPatient.patientId || "N/A"}</span>
                 <span>•</span>
                 <span>{selectedPatient.age || 0}y</span>
                 <span>•</span>
-                <span>{selectedPatient.gender || 'unknown'}</span>
+                <span>{selectedPatient.gender || "unknown"}</span>
               </DetailPatientMeta>
               <DetailContactInfo>
-                <span>{selectedPatient.phone || 'N/A'}</span>
+                <span>{selectedPatient.phone || "N/A"}</span>
                 <span>•</span>
-                <span>{selectedPatient.email || 'N/A'}</span>
+                <span>{selectedPatient.email || "N/A"}</span>
               </DetailContactInfo>
             </HeaderPatientInfo>
           </PatientHeaderInfo>
-          
+
           <HeaderActions>
-            <ActionButton variant="primary" size="sm">
+            {/* <ActionButton variant="primary" size="sm">
               <FiCalendar size={12} />
               <span>Schedule</span>
-            </ActionButton>
+            </ActionButton> */}
             <ActionButton variant="secondary" size="sm">
               <FiPhone size={12} />
               <span>Call</span>
             </ActionButton>
-            <ActionButton variant="ghost" size="sm" onClick={() => setSelectedPatient(null)}>
+            <ActionButton
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (selectedPatient?.phone) {
+                  window.open(`tel:${selectedPatient.phone}`);
+                } else {
+                  setSelectedPatient(null);
+                }
+              }}
+            >
               <FiX size={12} />
             </ActionButton>
           </HeaderActions>
         </DetailHeader>
 
         <TabsContainer>
-          {(['overview', 'history', 'appointments', 'documents'] as ActiveTab[]).map((tab) => (
-            <TabButton 
+          {(["overview", "history"] as ActiveTab[]).map((tab) => (
+            <TabButton
               key={tab}
-              active={activeDetailTab === tab} 
+              active={activeDetailTab === tab}
               onClick={() => setActiveDetailTab(tab)}
             >
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -563,16 +671,18 @@ const PatientManagement: React.FC = () => {
         </TabsContainer>
 
         <TabContentContainer>
-          {activeDetailTab === 'overview' && <PatientOverviewTab patient={selectedPatient} />}
-          {activeDetailTab === 'history' && (
-            <PatientHistoryTab 
-              history={patientHistory} 
+          {activeDetailTab === "overview" && (
+            <PatientOverviewTab patient={selectedPatient} />
+          )}
+          {activeDetailTab === "history" && (
+            <PatientHistoryTab
+              history={mappedHistory}
               loading={historyLoading}
               onRefresh={refetchHistory}
             />
           )}
-          {activeDetailTab === 'appointments' && <PatientAppointmentsTab patient={selectedPatient} />}
-          {activeDetailTab === 'documents' && <PatientDocumentsTab patient={selectedPatient} />}
+          {/* {activeDetailTab === 'appointments' && <PatientAppointmentsTab patient={selectedPatient} />}
+          {activeDetailTab === 'documents' && <PatientDocumentsTab patient={selectedPatient} />} */}
         </TabContentContainer>
       </DetailContainer>
     );
@@ -586,19 +696,23 @@ const PatientManagement: React.FC = () => {
         <InfoGrid>
           <InfoField>
             <FieldLabel>Phone</FieldLabel>
-            <FieldValue>{patient.phone || 'N/A'}</FieldValue>
+            <FieldValue>{patient.phone || "N/A"}</FieldValue>
           </InfoField>
           <InfoField>
             <FieldLabel>Email</FieldLabel>
-            <FieldValue>{patient.email || 'N/A'}</FieldValue>
+            <FieldValue>{patient.email || "N/A"}</FieldValue>
           </InfoField>
           <InfoField>
             <FieldLabel>Address</FieldLabel>
-            <FieldValue>{patient.address || 'N/A'}</FieldValue>
+            <FieldValue>{patient.address || "N/A"}</FieldValue>
           </InfoField>
           <InfoField>
             <FieldLabel>Registered</FieldLabel>
-            <FieldValue>{patient.registeredDate ? formatDate(patient.registeredDate) : 'N/A'}</FieldValue>
+            <FieldValue>
+              {patient.registeredDate
+                ? formatDate(patient.registeredDate)
+                : "N/A"}
+            </FieldValue>
           </InfoField>
         </InfoGrid>
       </InfoSection>
@@ -612,7 +726,11 @@ const PatientManagement: React.FC = () => {
           </InfoField>
           <InfoField>
             <FieldLabel>Last Visit</FieldLabel>
-            <FieldValue>{patient.lastVisit && patient.lastVisit !== 'null' ? formatDate(patient.lastVisit) : 'Never'}</FieldValue>
+            <FieldValue>
+              {patient.lastVisit && patient.lastVisit !== "null"
+                ? formatDate(patient.lastVisit)
+                : "Never"}
+            </FieldValue>
           </InfoField>
           <InfoField>
             <FieldLabel>Conditions</FieldLabel>
@@ -621,8 +739,10 @@ const PatientManagement: React.FC = () => {
           <InfoField>
             <FieldLabel>Follow-up</FieldLabel>
             <FieldValue>
-              <StatusChip status={patient.needsFollowUp ? 'warning' : 'success'}>
-                {patient.needsFollowUp ? 'Required' : 'None'}
+              <StatusChip
+                status={patient.needsFollowUp ? "warning" : "success"}
+              >
+                {patient.needsFollowUp ? "Required" : "None"}
               </StatusChip>
             </FieldValue>
           </InfoField>
@@ -666,8 +786,12 @@ const PatientManagement: React.FC = () => {
             <FiFileText size={32} />
           </EmptyIcon>
           <EmptyTitle>No History</EmptyTitle>
-          <EmptyMessage>No medical history available for this patient.</EmptyMessage>
-          <ActionButton variant="primary" size="sm">Add Consultation</ActionButton>
+          <EmptyMessage>
+            No medical history available for this patient.
+          </EmptyMessage>
+          <ActionButton variant="primary" size="sm">
+            Add Consultation
+          </ActionButton>
         </EmptyTabState>
       );
     }
@@ -681,11 +805,23 @@ const PatientManagement: React.FC = () => {
               <StatLabel>Visits</StatLabel>
             </CompactStatCard>
             <CompactStatCard>
-              <StatValue>{(history.conditions || []).filter(c => c.status === 'active').length}</StatValue>
+              <StatValue>
+                {
+                  (history.conditions || []).filter(
+                    (c) => c.status === "active"
+                  ).length
+                }
+              </StatValue>
               <StatLabel>Conditions</StatLabel>
             </CompactStatCard>
             <CompactStatCard>
-              <StatValue>{(history.medications || []).filter(m => m.status === 'active').length}</StatValue>
+              <StatValue>
+                {
+                  (history.medications || []).filter(
+                    (m) => m.status === "active"
+                  ).length
+                }
+              </StatValue>
               <StatLabel>Medications</StatLabel>
             </CompactStatCard>
             <CompactStatCard>
@@ -693,7 +829,7 @@ const PatientManagement: React.FC = () => {
               <StatLabel>Allergies</StatLabel>
             </CompactStatCard>
           </HistoryStatsGrid>
-          
+
           <ActionButton onClick={onRefresh} variant="ghost" size="sm">
             <FiRefreshCw size={12} />
           </ActionButton>
@@ -701,7 +837,7 @@ const PatientManagement: React.FC = () => {
 
         <HistoryTimeline>
           <SectionHeader>Recent Visits</SectionHeader>
-          {(history.visits || []).map(visit => (
+          {(history.visits || []).map((visit) => (
             <TimelineItem key={visit.id}>
               <TimelineMarker />
               <TimelineContent>
@@ -721,7 +857,9 @@ const PatientManagement: React.FC = () => {
     );
   };
 
-  const PatientAppointmentsTab: React.FC<{ patient: Patient }> = ({ patient }) => (
+  const PatientAppointmentsTab: React.FC<{ patient: Patient }> = ({
+    patient,
+  }) => (
     <TabContent>
       <TabHeader>
         <SectionHeader>Appointments</SectionHeader>
@@ -777,7 +915,9 @@ const PatientManagement: React.FC = () => {
           <FiAlertCircle size={32} />
         </ErrorIcon>
         <ErrorTitle>Error Loading Patients</ErrorTitle>
-        <ErrorMessage>Unable to load patient data. Please try again.</ErrorMessage>
+        <ErrorMessage>
+          Unable to load patient data. Please try again.
+        </ErrorMessage>
         <ActionButton onClick={refetchPatients} variant="primary" size="sm">
           <FiRefreshCw size={12} />
           <span>Retry</span>
@@ -806,12 +946,12 @@ const PatientManagement: React.FC = () => {
               </ActionButton>
             </HeaderActions>
           </HeaderTop>
-          
+
           <HeaderSubtitle>
             Manage your patients and their medical records
             <PatientCount>({patientStats.total} patients)</PatientCount>
           </HeaderSubtitle>
-          
+
           <CompactStatsGrid>
             <CompactStatCard>
               <StatIcon>
@@ -868,7 +1008,7 @@ const PatientManagement: React.FC = () => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
                 {searchQuery && (
-                  <ClearButton onClick={() => setSearchQuery('')}>
+                  <ClearButton onClick={() => setSearchQuery("")}>
                     <FiX size={12} />
                   </ClearButton>
                 )}
@@ -878,15 +1018,15 @@ const PatientManagement: React.FC = () => {
             <FiltersRow>
               <FilterGroup>
                 <ViewToggle>
-                  <ViewButton 
-                    active={viewMode === 'cards'} 
-                    onClick={() => setViewMode('cards')}
+                  <ViewButton
+                    active={viewMode === "cards"}
+                    onClick={() => setViewMode("cards")}
                   >
                     <FiGrid size={12} />
                   </ViewButton>
-                  <ViewButton 
-                    active={viewMode === 'table'} 
-                    onClick={() => setViewMode('table')}
+                  <ViewButton
+                    active={viewMode === "table"}
+                    onClick={() => setViewMode("table")}
                   >
                     <FiList size={12} />
                   </ViewButton>
@@ -904,10 +1044,16 @@ const PatientManagement: React.FC = () => {
                   <option value="age_desc">Oldest</option>
                 </CompactSelect>
 
-                <FilterButton onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}>
+                <FilterButton
+                  onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                >
                   <FiFilter size={12} />
                   <span>Filters</span>
-                  {showAdvancedFilters ? <FiChevronUp size={10} /> : <FiChevronDown size={10} />}
+                  {showAdvancedFilters ? (
+                    <FiChevronUp size={10} />
+                  ) : (
+                    <FiChevronDown size={10} />
+                  )}
                 </FilterButton>
               </FilterGroup>
 
@@ -922,7 +1068,12 @@ const PatientManagement: React.FC = () => {
                 <FiltersGrid>
                   <CompactSelect
                     value={filters.gender}
-                    onChange={(e) => setFilters(prev => ({ ...prev, gender: e.target.value as Filters['gender'] }))}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        gender: e.target.value as Filters["gender"],
+                      }))
+                    }
                   >
                     <option value="all">All Genders</option>
                     <option value="male">Male</option>
@@ -932,7 +1083,12 @@ const PatientManagement: React.FC = () => {
 
                   <CompactSelect
                     value={filters.ageRange}
-                    onChange={(e) => setFilters(prev => ({ ...prev, ageRange: e.target.value as Filters['ageRange'] }))}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        ageRange: e.target.value as Filters["ageRange"],
+                      }))
+                    }
                   >
                     <option value="all">All Ages</option>
                     <option value="0-18">0-18 years</option>
@@ -943,7 +1099,12 @@ const PatientManagement: React.FC = () => {
 
                   <CompactSelect
                     value={filters.lastVisit}
-                    onChange={(e) => setFilters(prev => ({ ...prev, lastVisit: e.target.value as Filters['lastVisit'] }))}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        lastVisit: e.target.value as Filters["lastVisit"],
+                      }))
+                    }
                   >
                     <option value="all">Any Time</option>
                     <option value="last_week">Last Week</option>
@@ -954,10 +1115,17 @@ const PatientManagement: React.FC = () => {
                     <option value="never">Never</option>
                   </CompactSelect>
 
-                  <ActionButton 
-                    variant="ghost" 
+                  <ActionButton
+                    variant="ghost"
                     size="xs"
-                    onClick={() => setFilters({ gender: 'all', ageRange: 'all', lastVisit: 'all', status: 'active' })}
+                    onClick={() =>
+                      setFilters({
+                        gender: "all",
+                        ageRange: "all",
+                        lastVisit: "all",
+                        status: "active",
+                      })
+                    }
                   >
                     Clear
                   </ActionButton>
@@ -973,109 +1141,130 @@ const PatientManagement: React.FC = () => {
                   <FiUsers size={32} />
                 </EmptyIcon>
                 <EmptyTitle>
-                  {searchQuery ? `No results for "${searchQuery}"` : "No patients found"}
+                  {searchQuery
+                    ? `No results for "${searchQuery}"`
+                    : "No patients found"}
                 </EmptyTitle>
                 <EmptyMessage>
-                  {searchQuery 
+                  {searchQuery
                     ? "Try adjusting your search or filters"
-                    : "No patients match current filters"
-                  }
+                    : "No patients match current filters"}
                 </EmptyMessage>
                 {searchQuery && (
-                  <ActionButton variant="secondary" size="sm" onClick={() => setSearchQuery('')}>
+                  <ActionButton
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setSearchQuery("")}
+                  >
                     Clear Search
                   </ActionButton>
                 )}
               </EmptyState>
+            ) : viewMode === "cards" ? (
+              <PatientsGrid>
+                {filteredAndSortedPatients.map((patient) => (
+                  <PatientCard
+                    key={patient.id}
+                    patient={patient}
+                    isSelected={selectedPatient?.id === patient.id}
+                    onClick={() => handlePatientSelect(patient)}
+                  />
+                ))}
+              </PatientsGrid>
             ) : (
-              viewMode === 'cards' ? (
-                <PatientsGrid>
-                  {filteredAndSortedPatients.map(patient => (
-                    <PatientCard
-                      key={patient.id}
-                      patient={patient}
-                      isSelected={selectedPatient?.id === patient.id}
-                      onClick={() => handlePatientSelect(patient)}
-                    />
-                  ))}
-                </PatientsGrid>
-              ) : (
-                <TableContainer>
-                  <CompactTable>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHeaderCell>Patient</TableHeaderCell>
-                        <TableHeaderCell>Age/Gender</TableHeaderCell>
-                        <TableHeaderCell>Contact</TableHeaderCell>
-                        <TableHeaderCell>Last Visit</TableHeaderCell>
-                        <TableHeaderCell>Visits</TableHeaderCell>
-                        <TableHeaderCell>Status</TableHeaderCell>
-                        <TableHeaderCell>Actions</TableHeaderCell>
+              <TableContainer>
+                <CompactTable>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHeaderCell>Patient</TableHeaderCell>
+                      <TableHeaderCell>Age/Gender</TableHeaderCell>
+                      <TableHeaderCell>Contact</TableHeaderCell>
+                      <TableHeaderCell>Last Visit</TableHeaderCell>
+                      <TableHeaderCell>Visits</TableHeaderCell>
+                      <TableHeaderCell>Status</TableHeaderCell>
+                      <TableHeaderCell>Actions</TableHeaderCell>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredAndSortedPatients.map((patient) => (
+                      <TableRow
+                        key={patient.id}
+                        selected={selectedPatient?.id === patient.id}
+                        onClick={() => handlePatientSelect(patient)}
+                      >
+                        <TableCell>
+                          <TablePatientInfo>
+                            <PatientAvatar small>
+                              {(patient.name || "")
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")
+                                .toUpperCase()}
+                            </PatientAvatar>
+                            <div>
+                              <TablePatientName>
+                                {patient.name || "Unknown Patient"}
+                              </TablePatientName>
+                              <TablePatientId>
+                                #{patient.patientId || "N/A"}
+                              </TablePatientId>
+                            </div>
+                          </TablePatientInfo>
+                        </TableCell>
+                        <TableCell>
+                          {patient.age || 0}y • {patient.gender || "unknown"}
+                        </TableCell>
+                        <TableCell>
+                          <div>{patient.phone || "N/A"}</div>
+                          <TableSecondaryText>
+                            {patient.email || "N/A"}
+                          </TableSecondaryText>
+                        </TableCell>
+                        <TableCell>
+                          {patient.lastVisit && patient.lastVisit !== "null"
+                            ? formatDate(patient.lastVisit)
+                            : "Never"}
+                        </TableCell>
+                        <TableCell>{patient.totalVisits || 0}</TableCell>
+                        <TableCell>
+                          <StatusChip
+                            status={
+                              patient.status === "active" ? "success" : "danger"
+                            }
+                          >
+                            {patient.status || "inactive"}
+                          </StatusChip>
+                          {patient.needsFollowUp && (
+                            <FollowUpChip>Follow-up</FollowUpChip>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <TableActions>
+                            <ActionButton
+                              size="xs"
+                              variant="primary"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                              }}
+                            >
+                              <FiCalendar size={10} />
+                            </ActionButton>
+                            <ActionButton
+                              size="xs"
+                              variant="secondary"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                              }}
+                            >
+                              <FiPhone size={10} />
+                            </ActionButton>
+                          </TableActions>
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredAndSortedPatients.map(patient => (
-                        <TableRow 
-                          key={patient.id}
-                          selected={selectedPatient?.id === patient.id}
-                          onClick={() => handlePatientSelect(patient)}
-                        >
-                          <TableCell>
-                            <TablePatientInfo>
-                              <PatientAvatar small>
-                                {(patient.name || '').split(' ').map(n => n[0]).join('').toUpperCase()}
-                              </PatientAvatar>
-                              <div>
-                                <TablePatientName>{patient.name || 'Unknown Patient'}</TablePatientName>
-                                <TablePatientId>#{patient.patientId || 'N/A'}</TablePatientId>
-                              </div>
-                            </TablePatientInfo>
-                          </TableCell>
-                          <TableCell>{patient.age || 0}y • {patient.gender || 'unknown'}</TableCell>
-                          <TableCell>
-                            <div>{patient.phone || 'N/A'}</div>
-                            <TableSecondaryText>{patient.email || 'N/A'}</TableSecondaryText>
-                          </TableCell>
-                          <TableCell>
-                            {patient.lastVisit && patient.lastVisit !== 'null' ? formatDate(patient.lastVisit) : 'Never'}
-                          </TableCell>
-                          <TableCell>{patient.totalVisits || 0}</TableCell>
-                          <TableCell>
-                            <StatusChip status={patient.status === 'active' ? 'success' : 'danger'}>
-                              {patient.status || 'inactive'}
-                            </StatusChip>
-                            {patient.needsFollowUp && (
-                              <FollowUpChip>Follow-up</FollowUpChip>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <TableActions>
-                              <ActionButton 
-                                size="xs" 
-                                variant="primary"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                }}
-                              >
-                                <FiCalendar size={10} />
-                              </ActionButton>
-                              <ActionButton 
-                                size="xs" 
-                                variant="secondary"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                }}
-                              >
-                                <FiPhone size={10} />
-                              </ActionButton>
-                            </TableActions>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </CompactTable>
-                </TableContainer>
-              )
+                    ))}
+                  </TableBody>
+                </CompactTable>
+              </TableContainer>
             )}
           </ListContent>
         </PatientListSection>
@@ -1089,7 +1278,10 @@ const PatientManagement: React.FC = () => {
 };
 
 // Utility functions
-function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T {
+function debounce<T extends (...args: any[]) => void>(
+  func: T,
+  wait: number
+): T {
   let timeout: NodeJS.Timeout;
   return ((...args: Parameters<T>) => {
     const later = () => {
@@ -1103,13 +1295,13 @@ function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T 
 
 const formatDate = (dateString: string): string => {
   try {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
+    return new Date(dateString).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     });
   } catch {
-    return 'Invalid Date';
+    return "Invalid Date";
   }
 };
 
@@ -1119,7 +1311,7 @@ const AppContainer = styled.div`
   flex-direction: column;
   height: 100vh;
   background: ${theme.colors.gray[25]};
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 13px;
 `;
 
@@ -1168,11 +1360,11 @@ const CompactStatsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: ${theme.spacing.md};
-  
+
   @media (max-width: 1024px) {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
   }
@@ -1230,11 +1422,11 @@ const MainLayout = styled.div`
   display: grid;
   grid-template-columns: 1fr 320px;
   overflow: hidden;
-  
+
   @media (max-width: 1200px) {
     grid-template-columns: 1fr 300px;
   }
-  
+
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
   }
@@ -1313,7 +1505,7 @@ const FiltersRow = styled.div`
   justify-content: space-between;
   align-items: center;
   gap: ${theme.spacing.sm};
-  
+
   @media (max-width: 768px) {
     flex-direction: column;
     align-items: stretch;
@@ -1324,7 +1516,7 @@ const FilterGroup = styled.div`
   display: flex;
   align-items: center;
   gap: ${theme.spacing.sm};
-  
+
   @media (max-width: 768px) {
     justify-content: space-between;
   }
@@ -1341,13 +1533,16 @@ const ViewToggle = styled.div`
 const ViewButton = styled.button<{ active: boolean }>`
   padding: ${theme.spacing.xs} ${theme.spacing.sm};
   border: none;
-  background: ${props => props.active ? theme.colors.primary : 'transparent'};
-  color: ${props => props.active ? theme.colors.white : theme.colors.gray[600]};
+  background: ${(props) =>
+    props.active ? theme.colors.primary : "transparent"};
+  color: ${(props) =>
+    props.active ? theme.colors.white : theme.colors.gray[600]};
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
-    background: ${props => props.active ? theme.colors.primary : theme.colors.gray[50]};
+    background: ${(props) =>
+      props.active ? theme.colors.primary : theme.colors.gray[50]};
   }
 `;
 
@@ -1394,7 +1589,7 @@ const ResultsCount = styled.div`
   font-size: 11px;
   color: ${theme.colors.gray[600]};
   white-space: nowrap;
-  
+
   @media (max-width: 768px) {
     text-align: center;
     margin-top: ${theme.spacing.xs};
@@ -1411,7 +1606,7 @@ const FiltersGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(3, 1fr) auto;
   gap: ${theme.spacing.sm};
-  
+
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
   }
@@ -1427,7 +1622,7 @@ const PatientsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: ${theme.spacing.md};
-  
+
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
   }
@@ -1435,7 +1630,9 @@ const PatientsGrid = styled.div`
 
 const CompactPatientCard = styled.div<{ selected: boolean }>`
   background: ${theme.colors.white};
-  border: 1px solid ${props => props.selected ? theme.colors.primary : theme.colors.gray[200]};
+  border: 1px solid
+    ${(props) =>
+      props.selected ? theme.colors.primary : theme.colors.gray[200]};
   border-radius: ${theme.borderRadius.lg};
   padding: ${theme.spacing.md};
   cursor: pointer;
@@ -1443,7 +1640,8 @@ const CompactPatientCard = styled.div<{ selected: boolean }>`
   box-shadow: ${theme.shadows.xs};
 
   &:hover {
-    border-color: ${props => props.selected ? theme.colors.primary : theme.colors.gray[300]};
+    border-color: ${(props) =>
+      props.selected ? theme.colors.primary : theme.colors.gray[300]};
     box-shadow: ${theme.shadows.sm};
   }
 `;
@@ -1465,14 +1663,18 @@ const PatientInfo = styled.div`
 
 const PatientAvatar = styled.div<{ small?: boolean }>`
   position: relative;
-  width: ${props => props.small ? '24px' : '36px'};
-  height: ${props => props.small ? '24px' : '36px'};
+  width: ${(props) => (props.small ? "24px" : "36px")};
+  height: ${(props) => (props.small ? "24px" : "36px")};
   border-radius: 50%;
   overflow: hidden;
-  background: linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.primaryLight});
+  background: linear-gradient(
+    135deg,
+    ${theme.colors.primary},
+    ${theme.colors.primaryLight}
+  );
   color: ${theme.colors.white};
   font-weight: 600;
-  font-size: ${props => props.small ? '9px' : '12px'};
+  font-size: ${(props) => (props.small ? "9px" : "12px")};
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -1486,7 +1688,8 @@ const StatusDot = styled.div<{ status: PatientStatus }>`
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: ${props => props.status === 'active' ? theme.colors.success : theme.colors.gray[400]};
+  background: ${(props) =>
+    props.status === "active" ? theme.colors.success : theme.colors.gray[400]};
   border: 2px solid ${theme.colors.white};
 `;
 
@@ -1548,7 +1751,7 @@ const ContactItem = styled.div`
   align-items: center;
   gap: ${theme.spacing.xs};
   margin-bottom: 2px;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -1582,10 +1785,14 @@ const ConditionsList = styled.div`
   gap: ${theme.spacing.xs};
 `;
 
-const ConditionChip = styled.span<{ variant?: 'more' }>`
+const ConditionChip = styled.span<{ variant?: "more" }>`
   padding: 2px ${theme.spacing.xs};
-  background: ${props => props.variant === 'more' ? theme.colors.gray[200] : `${theme.colors.primary}10`};
-  color: ${props => props.variant === 'more' ? theme.colors.gray[600] : theme.colors.primary};
+  background: ${(props) =>
+    props.variant === "more"
+      ? theme.colors.gray[200]
+      : `${theme.colors.primary}10`};
+  color: ${(props) =>
+    props.variant === "more" ? theme.colors.gray[600] : theme.colors.primary};
   border-radius: ${theme.borderRadius.sm};
   font-size: 9px;
   font-weight: 500;
@@ -1596,92 +1803,124 @@ const CardFooter = styled.div`
   gap: ${theme.spacing.xs};
 `;
 
-const ActionButton = styled.button<{ 
-  variant?: 'primary' | 'secondary' | 'ghost';
-  size?: 'xs' | 'sm' | 'md';
+const ActionButton = styled.button<{
+  variant?: "primary" | "secondary" | "ghost";
+  size?: "xs" | "sm" | "md";
 }>`
   display: flex;
   align-items: center;
   justify-content: center;
   gap: ${theme.spacing.xs};
-  padding: ${props => {
+  padding: ${(props) => {
     switch (props.size) {
-      case 'xs': return `${theme.spacing.xs} ${theme.spacing.sm}`;
-      case 'sm': return `${theme.spacing.sm} ${theme.spacing.md}`;
-      default: return `${theme.spacing.md} ${theme.spacing.lg}`;
+      case "xs":
+        return `${theme.spacing.xs} ${theme.spacing.sm}`;
+      case "sm":
+        return `${theme.spacing.sm} ${theme.spacing.md}`;
+      default:
+        return `${theme.spacing.md} ${theme.spacing.lg}`;
     }
   }};
-  border: 1px solid ${props => {
+  border: 1px solid
+    ${(props) => {
+      switch (props.variant) {
+        case "primary":
+          return theme.colors.primary;
+        case "secondary":
+          return theme.colors.gray[300];
+        case "ghost":
+          return "transparent";
+        default:
+          return theme.colors.gray[300];
+      }
+    }};
+  background: ${(props) => {
     switch (props.variant) {
-      case 'primary': return theme.colors.primary;
-      case 'secondary': return theme.colors.gray[300];
-      case 'ghost': return 'transparent';
-      default: return theme.colors.gray[300];
+      case "primary":
+        return theme.colors.primary;
+      case "secondary":
+        return theme.colors.white;
+      case "ghost":
+        return "transparent";
+      default:
+        return theme.colors.white;
     }
   }};
-  background: ${props => {
+  color: ${(props) => {
     switch (props.variant) {
-      case 'primary': return theme.colors.primary;
-      case 'secondary': return theme.colors.white;
-      case 'ghost': return 'transparent';
-      default: return theme.colors.white;
-    }
-  }};
-  color: ${props => {
-    switch (props.variant) {
-      case 'primary': return theme.colors.white;
-      case 'secondary': return theme.colors.gray[700];
-      case 'ghost': return theme.colors.gray[600];
-      default: return theme.colors.gray[700];
+      case "primary":
+        return theme.colors.white;
+      case "secondary":
+        return theme.colors.gray[700];
+      case "ghost":
+        return theme.colors.gray[600];
+      default:
+        return theme.colors.gray[700];
     }
   }};
   border-radius: ${theme.borderRadius.md};
-  font-size: ${props => {
+  font-size: ${(props) => {
     switch (props.size) {
-      case 'xs': return '10px';
-      case 'sm': return '11px';
-      default: return '12px';
+      case "xs":
+        return "10px";
+      case "sm":
+        return "11px";
+      default:
+        return "12px";
     }
   }};
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
   flex: 1;
-  min-height: ${props => {
+  min-height: ${(props) => {
     switch (props.size) {
-      case 'xs': return '24px';
-      case 'sm': return '28px';
-      default: return '32px';
+      case "xs":
+        return "24px";
+      case "sm":
+        return "28px";
+      default:
+        return "32px";
     }
   }};
   white-space: nowrap;
 
   &:hover {
-    background: ${props => {
+    background: ${(props) => {
       switch (props.variant) {
-        case 'primary': return theme.colors.primaryDark;
-        case 'secondary': return theme.colors.gray[50];
-        case 'ghost': return theme.colors.gray[100];
-        default: return theme.colors.gray[50];
+        case "primary":
+          return theme.colors.primaryDark;
+        case "secondary":
+          return theme.colors.gray[50];
+        case "ghost":
+          return theme.colors.gray[100];
+        default:
+          return theme.colors.gray[50];
       }
     }};
-    border-color: ${props => {
+    border-color: ${(props) => {
       switch (props.variant) {
-        case 'primary': return theme.colors.primaryDark;
-        case 'ghost': return theme.colors.gray[300];
-        default: return theme.colors.gray[400];
+        case "primary":
+          return theme.colors.primaryDark;
+        case "ghost":
+          return theme.colors.gray[300];
+        default:
+          return theme.colors.gray[400];
       }
     }};
   }
 
   &:focus {
     outline: none;
-    box-shadow: 0 0 0 2px ${props => {
-      switch (props.variant) {
-        case 'primary': return `${theme.colors.primary}25`;
-        default: return `${theme.colors.gray[400]}25`;
-      }
-    }};
+    box-shadow: 0 0 0 2px
+      ${(props) => {
+        switch (props.variant) {
+          case "primary":
+            return `${theme.colors.primary}25`;
+          default:
+            return `${theme.colors.gray[400]}25`;
+        }
+      }};
   }
 `;
 
@@ -1704,13 +1943,15 @@ const TableHeader = styled.thead`
 `;
 
 const TableRow = styled.tr<{ selected?: boolean }>`
-  background: ${props => props.selected ? `${theme.colors.primary}08` : theme.colors.white};
+  background: ${(props) =>
+    props.selected ? `${theme.colors.primary}08` : theme.colors.white};
   border-bottom: 1px solid ${theme.colors.gray[200]};
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
-    background: ${props => props.selected ? `${theme.colors.primary}15` : theme.colors.gray[25]};
+    background: ${(props) =>
+      props.selected ? `${theme.colors.primary}15` : theme.colors.gray[25]};
   }
 
   &:last-child {
@@ -1775,20 +2016,28 @@ const StatusChip = styled.span<{ status: StatusBadgeStatus }>`
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.3px;
-  background: ${props => {
+  background: ${(props) => {
     switch (props.status) {
-      case 'success': return `${theme.colors.success}15`;
-      case 'warning': return `${theme.colors.warning}15`;
-      case 'danger': return `${theme.colors.danger}15`;
-      default: return theme.colors.gray[100];
+      case "success":
+        return `${theme.colors.success}15`;
+      case "warning":
+        return `${theme.colors.warning}15`;
+      case "danger":
+        return `${theme.colors.danger}15`;
+      default:
+        return theme.colors.gray[100];
     }
   }};
-  color: ${props => {
+  color: ${(props) => {
     switch (props.status) {
-      case 'success': return theme.colors.success;
-      case 'warning': return theme.colors.warning;
-      case 'danger': return theme.colors.danger;
-      default: return theme.colors.gray[700];
+      case "success":
+        return theme.colors.success;
+      case "warning":
+        return theme.colors.warning;
+      case "danger":
+        return theme.colors.danger;
+      default:
+        return theme.colors.gray[700];
     }
   }};
 `;
@@ -1810,7 +2059,7 @@ const FollowUpChip = styled.span`
 const DetailSection = styled.div`
   background: ${theme.colors.white};
   overflow: hidden;
-  
+
   @media (max-width: 768px) {
     display: none;
   }
@@ -1873,7 +2122,11 @@ const PatientAvatarLarge = styled.div`
   height: 48px;
   border-radius: 50%;
   overflow: hidden;
-  background: linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.primaryLight});
+  background: linear-gradient(
+    135deg,
+    ${theme.colors.primary},
+    ${theme.colors.primaryLight}
+  );
   color: ${theme.colors.white};
   font-weight: 600;
   font-size: 18px;
@@ -1899,7 +2152,7 @@ const DetailPatientMeta = styled.div`
   font-size: 11px;
   color: ${theme.colors.gray[600]};
   margin-bottom: ${theme.spacing.xs};
-  
+
   span:first-child {
     color: ${theme.colors.primary};
     font-weight: 600;
@@ -1928,19 +2181,23 @@ const TabsContainer = styled.div`
 const TabButton = styled.button<{ active: boolean }>`
   padding: ${theme.spacing.sm} ${theme.spacing.md};
   border: none;
-  background: ${props => props.active ? theme.colors.white : 'transparent'};
-  color: ${props => props.active ? theme.colors.primary : theme.colors.gray[600]};
+  background: ${(props) => (props.active ? theme.colors.white : "transparent")};
+  color: ${(props) =>
+    props.active ? theme.colors.primary : theme.colors.gray[600]};
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  border-bottom: 2px solid ${props => props.active ? theme.colors.primary : 'transparent'};
+  border-bottom: 2px solid
+    ${(props) => (props.active ? theme.colors.primary : "transparent")};
   transition: all 0.2s ease;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 
   &:hover {
-    background: ${props => props.active ? theme.colors.white : theme.colors.gray[100]};
-    color: ${props => props.active ? theme.colors.primary : theme.colors.gray[700]};
+    background: ${(props) =>
+      props.active ? theme.colors.white : theme.colors.gray[100]};
+    color: ${(props) =>
+      props.active ? theme.colors.primary : theme.colors.gray[700]};
   }
 `;
 
@@ -1982,7 +2239,7 @@ const InfoGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: ${theme.spacing.md};
-  
+
   @media (max-width: 1024px) {
     grid-template-columns: 1fr;
   }
@@ -2041,7 +2298,7 @@ const HistoryStatsGrid = styled.div`
   grid-template-columns: repeat(4, 1fr);
   gap: ${theme.spacing.sm};
   flex: 1;
-  
+
   @media (max-width: 1024px) {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -2051,9 +2308,9 @@ const HistoryTimeline = styled.div``;
 
 const Timeline = styled.div`
   position: relative;
-  
+
   &::before {
-    content: '';
+    content: "";
     position: absolute;
     left: 8px;
     top: ${theme.spacing.lg};
@@ -2068,7 +2325,7 @@ const TimelineItem = styled.div`
   display: flex;
   gap: ${theme.spacing.md};
   margin-bottom: ${theme.spacing.lg};
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -2116,7 +2373,7 @@ const TimelineDetail = styled.div`
   color: ${theme.colors.gray[700]};
   line-height: 1.4;
   margin-bottom: ${theme.spacing.xs};
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -2141,19 +2398,25 @@ const LoadingState = styled.div`
   gap: ${theme.spacing.md};
 `;
 
-const LoadingSpinner = styled.div<{ size?: 'sm' | 'md' | 'lg' }>`
-  width: ${props => {
+const LoadingSpinner = styled.div<{ size?: "sm" | "md" | "lg" }>`
+  width: ${(props) => {
     switch (props.size) {
-      case 'sm': return '16px';
-      case 'lg': return '32px';
-      default: return '24px';
+      case "sm":
+        return "16px";
+      case "lg":
+        return "32px";
+      default:
+        return "24px";
     }
   }};
-  height: ${props => {
+  height: ${(props) => {
     switch (props.size) {
-      case 'sm': return '16px';
-      case 'lg': return '32px';
-      default: return '24px';
+      case "sm":
+        return "16px";
+      case "lg":
+        return "32px";
+      default:
+        return "24px";
     }
   }};
   border: 2px solid ${theme.colors.gray[200]};
@@ -2162,8 +2425,12 @@ const LoadingSpinner = styled.div<{ size?: 'sm' | 'md' | 'lg' }>`
   animation: spin 1s linear infinite;
 
   @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
   }
 `;
 

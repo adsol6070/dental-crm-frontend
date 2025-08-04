@@ -343,7 +343,7 @@ const DentalDashboard = () => {
           </RecentPatientsSection>
 
           {/* Quick Actions */}
-          <QuickActionsSection>
+          {/* <QuickActionsSection>
             <SectionTitle>Quick Actions</SectionTitle>
             <ActionsList>
               {dentalData.quickActions.map((action, index) => (
@@ -356,7 +356,7 @@ const DentalDashboard = () => {
                 </ActionItem>
               ))}
             </ActionsList>
-          </QuickActionsSection>
+          </QuickActionsSection> */}
         </Sidebar>
       </MainContent>
     </DashboardContainer>

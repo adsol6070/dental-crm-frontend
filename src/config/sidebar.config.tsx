@@ -2,22 +2,22 @@ import {
   FiHome,
   FiCalendar,
   FiUsers,
-  FiUser,
+  // FiUser,
   FiClock,
   FiUserPlus,
   FiUserCheck,
-  FiSettings,
-  FiTrello,
-  FiBell,
-  FiStar,
+  // FiSettings,
+  // FiTrello,
+  // FiBell,
+  // FiStar,
   FiXCircle,
   FiDollarSign,
-  FiActivity,
+  // FiActivity,
   FiBarChart,
-  FiShield,
-  FiDatabase,
+  // FiShield,
+  // FiDatabase,
 } from "react-icons/fi";
-import { FaUserMd, FaPrescriptionBottleAlt, FaHeartbeat } from "react-icons/fa";
+import { FaUserMd, FaHeartbeat } from "react-icons/fa";
 import { ROUTES } from "@/config/route-paths.config";
 import { useAuth, UserType } from "@/context/AuthContext";
 
@@ -38,16 +38,16 @@ const patientMenuItems = [
     icon: <FaHeartbeat size="18" />,
     path: ROUTES.PATIENT.MEDICAL_HISTORY,
   },
-  {
-    label: "Prescriptions",
-    icon: <FaPrescriptionBottleAlt size="18" />,
-    path: ROUTES.PATIENT.PRESCRIPTIONS,
-  },
-  {
-    label: "Billing",
-    icon: <FiDollarSign size="18" />,
-    path: ROUTES.PATIENT.BILLING,
-  },
+  // {
+  //   label: "Prescriptions",
+  //   icon: <FaPrescriptionBottleAlt size="18" />,
+  //   path: ROUTES.PATIENT.PRESCRIPTIONS,
+  // },
+  // {
+  //   label: "Billing",
+  //   icon: <FiDollarSign size="18" />,
+  //   path: ROUTES.PATIENT.BILLING,
+  // },
 ];
 
 // Doctor-specific menu items
@@ -92,11 +92,11 @@ const doctorMenuItems = [
     icon: <FiDollarSign size="18" />,
     path: ROUTES.DOCTOR.FEES, // /doctor/fees
   },
-  {
-    label: "Reviews & Ratings",
-    icon: <FiStar size="18" />,
-    path: ROUTES.DOCTOR.REVIEWS, // /doctor/reviews
-  },
+  // {
+  //   label: "Reviews & Ratings",
+  //   icon: <FiStar size="18" />,
+  //   path: ROUTES.DOCTOR.REVIEWS, // /doctor/reviews
+  // },
   // {
   //   label: "Notifications",
   //   icon: <FiBell size="18" />,
@@ -132,6 +132,11 @@ const adminMenuItems = [
     label: "Dashboard",
     icon: <FiHome size="18" />,
     path: ROUTES.ADMIN.DASHBOARD,
+  },
+  {
+    label: "User Management",
+    icon: <FiUsers size="16" />,
+    path: ROUTES.ADMIN.USER_MANAGEMENT,
   },
   {
     label: "Patient Management",
@@ -186,16 +191,11 @@ const adminMenuItems = [
       // },
     ],
   },
-  {
-    label: "Reports & Analytics",
-    icon: <FiBarChart size="18" />,
-    path: ROUTES.ADMIN.REPORTS,
-  },
-  {
-    label: "User Management",
-    icon: <FiUsers size="16" />,
-    path: ROUTES.ADMIN.USER_MANAGEMENT,
-  },
+  // {
+  //   label: "Reports & Analytics",
+  //   icon: <FiBarChart size="18" />,
+  //   path: ROUTES.ADMIN.REPORTS,
+  // },
   // {
   //   label: "System Management",
   //   icon: <FiShield size="18" />,

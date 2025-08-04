@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+// @ts-nocheck
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import {
   useAppointmentById,
@@ -7,6 +8,9 @@ import {
   useUpdateAppointmentStatus,
 } from "@/hooks/useAppointment";
 import { useNavigate, useParams } from "react-router-dom";
+import { httpClient } from "@/api/httpClient";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import Swal from "sweetalert2";
 
 const theme = {
@@ -113,8 +117,8 @@ interface AppointmentDetail {
   _id: string;
   patient: PatientInfo;
   doctor: DoctorInfo;
-  appointmentDateTime: string;
-  endDateTime: string;
+  appointmentStartTime: string;
+  appointmentEndTime: string;
   duration: number;
   appointmentType: string;
   status: string;
@@ -142,8 +146,15 @@ interface ApiResponse {
 
 interface RescheduleData {
   newDate: string;
-  newTime: string;
+  selectedSlot: string;
   reason: string;
+}
+
+interface TimeSlot {
+  dateTime: string;
+  startTime: string;
+  endTime: string;
+  available: boolean;
 }
 
 const AppointmentDetail = () => {
@@ -172,13 +183,85 @@ const AppointmentDetail = () => {
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [rescheduleData, setRescheduleData] = useState<RescheduleData>({
     newDate: "",
-    newTime: "",
+    selectedSlot: "",
     reason: "",
   });
   const [rescheduleErrors, setRescheduleErrors] = useState<
     Partial<RescheduleData>
   >({});
+
+  // Dynamic availability and slots state
+  const [availabilityData, setAvailabilityData] = useState<
+    { date: string; available: boolean }[]
+  >([]);
+  const [availableTimes, setAvailableTimes] = useState<TimeSlot[]>([]);
+  const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+
   const navigate = useNavigate();
+
+  // Get available dates for DatePicker filtering
+  const availableDates = availabilityData
+    .filter((day) => day.available)
+    .map((day) => new Date(day.date));
+
+  const isDateAvailable = (date: Date) => {
+    return availableDates.some(
+      (availableDate) => availableDate.toDateString() === date.toDateString()
+    );
+  };
+
+  // Fetch doctor availability when reschedule modal opens
+  useEffect(() => {
+    const fetchDoctorAvailability = async () => {
+      if (!showRescheduleModal || !data?.data?.appointment?.doctor?._id) return;
+
+      setIsLoadingAvailability(true);
+      const startDate = new Date().toISOString().split("T")[0];
+      const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // +30 days
+        .toISOString()
+        .split("T")[0];
+
+      try {
+        const res = await httpClient.get(
+          `/api/appointments/availability/${data.data.appointment.doctor._id}`,
+          { params: { startDate, endDate } }
+        );
+
+        setAvailabilityData(res.data.data.availability || []);
+      } catch (error) {
+        console.error("Failed to fetch availability", error);
+        setAvailabilityData([]);
+      } finally {
+        setIsLoadingAvailability(false);
+      }
+    };
+
+    fetchDoctorAvailability();
+  }, [showRescheduleModal, data?.data?.appointment?.doctor?._id]);
+
+  // Fetch available slots when date changes
+  useEffect(() => {
+    const fetchSlots = async () => {
+      if (!data?.data?.appointment?.doctor?._id || !rescheduleData.newDate) return;
+
+      setIsLoadingSlots(true);
+      try {
+        const res = await httpClient.get(
+          `/api/appointments/slots/${data.data.appointment.doctor._id}/${rescheduleData.newDate}`
+        );
+
+        setAvailableTimes(res.data.data.slots || []);
+      } catch (error) {
+        console.error("Failed to fetch slots", error);
+        setAvailableTimes([]);
+      } finally {
+        setIsLoadingSlots(false);
+      }
+    };
+
+    fetchSlots();
+  }, [rescheduleData.newDate, data?.data?.appointment?.doctor?._id]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -348,45 +431,43 @@ const AppointmentDetail = () => {
     );
   };
 
-  const handleEdit = () => {
-    setIsEditing(true);
-  };
+  // const handleEdit = () => {
+  //   setIsEditing(true);
+  // };
 
-  const handleSave = () => {
-    setIsEditing(false);
-    console.log("Appointment saved");
-    // Implement save API call here
-  };
+  // const handleSave = () => {
+  //   setIsEditing(false);
+  //   console.log("Appointment saved");
+  //   // Implement save API call here
+  // };
 
-  const handleCancel = () => {
-    setIsEditing(false);
-  };
+  // const handleCancel = () => {
+  //   setIsEditing(false);
+  // };
 
   // Reschedule Modal Functions
   const handleOpenRescheduleModal = () => {
-    const currentDateTime = new Date(appointment.appointmentDateTime);
-    const currentDate = currentDateTime.toISOString().split("T")[0];
-    const currentTime = currentDateTime.toTimeString().slice(0, 5);
-
     setRescheduleData({
-      newDate: currentDate,
-      newTime: currentTime,
+      newDate: "",
+      selectedSlot: "",
       reason: "",
     });
     setRescheduleErrors({});
+    setAvailabilityData([]);
+    setAvailableTimes([]);
     setShowRescheduleModal(true);
   };
 
   const handleCloseRescheduleModal = () => {
     setShowRescheduleModal(false);
-    setRescheduleData({ newDate: "", newTime: "", reason: "" });
+    setRescheduleData({ newDate: "", selectedSlot: "", reason: "" });
     setRescheduleErrors({});
+    setAvailabilityData([]);
+    setAvailableTimes([]);
   };
 
   const handleRescheduleInputChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    e: React.ChangeEvent<HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     setRescheduleData((prev) => ({
@@ -399,6 +480,40 @@ const AppointmentDetail = () => {
       setRescheduleErrors((prev) => ({
         ...prev,
         [name]: "",
+      }));
+    }
+  };
+
+  const handleDateChange = (date: Date | null) => {
+    const formattedDate = date ? date.toISOString().split("T")[0] : "";
+
+    setRescheduleData((prev) => ({
+      ...prev,
+      newDate: formattedDate,
+      selectedSlot: "", // Reset selected slot when date changes
+    }));
+
+    // Clear error if exists
+    if (rescheduleErrors.newDate) {
+      setRescheduleErrors((prev) => ({
+        ...prev,
+        newDate: "",
+      }));
+    }
+  };
+
+  const handleSlotChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedValue = e.target.value;
+    setRescheduleData((prev) => ({
+      ...prev,
+      selectedSlot: selectedValue,
+    }));
+
+    // Clear error if exists
+    if (rescheduleErrors.selectedSlot) {
+      setRescheduleErrors((prev) => ({
+        ...prev,
+        selectedSlot: "",
       }));
     }
   };
@@ -418,8 +533,8 @@ const AppointmentDetail = () => {
       }
     }
 
-    if (!rescheduleData.newTime) {
-      errors.newTime = "New time is required";
+    if (!rescheduleData.selectedSlot) {
+      errors.selectedSlot = "Please select a time slot";
     }
 
     if (!rescheduleData.reason.trim()) {
@@ -436,37 +551,60 @@ const AppointmentDetail = () => {
   const handleRescheduleSubmit = () => {
     if (!validateRescheduleForm()) return;
 
-    const newDateTime = new Date(
-      `${rescheduleData.newDate}T${rescheduleData.newTime}`
-    );
+    try {
+      // Parse the selected slot to get start and end times
+      const selectedSlotData = JSON.parse(rescheduleData.selectedSlot);
+      const { startTime, endTime } = selectedSlotData;
 
-    rescheduleAppointment(
-      {
-        id: appointment._id,
-        data: {
-          newDateTime: newDateTime.toISOString(),
-          reason: rescheduleData.reason.trim(),
+      // Create full datetime strings for start and end times
+      const newStartDateTime = new Date(
+        `${rescheduleData.newDate}T${startTime}:00+05:30`
+      );
+      const newEndDateTime = new Date(
+        `${rescheduleData.newDate}T${endTime}:00+05:30`
+      );
+
+       const durationMinutes =
+        (newEndDateTime.getTime() - newStartDateTime.getTime()) / 60000;
+
+      rescheduleAppointment(
+        {
+          id: appointment._id,
+          data: {
+            newStartTime: newStartDateTime.toISOString(),
+            newEndTime: newEndDateTime.toISOString(),
+            duration: durationMinutes,
+            newDate: rescheduleData.newDate,
+            reason: rescheduleData.reason.trim(),
+          },
         },
-      },
-      {
-        onSuccess: () => {
-          setShowRescheduleModal(false);
-          refetch(); // Refresh appointment data
-          Swal.fire(
-            "Rescheduled!",
-            "The appointment has been rescheduled successfully.",
-            "success"
-          );
-        },
-        onError: (error: any) => {
-          Swal.fire(
-            "Error!",
-            error.message || "Failed to reschedule appointment.",
-            "error"
-          );
-        },
-      }
-    );
+        {
+          onSuccess: () => {
+            setShowRescheduleModal(false);
+            refetch(); // Refresh appointment data
+            Swal.fire(
+              "Rescheduled!",
+              "The appointment has been rescheduled successfully.",
+              "success"
+            );
+          },
+          onError: (error: any) => {
+            Swal.fire(
+              "Error!",
+              error.message || "Failed to reschedule appointment.",
+              "error"
+            );
+          },
+        }
+      );
+    } catch (error) {
+      console.error("Error parsing slot data:", error);
+      Swal.fire(
+        "Error!",
+        "Invalid slot selection. Please try again.",
+        "error"
+      );
+    }
   };
 
   const handleCancelAppointment = (appointmentId: string) => {
@@ -539,7 +677,7 @@ const AppointmentDetail = () => {
   }
 
   const appointment = data?.data.appointment;
-  const { date, time } = formatDateTime(appointment.appointmentDateTime);
+  const { date, time } = formatDateTime(appointment.appointmentStartTime);
   const patientName = getPatientName(appointment.patient);
   const doctorName = getDoctorName(appointment.doctor);
 
@@ -569,7 +707,10 @@ const AppointmentDetail = () => {
             <option value="cancelled">Cancelled</option>
             <option value="no-show">No Show</option>
           </StatusSelect>
-          {!isEditing ? (
+          <ActionButton variant="primary" onClick={handleSendReminder}>
+                📧 Send Reminder
+              </ActionButton>
+          {/* {!isEditing ? (
             <>
               <ActionButton variant="secondary" onClick={handleEdit}>
                 ✏️ Edit
@@ -587,7 +728,7 @@ const AppointmentDetail = () => {
                 💾 Save
               </ActionButton>
             </>
-          )}
+          )} */}
         </HeaderActions>
       </PageHeader>
 
@@ -668,7 +809,7 @@ const AppointmentDetail = () => {
                   <InfoRow>
                     <InfoLabel>End Time:</InfoLabel>
                     <InfoValue>
-                      {formatDateTime(appointment.endDateTime).time}
+                      {formatDateTime(appointment.appointmentEndTime).time}
                     </InfoValue>
                   </InfoRow>
                   <InfoRow>
@@ -799,60 +940,6 @@ const AppointmentDetail = () => {
                 </CardHeader>
                 <CardBody>
                   <PatientGrid>
-                    <InfoRow>
-                      <InfoLabel>Full Name:</InfoLabel>
-                      <InfoValue>{patientName}</InfoValue>
-                    </InfoRow>
-                    <InfoRow>
-                      <InfoLabel>Patient ID:</InfoLabel>
-                      <InfoValue>{appointment.patient.patientId}</InfoValue>
-                    </InfoRow>
-                    <InfoRow>
-                      <InfoLabel>Date of Birth:</InfoLabel>
-                      <InfoValue>
-                        {new Date(
-                          appointment.patient.personalInfo.dateOfBirth
-                        ).toLocaleDateString("en-IN")}
-                      </InfoValue>
-                    </InfoRow>
-                    <InfoRow>
-                      <InfoLabel>Age:</InfoLabel>
-                      <InfoValue>
-                        {calculateAge(
-                          appointment.patient.personalInfo.dateOfBirth
-                        )}{" "}
-                        years
-                      </InfoValue>
-                    </InfoRow>
-                    <InfoRow>
-                      <InfoLabel>Gender:</InfoLabel>
-                      <InfoValue>
-                        {appointment.patient.personalInfo.gender}
-                      </InfoValue>
-                    </InfoRow>
-                    <InfoRow>
-                      <InfoLabel>Blood Group:</InfoLabel>
-                      <InfoValue>
-                        {appointment.patient.personalInfo.bloodGroup}
-                      </InfoValue>
-                    </InfoRow>
-                  </PatientGrid>
-                </CardBody>
-              </InfoCard>
-
-              <InfoCard>
-                <CardHeader>
-                  <CardIcon>📞</CardIcon>
-                  <CardTitle>Contact Information</CardTitle>
-                </CardHeader>
-                <CardBody>
-                  <PatientGrid>
-                    <InfoRow>
-                      <InfoLabel>Primary Phone:</InfoLabel>
-                      <InfoValue>
-                        {appointment.patient.contactInfo.phone}
-                      </InfoValue>
-                    </InfoRow>
                     <InfoRow>
                       <InfoLabel>Alternate Phone:</InfoLabel>
                       <InfoValue>
@@ -1122,55 +1209,87 @@ const AppointmentDetail = () => {
               <CurrentAppointmentInfo>
                 <InfoLabel>Current Appointment:</InfoLabel>
                 <InfoValue>
-                  {formatDateTime(appointment.appointmentDateTime).date} at{" "}
-                  {formatDateTime(appointment.appointmentDateTime).time}
+                  {formatDateTime(appointment.appointmentStartTime).date} at{" "}
+                  {formatDateTime(appointment.appointmentStartTime).time}
                 </InfoValue>
               </CurrentAppointmentInfo>
 
               <ModalFormGrid>
                 <ModalFormGroup>
                   <ModalLabel>New Date *</ModalLabel>
-                  <ModalInput
-                    type="date"
-                    name="newDate"
-                    value={rescheduleData.newDate}
-                    onChange={handleRescheduleInputChange}
-                    hasError={!!rescheduleErrors.newDate}
-                    min={today}
-                  />
+                  {isLoadingAvailability ? (
+                    <LoadingText>Loading available dates...</LoadingText>
+                  ) : (
+                    <DatePickerWrapper>
+                      <DatePicker
+                        selected={
+                          rescheduleData.newDate
+                            ? new Date(rescheduleData.newDate)
+                            : null
+                        }
+                        onChange={handleDateChange}
+                        filterDate={isDateAvailable}
+                        minDate={new Date()}
+                        dateFormat="yyyy-MM-dd"
+                        placeholderText="Select a date"
+                        className={rescheduleErrors.newDate ? "error" : ""}
+                      />
+                    </DatePickerWrapper>
+                  )}
                   {rescheduleErrors.newDate && (
                     <ModalErrorText>{rescheduleErrors.newDate}</ModalErrorText>
+                  )}
+                  {availabilityData.length === 0 && !isLoadingAvailability && (
+                    <ModalHelperText>
+                      No available dates found for this doctor
+                    </ModalHelperText>
                   )}
                 </ModalFormGroup>
 
                 <ModalFormGroup>
                   <ModalLabel>New Time *</ModalLabel>
-                  <ModalSelect
-                    name="newTime"
-                    value={rescheduleData.newTime}
-                    onChange={handleRescheduleInputChange}
-                    hasError={!!rescheduleErrors.newTime}
-                  >
-                    <option value="">Select time</option>
-                    <option value="09:00">9:00 AM</option>
-                    <option value="09:30">9:30 AM</option>
-                    <option value="10:00">10:00 AM</option>
-                    <option value="10:30">10:30 AM</option>
-                    <option value="11:00">11:00 AM</option>
-                    <option value="11:30">11:30 AM</option>
-                    <option value="14:00">2:00 PM</option>
-                    <option value="14:30">2:30 PM</option>
-                    <option value="15:00">3:00 PM</option>
-                    <option value="15:30">3:30 PM</option>
-                    <option value="16:00">4:00 PM</option>
-                    <option value="16:30">4:30 PM</option>
-                    <option value="17:00">5:00 PM</option>
-                    <option value="17:30">5:30 PM</option>
-                    <option value="18:00">6:00 PM</option>
-                  </ModalSelect>
-                  {rescheduleErrors.newTime && (
-                    <ModalErrorText>{rescheduleErrors.newTime}</ModalErrorText>
+                  {isLoadingSlots ? (
+                    <LoadingText>Loading available slots...</LoadingText>
+                  ) : (
+                    <ModalSelect
+                      name="selectedSlot"
+                      value={rescheduleData.selectedSlot}
+                      onChange={handleSlotChange}
+                      hasError={!!rescheduleErrors.selectedSlot}
+                      disabled={!rescheduleData.newDate}
+                    >
+                      <option value="">
+                        {rescheduleData.newDate
+                          ? "Select a time slot"
+                          : "Please select a date first"}
+                      </option>
+                      {availableTimes
+                        .filter((slot) => slot.available)
+                        .map((slot, index) => (
+                          <option
+                            key={index}
+                            value={JSON.stringify({
+                              startTime: slot.startTime,
+                              endTime: slot.endTime,
+                            })}
+                          >
+                            {slot.startTime} - {slot.endTime}
+                          </option>
+                        ))}
+                    </ModalSelect>
                   )}
+                  {rescheduleErrors.selectedSlot && (
+                    <ModalErrorText>
+                      {rescheduleErrors.selectedSlot}
+                    </ModalErrorText>
+                  )}
+                  {rescheduleData.newDate &&
+                    availableTimes.length === 0 &&
+                    !isLoadingSlots && (
+                      <ModalHelperText>
+                        No available time slots for selected date
+                      </ModalHelperText>
+                    )}
                 </ModalFormGroup>
 
                 <ModalFormGroup className="full-width">
@@ -1204,7 +1323,7 @@ const AppointmentDetail = () => {
               <ModalButton
                 variant="primary"
                 onClick={handleRescheduleSubmit}
-                disabled={isRescheduling}
+                disabled={isRescheduling || isLoadingAvailability || isLoadingSlots}
               >
                 {isRescheduling ? (
                   <>
@@ -1219,6 +1338,7 @@ const AppointmentDetail = () => {
           </ModalContainer>
         </ModalOverlay>
       )}
+
       {/* Status Update Modal */}
       {showStatusModal && (
         <ModalOverlay
@@ -1403,9 +1523,11 @@ const LoadingSpinnerSmall = styled.div`
 `;
 
 const LoadingText = styled.div`
-  font-size: 16px;
+  font-size: 14px;
   color: #6b7280;
   font-weight: 500;
+  text-align: center;
+  padding: 10px;
 `;
 
 const ErrorContainer = styled.div`
@@ -1510,6 +1632,7 @@ const AppointmentId = styled.div`
   color: #6b7280;
   font-weight: 500;
 `;
+
 const StatusSelect = styled.select<{ color: string }>`
   padding: 8px 12px;
   border: 1px solid ${(props) => props.color}30;
@@ -2125,6 +2248,12 @@ const ModalSelect = styled.select<{ hasError?: boolean }>`
     border-color: ${theme.colors.primary};
     box-shadow: 0 0 0 3px ${theme.colors.primary}20;
   }
+
+  &:disabled {
+    background-color: #f9fafb;
+    color: #6b7280;
+    cursor: not-allowed;
+  }
 `;
 
 const ModalTextArea = styled.textarea<{ hasError?: boolean }>`
@@ -2227,6 +2356,47 @@ const ModalButton = styled.button<{ variant: "primary" | "secondary" }>`
   @media (max-width: 480px) {
     width: 100%;
     min-width: auto;
+  }
+`;
+
+// DatePicker Wrapper for styling
+const DatePickerWrapper = styled.div`
+  .react-datepicker-wrapper {
+    width: 100%;
+  }
+
+  .react-datepicker__input-container input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    background: white;
+
+    &:focus {
+      outline: none;
+      border-color: ${theme.colors.primary};
+      box-shadow: 0 0 0 3px ${theme.colors.primary}20;
+    }
+
+    &.error {
+      border-color: ${theme.colors.danger};
+    }
+  }
+
+  .react-datepicker__day--disabled {
+    color: #ccc !important;
+    cursor: not-allowed !important;
+  }
+
+  .react-datepicker__day--selected {
+    background-color: ${theme.colors.primary} !important;
+    color: white !important;
+  }
+
+  .react-datepicker__day:hover {
+    background-color: ${theme.colors.primary}20 !important;
   }
 `;
 

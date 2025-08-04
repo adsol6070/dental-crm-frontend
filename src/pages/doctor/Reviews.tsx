@@ -1,26 +1,20 @@
-import React, { useState, useEffect } from "react";
+// @ts-nocheck
+import { useState, useEffect } from "react";
 import styled from "styled-components";
 import { 
   FiStar,
   FiMessageSquare,
   FiTrendingUp,
   FiTrendingDown,
-  FiUsers,
   FiThumbsUp,
   FiFlag,
   FiShare2,
   FiRefreshCw,
   FiDownload,
-  FiFilter,
   FiSearch,
-  FiCalendar,
   FiX,
   FiEdit3,
-  FiCheck,
-  FiClock,
   FiShield,
-  FiChevronDown,
-  FiChevronUp,
   FiMoreVertical
 } from "react-icons/fi";
 

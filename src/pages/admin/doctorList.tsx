@@ -153,7 +153,7 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
       confirmButtonText: `Yes, ${statusText}!`,
       confirmButtonColor: statusColor,
       cancelButtonColor: "#6b7280",
-      inputValidator: (value) => {
+      inputValidator: () => {
         // Optional: You can make reason required by uncommenting below
         // if (!value) {
         //   return 'You need to provide a reason!'
@@ -1256,25 +1256,6 @@ const VerificationCell = styled.div`
   flex-direction: column;
   gap: 8px;
   min-width: 120px;
-`;
-
-const VerificationBadgeTable = styled.span<{ status: "verified" | "pending" | "rejected" }>`
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  width: fit-content;
-  background: ${(props) => 
-    props.status === "verified" ? "#dbeafe" :
-    props.status === "pending" ? "#fef3c7" : "#fee2e2"
-  };
-  color: ${(props) => 
-    props.status === "verified" ? "#1e40af" :
-    props.status === "pending" ? "#92400e" : "#991b1b"
-  };
 `;
 
 const VerificationSelect = styled.select<{ status: "verified" | "pending" | "rejected" }>`

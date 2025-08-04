@@ -1,9 +1,8 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import styled from "styled-components";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDoctorById } from "@/hooks/useAdmin";
 import { ROUTES } from "@/config/route-paths.config";
-import { theme } from "@/config/theme.config";
 
 // Interfaces matching your API response structure
 interface IPersonalInfo {

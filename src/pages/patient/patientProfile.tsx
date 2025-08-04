@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+// @ts-nocheck
+import { useState, useEffect } from "react";
 import styled from "styled-components";
 import { usePatientProfile } from '@/hooks/usePatient';
 

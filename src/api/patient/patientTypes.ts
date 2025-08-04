@@ -170,7 +170,8 @@ export interface Appointment {
   appointmentId: string;
   patient: string; // Still a reference ID
   doctor: DoctorInfo;
-  appointmentDateTime: string;
+  appointmentStartTime: string;
+  appointmentEndTime: string;
   duration: number;
   appointmentType: AppointmentType;
   status: AppointmentStatus;

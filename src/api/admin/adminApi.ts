@@ -64,7 +64,7 @@ export const adminApi = {
     id: string,
     data: Partial<PatientPayload>
   ): Promise<Patient> => {
-    const response = await httpClient.patch<ApiResponse<Patient>>(
+    const response = await httpClient.put<ApiResponse<Patient>>(
       API_ENDPOINTS.ADMIN.UPDATE(id),
       data,
       {
