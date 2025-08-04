@@ -10,3 +10,15 @@ export const CreateDoctorForm = lazy(() => import("./createDoctorForm"));
 export const DoctorList = lazy(() => import("./doctorList"));
 export const DoctorView = lazy(() => import("./doctorDetail"));
 export const Reports = lazy(() => import("./Reports"));
+export const AdminServicesList = lazy(() => import("./AdminServicesList"));
+export const AdminCreateService = lazy(() => import("./AdminCreateService"));
+export const AdminServiceCategories = lazy(
+  () => import("./AdminServiceCategories")
+);
+export const AdminPatientServices = lazy(
+  () => import("./AdminPatientServices")
+);
+export const AdminBulkReports = lazy(
+  () => import("./AdminBulkReports")
+);
+

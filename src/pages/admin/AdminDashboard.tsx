@@ -752,59 +752,59 @@ const PatientStatus = styled.span<{ status: string }>`
   }};
 `;
 
-const QuickActionsSection = styled.div`
-  background: white;
-  border-radius: 8px;
-  padding: 16px;
-  border: 1px solid #e2e8f0;
-`;
+// const QuickActionsSection = styled.div`
+//   background: white;
+//   border-radius: 8px;
+//   padding: 16px;
+//   border: 1px solid #e2e8f0;
+// `;
 
-const ActionsList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
+// const ActionsList = styled.div`
+//   display: flex;
+//   flex-direction: column;
+//   gap: 8px;
+// `;
 
-const ActionItem = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  border: 1px solid #f3f4f6;
-  border-radius: 6px;
-  background: white;
-  cursor: pointer;
-  transition: all 0.2s ease;
+// const ActionItem = styled.button`
+//   display: flex;
+//   align-items: center;
+//   gap: 8px;
+//   padding: 8px;
+//   border: 1px solid #f3f4f6;
+//   border-radius: 6px;
+//   background: white;
+//   cursor: pointer;
+//   transition: all 0.2s ease;
   
-  &:hover {
-    border-color: #3b82f6;
-    background: #f8fafc;
-  }
-`;
+//   &:hover {
+//     border-color: #3b82f6;
+//     background: #f8fafc;
+//   }
+// `;
 
-const ActionIcon = styled.div`
-  font-size: 14px;
-`;
+// const ActionIcon = styled.div`
+//   font-size: 14px;
+// `;
 
-const ActionLabel = styled.div`
-  flex: 1;
-  text-align: left;
-  font-size: 11px;
-  font-weight: 500;
-  color: #374151;
-`;
+// const ActionLabel = styled.div`
+//   flex: 1;
+//   text-align: left;
+//   font-size: 11px;
+//   font-weight: 500;
+//   color: #374151;
+// `;
 
-const ActionBadge = styled.div`
-  background: #ef4444;
-  color: white;
-  border-radius: 50%;
-  width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 8px;
-  font-weight: 600;
-`;
+// const ActionBadge = styled.div`
+//   background: #ef4444;
+//   color: white;
+//   border-radius: 50%;
+//   width: 16px;
+//   height: 16px;
+//   display: flex;
+//   align-items: center;
+//   justify-content: center;
+//   font-size: 8px;
+//   font-weight: 600;
+// `;
 
 export default DentalDashboard;

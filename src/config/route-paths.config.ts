@@ -41,13 +41,15 @@ const ROUTE_PATHS = {
   PATIENT_PRESCRIPTIONS: "/prescriptions",
   PATIENT_BILLING: "/billing",
   PUBLIC_PATIENT_FORM: "/publicform",
+  PATIENT_SERVICES_TAKEN: "/services/taken",
+  PATIENT_AVAILABLE_SERVICES: "/services/available",
+  PATIENT_SERVICES_REPORT: "/services/report",
 
   // Doctor-specific routes
   DOCTOR_PATIENTS: "/patients",
   DOCTOR_APPOINTMENTS: "/appointments",
   DOCTOR_SCHEDULE: "/schedule",
   DOCTOR_PRESCRIPTIONS: "/prescriptions",
-
   DOCTOR_ANALYTICS: "/analytics",
   DOCTOR_UNAVAILABLE_DAYS: "/unavailable-days",
   DOCTOR_APPOINTMENTS_TODAY: "/appointments/today",
@@ -58,6 +60,9 @@ const ROUTE_PATHS = {
   DOCTOR_NOTIFICATIONS: "/notifications",
   DOCTOR_CHANGE_PASSWORD: "/settings/change-password",
   DOCTOR_ACCOUNT_MANAGEMENT: "/settings/account",
+  DOCTOR_PATIENT_SERVICES: "/patient-services",
+  DOCTOR_SERVICE_REPORTS: "/service-reports",
+  DOCTOR_ALL_SERVICES: "/all-services",
 
   // Admin-specific routes
   CREATE_PATIENT: "/patients/create",
@@ -77,6 +82,14 @@ const ROUTE_PATHS = {
   USER_MANAGEMENT: "/users",
   SYSTEM_SETTINGS: "/system-settings",
   REPORTS: "/reports",
+
+  // Services management routes
+  ADMIN_SERVICES_LIST: "/services",
+  ADMIN_CREATE_SERVICE: "/services/create",
+  ADMIN_EDIT_SERVICE: "/services/edit/:serviceId",
+  ADMIN_SERVICE_CATEGORIES: "/service-categories",
+  ADMIN_PATIENT_SERVICES: "/patient-services",
+  ADMIN_BULK_REPORTS: "/bulk-reports",
 };
 
 const getFullPath = <T extends string | ((...args: any[]) => string)>(
@@ -127,6 +140,10 @@ const ROUTES = {
       PREFIXES.PATIENT,
       ROUTE_PATHS.PATIENT_APPOINTMENTS
     ),
+    APPOINTMENT_DETAIL: getFullPath(
+      PREFIXES.PATIENT,
+      ROUTE_PATHS.PATIENT_APPOINTMENT_DETAIL
+    ),
     MEDICAL_HISTORY: getFullPath(
       PREFIXES.PATIENT,
       ROUTE_PATHS.PATIENT_MEDICAL_HISTORY
@@ -136,6 +153,18 @@ const ROUTES = {
       ROUTE_PATHS.PATIENT_PRESCRIPTIONS
     ),
     BILLING: getFullPath(PREFIXES.PATIENT, ROUTE_PATHS.PATIENT_BILLING),
+    SERVICES_TAKEN: getFullPath(
+      PREFIXES.PATIENT,
+      ROUTE_PATHS.PATIENT_SERVICES_TAKEN
+    ),
+    AVAILABLE_SERVICES: getFullPath(
+      PREFIXES.PATIENT,
+      ROUTE_PATHS.PATIENT_AVAILABLE_SERVICES
+    ),
+    SERVICES_REPORT: getFullPath(
+      PREFIXES.PATIENT,
+      ROUTE_PATHS.PATIENT_SERVICES_REPORT
+    ),
     PROFILE: getFullPath(PREFIXES.PATIENT, ROUTE_PATHS.PATIENT_PROFILE),
     SETTINGS: getFullPath(PREFIXES.PATIENT, ROUTE_PATHS.SETTINGS),
   },
@@ -173,6 +202,15 @@ const ROUTES = {
       PREFIXES.DOCTOR,
       ROUTE_PATHS.DOCTOR_NOTIFICATIONS
     ),
+    PATIENT_SERVICES: getFullPath(
+      PREFIXES.DOCTOR,
+      ROUTE_PATHS.DOCTOR_PATIENT_SERVICES
+    ),
+    SERVICE_REPORTS: getFullPath(
+      PREFIXES.DOCTOR,
+      ROUTE_PATHS.DOCTOR_SERVICE_REPORTS
+    ),
+    ALL_SERVICES: getFullPath(PREFIXES.DOCTOR, ROUTE_PATHS.DOCTOR_ALL_SERVICES),
     PROFILE: getFullPath(PREFIXES.DOCTOR, ROUTE_PATHS.DOCTOR_PROFILE),
     SETTINGS: getFullPath(PREFIXES.DOCTOR, ROUTE_PATHS.SETTINGS),
     CHANGE_PASSWORD: getFullPath(
@@ -184,6 +222,7 @@ const ROUTES = {
       ROUTE_PATHS.DOCTOR_ACCOUNT_MANAGEMENT
     ),
   },
+
   // Admin routes
   ADMIN: {
     DASHBOARD: getFullPath(PREFIXES.ADMIN, ROUTE_PATHS.ADMIN_DASHBOARD),
@@ -206,6 +245,23 @@ const ROUTES = {
     ),
     APPOINTMENT_LIST: getFullPath(PREFIXES.ADMIN, ROUTE_PATHS.APPOINTMENT_LIST),
     APPOINTMENT_VIEW: getFullPath(PREFIXES.ADMIN, ROUTE_PATHS.APPOINTMENT_VIEW),
+
+    // Services management
+    SERVICES_LIST: getFullPath(PREFIXES.ADMIN, ROUTE_PATHS.ADMIN_SERVICES_LIST),
+    CREATE_SERVICE: getFullPath(
+      PREFIXES.ADMIN,
+      ROUTE_PATHS.ADMIN_CREATE_SERVICE
+    ),
+    EDIT_SERVICE: getFullPath(PREFIXES.ADMIN, ROUTE_PATHS.ADMIN_EDIT_SERVICE),
+    SERVICE_CATEGORIES: getFullPath(
+      PREFIXES.ADMIN,
+      ROUTE_PATHS.ADMIN_SERVICE_CATEGORIES
+    ),
+    PATIENT_SERVICES: getFullPath(
+      PREFIXES.ADMIN,
+      ROUTE_PATHS.ADMIN_PATIENT_SERVICES
+    ),
+    BULK_REPORTS: getFullPath(PREFIXES.ADMIN, ROUTE_PATHS.ADMIN_BULK_REPORTS),
 
     // System management
     USER_MANAGEMENT: getFullPath(PREFIXES.ADMIN, ROUTE_PATHS.USER_MANAGEMENT),

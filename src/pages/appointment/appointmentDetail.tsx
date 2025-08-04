@@ -312,7 +312,7 @@ const AppointmentDetail = () => {
     }
   };
 
-  const formatDateTime = (dateTime: string) => {
+  const formatDateTime = (dateTime: Date) => {
     const date = new Date(dateTime);
     return {
       date: date.toLocaleDateString("en-IN", {
@@ -686,7 +686,13 @@ const AppointmentDetail = () => {
       {/* Header */}
       <PageHeader>
         <HeaderLeft>
-          <BackButton onClick={() => { navigate(-1) }}>← Back to Appointments</BackButton>
+          <BackButton
+            onClick={() => {
+              navigate(-1);
+            }}
+          >
+            ← Back to Appointments
+          </BackButton>
           <HeaderInfo>
             <Title>Appointment Details</Title>
             <AppointmentId>{appointment.appointmentId}</AppointmentId>
@@ -801,9 +807,13 @@ const AppointmentDetail = () => {
                     <InfoValue>{appointment.appointmentId}</InfoValue>
                   </InfoRow>
                   <InfoRow>
-                    <InfoLabel>Date & Time:</InfoLabel>
+                    <InfoLabel>Date:</InfoLabel>
+                    <InfoValue>{appointment.appointmentDate}</InfoValue>
+                  </InfoRow>
+                  <InfoRow>
+                    <InfoLabel>Start Time:</InfoLabel>
                     <InfoValue>
-                      {date} at {time}
+                      {formatDateTime(appointment.appointmentStartTime).time}
                     </InfoValue>
                   </InfoRow>
                   <InfoRow>

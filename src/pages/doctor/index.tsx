@@ -9,3 +9,10 @@ export const Appointments = lazy(() => import("./Appointments"));
 export const Analytics = lazy(() => import("./Analytics"));
 export const MyPatients = lazy(() => import("./myPatients"));
 export const Reviews = lazy(() => import("./Reviews"));
+export const DoctorPatientServices = lazy(
+  () => import("./DoctorPatientServices")
+);
+export const DoctorAllServices = lazy(() => import("./DoctorAllServices"));
+export const DoctorServiceReports = lazy(
+  () => import("./DoctorServiceReports")
+);

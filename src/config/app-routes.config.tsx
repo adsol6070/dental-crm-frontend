@@ -38,6 +38,19 @@ import {
   MyPatients,
   Reviews,
   PublicPatientForm,
+  // Services Management Components - Add these imports
+  AdminServicesList,
+  AdminCreateService,
+  // AdminEditService,
+  AdminServiceCategories,
+  AdminPatientServices,
+  AdminBulkReports,
+  PatientServicesTaken,
+  // PatientAvailableServices,
+  // PatientServicesReport,
+  DoctorPatientServices,
+  DoctorServiceReports,
+  DoctorAllServices,
 } from "@/pages";
 
 export const AUTH_ROUTES = [
@@ -55,10 +68,19 @@ export const AUTH_ROUTES = [
 export const PATIENT_ROUTES = [
   { path: ROUTE_PATHS.PATIENT_DASHBOARD, element: <PatientDashboard /> },
   { path: ROUTE_PATHS.PATIENT_APPOINTMENTS, element: <PatientAppointments /> },
-  { path: ROUTE_PATHS.PATIENT_APPOINTMENT_DETAIL, element: <AppointmentDetail /> },
+  {
+    path: ROUTE_PATHS.PATIENT_APPOINTMENT_DETAIL,
+    element: <AppointmentDetail />,
+  },
   { path: ROUTE_PATHS.PATIENT_MEDICAL_HISTORY, element: <MedicalHistory /> },
   { path: ROUTE_PATHS.PATIENT_PRESCRIPTIONS, element: <PatientPrescription /> },
   { path: ROUTE_PATHS.PATIENT_BILLING, element: <PatientBilling /> },
+
+  // Services Management for Patients
+  { path: ROUTE_PATHS.PATIENT_SERVICES_TAKEN, element: <PatientServicesTaken /> },
+  // { path: ROUTE_PATHS.PATIENT_AVAILABLE_SERVICES, element: <PatientAvailableServices /> },
+  // { path: ROUTE_PATHS.PATIENT_SERVICES_REPORT, element: <PatientServicesReport /> },
+
   { path: ROUTE_PATHS.PATIENT_PROFILE, element: <PatientProfile /> },
   { path: ROUTE_PATHS.SETTINGS, element: <Settings /> },
 ];
@@ -81,6 +103,11 @@ export const DOCTOR_ROUTES = [
   // Patient & Prescription Management
   { path: ROUTE_PATHS.DOCTOR_PATIENTS, element: <MyPatients /> },
   // { path: ROUTE_PATHS.DOCTOR_PRESCRIPTIONS, element: <DoctorPrescriptions /> },
+
+  // Services Management for Doctors
+  { path: ROUTE_PATHS.DOCTOR_PATIENT_SERVICES, element: <DoctorPatientServices /> },
+  { path: ROUTE_PATHS.DOCTOR_SERVICE_REPORTS, element: <DoctorServiceReports /> },
+  { path: ROUTE_PATHS.DOCTOR_ALL_SERVICES, element: <DoctorAllServices /> },
 
   // Financial & Feedback Management
   { path: ROUTE_PATHS.DOCTOR_FEES, element: <FeesPricing /> },
@@ -110,6 +137,20 @@ export const ADMIN_ROUTES = [
   { path: ROUTE_PATHS.CREATE_DOCTOR, element: <CreateDoctorForm /> },
   { path: ROUTE_PATHS.DOCTOR_LIST, element: <DoctorList /> },
   { path: ROUTE_PATHS.DOCTOR_VIEW, element: <DoctorView /> },
+
+  // Services Management for Admin
+  { path: ROUTE_PATHS.ADMIN_SERVICES_LIST, element: <AdminServicesList /> },
+  { path: ROUTE_PATHS.ADMIN_CREATE_SERVICE, element: <AdminCreateService /> },
+  // { path: ROUTE_PATHS.ADMIN_EDIT_SERVICE, element: <AdminEditService /> },
+  {
+    path: ROUTE_PATHS.ADMIN_SERVICE_CATEGORIES,
+    element: <AdminServiceCategories />,
+  },
+  {
+    path: ROUTE_PATHS.ADMIN_PATIENT_SERVICES,
+    element: <AdminPatientServices />,
+  },
+  { path: ROUTE_PATHS.ADMIN_BULK_REPORTS, element: <AdminBulkReports /> },
 
   // Appointment Management
   { path: ROUTE_PATHS.CREATE_APPOINTMENT, element: <CreateAppointmentForm /> },

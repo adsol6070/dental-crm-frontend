@@ -1,0 +1,16 @@
+[build]
+  publish = "dist"          # <-- Your build output folder (Vite outputs to 'dist')
+  command = "npm run build" # <-- Adjust if you use yarn or pnpm
+
+[dev]
+  framework = "vite"        # Optional: Helps netlify dev to proxy vite correctly
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"

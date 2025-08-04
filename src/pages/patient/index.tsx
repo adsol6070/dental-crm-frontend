@@ -7,3 +7,4 @@ export const AppointmentDetail = lazy(() => import("./AppointmentDetail"));
 export const MedicalHistory = lazy(() => import("./medicalHistory"));
 export const PatientPrescription = lazy(() => import("./patientPrescription"));
 export const PatientBilling = lazy(() => import("./patientBilling"));
+export const PatientServicesTaken = lazy(() => import("./PatientServicesTaken"));
