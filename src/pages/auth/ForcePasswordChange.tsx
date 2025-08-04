@@ -65,25 +65,25 @@ const ForcePasswordChange = () => {
       requiresPasswordChange?: boolean;
     } | null;
     console.log("state", state);
-    // const urlParams = new URLSearchParams(location.search);
+    const urlParams = new URLSearchParams(location.search);
 
-    // const token = state?.tempToken || urlParams.get("tempToken");
-    // const type =
-    //   state?.userType ||
-    //   (urlParams.get("userType") as UserType) ||
-    //   UserType.PATIENT;
-    // const requiresChange =
-    //   state?.requiresPasswordChange ||
-    //   urlParams.get("requiresPasswordChange") === "true";
+    const token = state?.tempToken || urlParams.get("tempToken");
+    const type =
+      state?.userType ||
+      (urlParams.get("userType") as UserType) ||
+      UserType.PATIENT;
+    const requiresChange =
+      state?.requiresPasswordChange ||
+      urlParams.get("requiresPasswordChange") === "true";
 
-    // if (!token || !requiresChange) {
-    //   toast.error("Invalid access. Redirecting to login...");
-    //   navigate(ROUTES.AUTH.LOGIN, { replace: true });
-    //   return;
-    // }
+    if (!token || !requiresChange) {
+      toast.error("Invalid access. Redirecting to login...");
+      navigate(ROUTES.AUTH.LOGIN, { replace: true });
+      return;
+    }
 
-    // setTempToken(token);
-    // setUserType(type);
+    setTempToken(token);
+    setUserType(type);
   }, [location, navigate]);
 
   const getPasswordStrength = (password: string) => {
@@ -124,7 +124,7 @@ const ForcePasswordChange = () => {
       case UserType.DOCTOR:
         return "/api/doctors/change-password";
       case UserType.ADMIN:
-        return "/api/users/change-password";
+        return "/api/users/force-password-change";
       default:
         throw new Error(`Invalid user type: ${userType}`);
     }
@@ -155,28 +155,15 @@ const ForcePasswordChange = () => {
     try {
       const endpoint = getChangePasswordEndpoint(userType);
 
-      // Set temporary token for this request
-      const originalToken = apiClient.getAuthToken();
-      apiClient.setAuthToken(tempToken);
-
-      const response = await apiClient.post(endpoint, {
+      await apiClient.post(endpoint, {
         tempToken,
         newPassword: data.newPassword,
-        isForceChange: true,
       });
-
-      // Restore original token or remove it
-      if (originalToken) {
-        apiClient.setAuthToken(originalToken);
-      } else {
-        apiClient.removeAuthToken();
-      }
 
       toast.success(
         "Password changed successfully! Please login with your new password."
       );
 
-      // Redirect to login with a success message
       navigate(ROUTES.AUTH.LOGIN, {
         replace: true,
         state: {

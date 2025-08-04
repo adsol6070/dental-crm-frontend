@@ -209,8 +209,9 @@ export interface Appointment {
   appointmentId: string;
   patient: Patient;
   doctor: Doctor;
-  appointmentDateTime: string;
-  endDateTime: string;
+  appointmentDate: string;
+  appointmentStartTime: Date;
+  appointmentEndTime: Date;
   duration: number;
   appointmentType: AppointmentType;
   status: AppointmentStatus;
@@ -349,12 +350,12 @@ export interface CancelAppointmentResponse {
   };
 }
 export interface RescheduleAppointmentPayload {
-  newDateTime: string; 
+  newDateTime: string;
   reason: string;
 }
 export interface UpdateAppointmentStatusPayload {
   status: AppointmentStatus;
-  notes?: string; 
+  notes?: string;
 }
 export interface UpdateAppointmentStatusResponse {
   success: boolean;

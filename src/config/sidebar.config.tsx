@@ -2,22 +2,25 @@ import {
   FiHome,
   FiCalendar,
   FiUsers,
-  FiUser,
   FiClock,
   FiUserPlus,
   FiUserCheck,
-  FiSettings,
   FiTrello,
-  FiBell,
   FiStar,
   FiXCircle,
   FiDollarSign,
-  FiActivity,
   FiBarChart,
-  FiShield,
-  FiDatabase,
+  FiList,
+  FiFileText,
+  FiDownload,
 } from "react-icons/fi";
-import { FaUserMd, FaPrescriptionBottleAlt, FaHeartbeat } from "react-icons/fa";
+import {
+  FaUserMd,
+  FaPrescriptionBottleAlt,
+  FaHeartbeat,
+  FaServicestack,
+} from "react-icons/fa";
+import { MdMedicalServices } from "react-icons/md";
 import { ROUTES } from "@/config/route-paths.config";
 import { useAuth, UserType } from "@/context/AuthContext";
 
@@ -37,6 +40,27 @@ const patientMenuItems = [
     label: "Medical History",
     icon: <FaHeartbeat size="18" />,
     path: ROUTES.PATIENT.MEDICAL_HISTORY,
+  },
+  {
+    label: "My Services",
+    icon: <MdMedicalServices size="18" />,
+    subMenu: [
+      {
+        label: "Services Taken",
+        icon: <FiList size="16" />,
+        path: ROUTES.PATIENT.SERVICES_TAKEN,
+      },
+      {
+        label: "Available Services",
+        icon: <FaServicestack size="16" />,
+        path: ROUTES.PATIENT.AVAILABLE_SERVICES,
+      },
+      {
+        label: "Download Report",
+        icon: <FiDownload size="16" />,
+        path: ROUTES.PATIENT.SERVICES_REPORT,
+      },
+    ],
   },
   {
     label: "Prescriptions",
@@ -75,12 +99,33 @@ const doctorMenuItems = [
   {
     label: "Appointments",
     icon: <FiCalendar size="18" />,
-    path: ROUTES.DOCTOR.APPOINTMENTS, // /doctor/unavailable-days
+    path: ROUTES.DOCTOR.APPOINTMENTS, // /doctor/appointments
   },
   {
     label: "My Patients",
     icon: <FiUsers size="18" />,
     path: ROUTES.DOCTOR.PATIENTS, // /doctor/patients
+  },
+  {
+    label: "Services Management",
+    icon: <MdMedicalServices size="18" />,
+    subMenu: [
+      {
+        label: "Patient Services",
+        icon: <FiList size="16" />,
+        path: ROUTES.DOCTOR.PATIENT_SERVICES, // /doctor/patient-services
+      },
+      {
+        label: "Generate Reports",
+        icon: <FiFileText size="16" />,
+        path: ROUTES.DOCTOR.SERVICE_REPORTS, // /doctor/service-reports
+      },
+      {
+        label: "All Services",
+        icon: <FaServicestack size="16" />,
+        path: ROUTES.DOCTOR.ALL_SERVICES, // /doctor/all-services (view only)
+      },
+    ],
   },
   // {
   //   label: "Prescriptions",
@@ -162,6 +207,37 @@ const adminMenuItems = [
         label: "Add New Doctor",
         icon: <FiUserPlus size="16" />,
         path: ROUTES.ADMIN.CREATE_DOCTOR,
+      },
+    ],
+  },
+  {
+    label: "Services Management",
+    icon: <MdMedicalServices size="18" />,
+    subMenu: [
+      {
+        label: "All Services",
+        icon: <FiList size="16" />,
+        path: ROUTES.ADMIN.SERVICES_LIST, // /admin/services
+      },
+      {
+        label: "Add New Service",
+        icon: <FiUserPlus size="16" />,
+        path: ROUTES.ADMIN.CREATE_SERVICE, // /admin/services/create
+      },
+      {
+        label: "Service Categories",
+        icon: <FiTrello size="16" />,
+        path: ROUTES.ADMIN.SERVICE_CATEGORIES, // /admin/service-categories
+      },
+      {
+        label: "Patient Services",
+        icon: <FiUsers size="16" />,
+        path: ROUTES.ADMIN.PATIENT_SERVICES, // /admin/patient-services
+      },
+      {
+        label: "Bulk Reports",
+        icon: <FiDownload size="16" />,
+        path: ROUTES.ADMIN.BULK_REPORTS, // /admin/bulk-reports
       },
     ],
   },

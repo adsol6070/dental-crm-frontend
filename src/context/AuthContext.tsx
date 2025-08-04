@@ -147,6 +147,7 @@ export enum AuthActionType {
   LOGIN_START = "LOGIN_START",
   LOGIN_SUCCESS = "LOGIN_SUCCESS",
   LOGIN_FAILURE = "LOGIN_FAILURE",
+  PASSWORD_CHANGE_REQUIRED = "PASSWORD_CHANGE_REQUIRED",
   LOGOUT = "LOGOUT",
   REGISTER_START = "REGISTER_START",
   REGISTER_SUCCESS = "REGISTER_SUCCESS",
@@ -160,7 +161,6 @@ export enum AuthActionType {
   REFRESH_TOKEN_SUCCESS = "REFRESH_TOKEN_SUCCESS",
   REFRESH_TOKEN_FAILURE = "REFRESH_TOKEN_FAILURE",
   SESSION_EXPIRED = "SESSION_EXPIRED",
-  PASSWORD_CHANGE_REQUIRED = "PASSWORD_CHANGE_REQUIRED",
   PASSWORD_CHANGE_SUCCESS = "PASSWORD_CHANGE_SUCCESS",
   PASSWORD_CHANGE_FAILURE = "PASSWORD_CHANGE_FAILURE",
 }
@@ -316,6 +316,17 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         token: null,
         sessionExpiresAt: null,
         lastLoginError: action.payload.error,
+      };
+
+    // In your auth reducer
+    case AuthActionType.PASSWORD_CHANGE_REQUIRED:
+      return {
+        ...state,
+        isLoading: false,
+        isAuthenticated: false,
+        tempToken: action.payload.tempToken,
+        requiresPasswordChange: true,
+        lastLoginError: null,
       };
 
     case AuthActionType.UPDATE_USER:
@@ -518,20 +529,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
       console.log("response ", response);
 
+      // ✅ Handle password change requirement
       if (response.requiresPasswordChange) {
-        // dispatch({
-        //   type: AuthActionType.PASSWORD_CHANGE_REQUIRED,
-        //   payload: {
-        //     tempToken: response.tempToken,
-        //     userType: credentials.userType,
-        //   },
-        // });
+        console.log("Password change required, dispatching appropriate action");
+
+        // ✅ Dispatch a proper action for password change state
+        dispatch({
+          type: AuthActionType.PASSWORD_CHANGE_REQUIRED,
+          payload: {
+            tempToken: response.tempToken,
+            userType: credentials.userType,
+            // requiresPasswordChange: true,
+          },
+        });
+
+        // ✅ Return the data for the component to handle
         return {
           tempToken: response.tempToken,
           requiresPasswordChange: response.requiresPasswordChange,
-          userType: credentials.userType
+          userType: credentials.userType,
         };
       }
+
       console.log("Response full:", response);
       console.log("Response:", response.data);
 
@@ -543,20 +562,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Extract data based on user type and response structure
       switch (credentials.userType) {
         case UserType.PATIENT:
-          // Handle patient-specific response structure
           if (response.data.patient) {
-            // If response has nested data structure
             token = response.data.token || response.data.data.accessToken;
             user = response.data.patient || response.data.user;
           } else {
-            // If response is flat structure
             token = response.data.token || response.data.accessToken;
             user = response.data.patient || response.data.user;
           }
           break;
 
         case UserType.DOCTOR:
-          // Handle doctor-specific response structure
           if (response.data.data) {
             token = response.data.data.token || response.data.data.accessToken;
             user = response.data.data.doctor || response.data.data.user;
@@ -567,7 +582,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           break;
 
         case UserType.ADMIN:
-          // Handle admin-specific response structure
           if (response.data.data) {
             token = response.data.data.token || response.data.data.accessToken;
             user = response.data.data.admin || response.data.data.user;
@@ -577,8 +591,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
           break;
 
-        default:
-          throw new Error(`Unsupported user type: ${credentials}`);
+        // default:
+        //   throw new Error(`Unsupported user type: ${credentials.userType}`);
       }
 
       // Validate extracted data
@@ -598,17 +612,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       tokenStorage.setToken(token);
       apiClient.setAuthToken(token);
 
+      // ✅ Dispatch successful login
+      dispatch({
+        type: AuthActionType.LOGIN_SUCCESS,
+        payload: {
+          user,
+          token,
+          // userType: credentials.userType,
+          // isAuthenticated: true,
+          expiresAt,
+        },
+      });
+
+      // ✅ Initialize auth and return success
       initializeAuth();
+
+      return {
+        success: true,
+        user,
+        token,
+        userType: credentials.userType,
+      };
     } catch (error: any) {
       const errorMessage =
         error.response?.data?.message ||
         error.response?.data?.error ||
         error.message ||
         "Login failed";
+
       dispatch({
         type: AuthActionType.LOGIN_FAILURE,
         payload: { error: errorMessage },
       });
+
       throw error;
     }
   };
