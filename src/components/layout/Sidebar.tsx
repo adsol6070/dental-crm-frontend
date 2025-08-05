@@ -23,9 +23,9 @@ const SidebarComponent = ({ isMobile, isCollapsed, isToggled, setIsToggled }: an
     >
       <LogoContainer $isCollapsed={isMobile ? false : isCollapsed}>
         {(!isMobile && isCollapsed) ? (
-          <LogoTitle $collapsed>DM</LogoTitle>
+          <LogoTitle $collapsed>SD</LogoTitle>
         ) : (
-          <LogoTitle>DentalCare Pro</LogoTitle>
+          <LogoTitle>Sujan Dental</LogoTitle>
         )}
       </LogoContainer>
 

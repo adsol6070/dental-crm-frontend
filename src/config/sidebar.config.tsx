@@ -8,7 +8,7 @@ import {
   FiTrello,
   FiXCircle,
   FiDollarSign,
-  FiBarChart,
+  // FiBarChart,
   FiList,
   FiFileText,
   FiDownload,
@@ -90,11 +90,11 @@ const doctorMenuItems = [
     icon: <FiHome size="18" />,
     path: ROUTES.DOCTOR.DASHBOARD, // /doctor/dashboard
   },
-  {
-    label: "Analytics",
-    icon: <FiBarChart size="18" />,
-    path: ROUTES.DOCTOR.ANALYTICS, // /doctor/analytics
-  },
+  // {
+  //   label: "Analytics",
+  //   icon: <FiBarChart size="18" />,
+  //   path: ROUTES.DOCTOR.ANALYTICS, // /doctor/analytics
+  // },
   {
     label: "Schedule",
     icon: <FiClock size="18" />,

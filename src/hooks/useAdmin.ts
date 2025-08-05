@@ -11,6 +11,7 @@ import {
   UserStatusPayload,
   UserCreatePayload,
   ApiResponse,
+  AdminDashboardStatsResponse,
 } from "@/api/admin/adminTypes";
 import { Doctor } from "@/api/doctor/doctorTypes";
 import axios from "axios";
@@ -231,3 +232,10 @@ export const useDeleteUser = () =>
     ["adminUsers"],
     "User deleted successfully!"
   );
+
+  export const useAdminDashboard = () =>
+  useQuery<ApiResponse<AdminDashboardStatsResponse>, Error>({
+    queryKey: ["adminDashboard"],
+    queryFn: () => adminApi.getDashboardStats(),
+    select: (response) => response,
+  });

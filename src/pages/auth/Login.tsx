@@ -181,7 +181,7 @@ const Form = () => {
             </svg>
           </ToothIcon>
           <BrandText>
-            <CompanyName>DentalCare Pro</CompanyName>
+            <CompanyName>Sujan Dental</CompanyName>
             <TagLine>Management System</TagLine>
           </BrandText>
         </LogoContainer>
@@ -414,10 +414,10 @@ const Form = () => {
           </VerificationLink>
         </AdditionalLinks>
 
-        <RegisterLink>
+        {/* <RegisterLink>
           Don't have an account?{" "}
           <Link to={ROUTES.AUTH.REGISTER}>Create one here</Link>
-        </RegisterLink>
+        </RegisterLink> */}
       </FormCard>
     </LoginContainer>
   );

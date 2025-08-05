@@ -1,727 +1,1165 @@
-// @ts-nocheck
-import React, { useState, useEffect } from "react";
-import { useForm, Controller } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
-import * as yup from "yup";
-import styled from "styled-components";
-import { theme } from "@/config/theme.config";
-import { useCreatePatient } from "@/hooks/usePatient";
-import { usePublicDoctorList } from "@/hooks/useDoctor";
-import { useBookAppointment } from "@/hooks/useAppointment";
-import { Toaster } from "react-hot-toast";
-import { httpClient } from "@/api/httpClient";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
+import { useState, useEffect } from 'react';
+import styled from 'styled-components';
 
-// Validation Schemas
-const patientSchema = yup.object({
-  firstName: yup.string().required("First name is required").max(50, "First name too long").trim(),
-  lastName: yup.string().required("Last name is required").max(50, "Last name too long").trim(),
-  dateOfBirth: yup.string().required("Date of birth is required").test(
-    "not-future",
-    "Date of birth cannot be in the future",
-    function (value) {
-      if (!value) return false;
-      return new Date(value) <= new Date();
-    }
-  ),
-  gender: yup.string().required("Gender is required").oneOf(["male", "female", "other"], "Invalid gender selection"),
-  email: yup.string().required("Email is required").email("Invalid email format").max(100, "Email too long").trim(),
-  phone: yup.string().required("Phone is required").matches(
-    /^[6-9]\d{9}$/,
-    "Invalid phone number - must be 10 digits starting with 6-9"
-  ),
-  password: yup.string().required("Password is required").min(8, "Password must be at least 8 characters")
-    .matches(/[A-Z]/, "Password must contain at least one uppercase letter")
-    .matches(/[!@#$%^&*(),.?":{}|<>]/, "Password must contain at least one special character"),
-  confirmPassword: yup.string().required("Please confirm your password")
-    .oneOf([yup.ref("password")], "Passwords do not match"),
-});
+// Types and Interfaces
+interface PatientFormData {
+  // Personal Information
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  gender: 'male' | 'female' | 'other' | '';
+  bloodGroup: string;
+  
+  // Contact Information
+  email: string;
+  phone: string;
+  alternatePhone: string;
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+  
+  // Medical Information
+  allergies: string[];
+  chronicConditions: string[];
+  currentMedications: string[];
+  emergencyContactName: string;
+  emergencyContactRelationship: string;
+  emergencyContactPhone: string;
+  
+  // Preferences
+  preferredLanguage: string;
+  communicationMethod: 'email' | 'sms' | 'whatsapp' | 'phone';
+  enableReminders: boolean;
+  reminderTime: number;
+  
+  // Security
+  password: string;
+  confirmPassword: string;
+}
 
-const appointmentSchema = yup.object({
-  doctor: yup.string().required("Doctor is required"),
-  appointmentDate: yup.string().required("Appointment date is required"),
-  appointmentType: yup.string().required("Appointment type is required")
-    .oneOf(["consultation", "follow-up", "emergency"], "Invalid appointment type"),
-  symptoms: yup.string().optional(),
-  notes: yup.string().optional(),
-});
-
-type PatientFormData = yup.InferType<typeof patientSchema>;
-type AppointmentFormData = yup.InferType<typeof appointmentSchema>;
-
-interface CreatedPatient {
-  _id: string;
-  patientId: string;
-  fullName: string;
-  contactInfo: {
-    phone: string;
-    email: string;
-  };
+interface AppointmentFormData {
+  doctor: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  appointmentType: 'consultation' | 'follow-up' | 'emergency' | '';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  symptoms: string;
+  notes: string;
+  specialRequirements: string;
+  paymentMethod: string;
+  referralSource: string;
 }
 
 interface DoctorInfo {
   _id: string;
-  doctorId: string;
-  personalInfo: {
-    firstName: string;
-    lastName: string;
-  };
-  professionalInfo: {
-    specialization: string;
-    experience: number;
-  };
   fullName: string;
-  fees?: {
-    consultationFee?: number;
-    followUpFee?: number;
-    emergencyFee?: number;
+  specialization: string;
+  experience: number;
+  fees: {
+    consultationFee: number;
+    followUpFee: number;
+    emergencyFee: number;
   };
+  availability: string[];
 }
 
-type FormStep = "patient" | "appointment-prompt" | "appointment";
+type FormStep = 'personal' | 'contact' | 'medical' | 'appointment' | 'payment' | 'confirmation';
 
-const CombinedPatientAppointmentForm: React.FC = () => {
-  const [currentStep, setCurrentStep] = useState<FormStep>("patient");
-  const [createdPatient, setCreatedPatient] = useState<CreatedPatient | null>(null);
-  const [showAppointmentForm, setShowAppointmentForm] = useState(false);
+const PublicBookingPlatform = () => {
+  const [currentStep, setCurrentStep] = useState<FormStep>('personal');
+  const [patientData, setPatientData] = useState<PatientFormData>({
+    firstName: '',
+    lastName: '',
+    dateOfBirth: '',
+    gender: '',
+    bloodGroup: '',
+    email: '',
+    phone: '',
+    alternatePhone: '',
+    street: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    country: 'India',
+    allergies: [],
+    chronicConditions: [],
+    currentMedications: [],
+    emergencyContactName: '',
+    emergencyContactRelationship: '',
+    emergencyContactPhone: '',
+    preferredLanguage: 'English',
+    communicationMethod: 'email',
+    enableReminders: true,
+    reminderTime: 24,
+    password: '',
+    confirmPassword: ''
+  });
+
+  const [appointmentData, setAppointmentData] = useState<AppointmentFormData>({
+    doctor: '',
+    appointmentDate: '',
+    appointmentTime: '',
+    appointmentType: '',
+    priority: 'medium',
+    symptoms: '',
+    notes: '',
+    specialRequirements: '',
+    paymentMethod: '',
+    referralSource: ''
+  });
+
+  const [errors, setErrors] = useState<any>({});
+  const [loading, setLoading] = useState(false);
   const [calculatedFee, setCalculatedFee] = useState(0);
-  const [availabilityData, setAvailabilityData] = useState<{ date: string; available: boolean }[]>([]);
-  const [availableTimes, setAvailableTimes] = useState<any[]>([]);
+  const [availableTimes, setAvailableTimes] = useState<string[]>([]);
 
-  // Hooks
-  const createPatientMutation = useCreatePatient();
-  const { data, isLoading: doctorsLoading } = usePublicDoctorList();
-  const bookAppointmentMutation = useBookAppointment();
-  console.log("dcotors data", data)
-  const doctors = data?.data.doctors || [];
-
-  // Patient Form
-  const patientForm = useForm<PatientFormData>({
-    resolver: yupResolver(patientSchema),
-    mode: "onChange",
-    defaultValues: {
-      firstName: "",
-      lastName: "",
-      dateOfBirth: "",
-      gender: undefined,
-      email: "",
-      phone: "",
-      password: "",
-      confirmPassword: "",
+  // Mock doctors data
+  const doctors: DoctorInfo[] = [
+    {
+      _id: '1',
+      fullName: 'Dr. Rajesh Kumar',
+      specialization: 'Cardiology',
+      experience: 15,
+      fees: { consultationFee: 1500, followUpFee: 800, emergencyFee: 2500 },
+      availability: ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00']
     },
-  });
-
-  // Appointment Form
-  const appointmentForm = useForm<AppointmentFormData>({
-    resolver: yupResolver(appointmentSchema),
-    mode: "onChange",
-    defaultValues: {
-      doctor: "",
-      appointmentDate: "",
-      appointmentType: undefined,
-      symptoms: "",
-      notes: "",
+    {
+      _id: '2',
+      fullName: 'Dr. Priya Sharma',
+      specialization: 'Dermatology',
+      experience: 12,
+      fees: { consultationFee: 1200, followUpFee: 600, emergencyFee: 2000 },
+      availability: ['10:00', '11:00', '12:00', '15:00', '16:00', '17:00']
     },
-  });
-
-  const watchedDoctor = appointmentForm.watch("doctor");
-  const watchedAppointmentType = appointmentForm.watch("appointmentType");
-  const watchedAppointmentDate = appointmentForm.watch("appointmentDate");
+    {
+      _id: '3',
+      fullName: 'Dr. Amit Verma',
+      specialization: 'Orthopedics',
+      experience: 18,
+      fees: { consultationFee: 1800, followUpFee: 1000, emergencyFee: 3000 },
+      availability: ['09:00', '10:00', '14:00', '15:00', '16:00']
+    }
+  ];
 
   // Calculate fee when doctor or appointment type changes
   useEffect(() => {
-    if (watchedDoctor && watchedAppointmentType && doctors) {
-      const selectedDoctor = doctors.find((doc: DoctorInfo) => doc._id === watchedDoctor);
-      if (selectedDoctor?.fees) {
+    if (appointmentData.doctor && appointmentData.appointmentType) {
+      const selectedDoctor = doctors.find(doc => doc._id === appointmentData.doctor);
+      if (selectedDoctor) {
         let fee = 0;
-        if (watchedAppointmentType === "consultation") {
-          fee = selectedDoctor.fees.consultationFee ?? 0;
-        } else if (watchedAppointmentType === "follow-up") {
-          fee = selectedDoctor.fees.followUpFee ?? 0;
-        } else if (watchedAppointmentType === "emergency") {
-          fee = selectedDoctor.fees.emergencyFee ?? 0;
+        switch (appointmentData.appointmentType) {
+          case 'consultation':
+            fee = selectedDoctor.fees.consultationFee;
+            break;
+          case 'follow-up':
+            fee = selectedDoctor.fees.followUpFee;
+            break;
+          case 'emergency':
+            fee = selectedDoctor.fees.emergencyFee;
+            break;
         }
         setCalculatedFee(fee);
-      } else {
-        setCalculatedFee(0);
       }
-    } else {
-      setCalculatedFee(0);
     }
-  }, [watchedDoctor, watchedAppointmentType, doctors]);
+  }, [appointmentData.doctor, appointmentData.appointmentType]);
 
-  // Fetch doctor availability
+  // Update available times when doctor is selected
   useEffect(() => {
-    const fetchDoctorAvailability = async () => {
-      if (!watchedDoctor) return;
-      
-      const startDate = new Date().toISOString().split("T")[0];
-      const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split("T")[0];
+    if (appointmentData.doctor) {
+      const selectedDoctor = doctors.find(doc => doc._id === appointmentData.doctor);
+      setAvailableTimes(selectedDoctor?.availability || []);
+    }
+  }, [appointmentData.doctor]);
 
-      try {
-        const res = await httpClient.get(
-          `/api/appointments/availability/${watchedDoctor}`,
-          { params: { startDate, endDate } }
-        );
-        setAvailabilityData(res.data.data.availability);
-      } catch (error) {
-        console.error("Failed to fetch availability", error);
-        setAvailabilityData([]);
-      }
-    };
+  const steps = [
+    { id: 'personal', title: 'Personal Info', icon: '👤', description: 'Basic details' },
+    { id: 'contact', title: 'Contact Info', icon: '📧', description: 'Contact & address' },
+    { id: 'medical', title: 'Medical Info', icon: '🏥', description: 'Medical history' },
+    { id: 'appointment', title: 'Appointment', icon: '📅', description: 'Book appointment' },
+    { id: 'payment', title: 'Payment', icon: '💳', description: 'Payment details' },
+    { id: 'confirmation', title: 'Confirm', icon: '✅', description: 'Review & submit' }
+  ];
 
-    fetchDoctorAvailability();
-  }, [watchedDoctor]);
-
-  // Fetch available slots
-  useEffect(() => {
-    const fetchSlots = async () => {
-      if (!watchedDoctor || !watchedAppointmentDate) return;
-
-      try {
-        const res = await httpClient.get(
-          `/api/appointments/slots/${watchedDoctor}/${watchedAppointmentDate}`
-        );
-        setAvailableTimes(res.data.data.slots || []);
-      } catch (error) {
-        console.error("Failed to fetch slots", error);
-        setAvailableTimes([]);
-      }
-    };
-
-    fetchSlots();
-  }, [watchedAppointmentDate, watchedDoctor]);
-
-  const availableDates = availabilityData
-    .filter((day) => day.available)
-    .map((day) => new Date(day.date));
-
-  const isDateAvailable = (date: Date) => {
-    return availableDates.some(
-      (availableDate) => availableDate.toDateString() === date.toDateString()
-    );
-  };
-
-  const handlePatientSubmit = async (data: PatientFormData) => {
-    try {
-      const patientPayload = {
-        personalInfo: {
-          firstName: data.firstName.trim(),
-          lastName: data.lastName.trim(),
-          dateOfBirth: data.dateOfBirth,
-          gender: data.gender,
-        },
-        contactInfo: {
-          email: data.email.trim().toLowerCase(),
-          phone: data.phone.replace(/\D/g, ""),
-          address: {
-            country: "India",
-          },
-        },
-        registrationSource: "website" as const,
-        preferences: {
-          preferredLanguage: "English",
-          communicationMethod: "email" as const,
-          reminderSettings: {
-            enableReminders: true,
-            reminderTime: 24,
-          },
-        },
-        authentication: {
-          password: data.password,
-        },
-      };
-
-      const response = await createPatientMutation.mutateAsync(patientPayload);
-      setCreatedPatient(response.patient);
-      setCurrentStep("appointment-prompt");
-    } catch (error) {
-      console.error("Error creating patient:", error);
+  const handlePatientInputChange = (field: keyof PatientFormData, value: any) => {
+    setPatientData(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors((prev: any) => ({ ...prev, [field]: '' }));
     }
   };
 
-  const handleAppointmentSubmit = async (data: AppointmentFormData) => {
-    if (!createdPatient) return;
-
-    try {
-      const appointmentPayload = {
-        patient: createdPatient._id,
-        doctor: data.doctor,
-        appointmentDate: data.appointmentDate,
-        appointmentType: data.appointmentType,
-        status: "scheduled" as const,
-        priority: "medium" as const,
-        bookingSource: "website" as const,
-        symptoms: data.symptoms ? data.symptoms.split(",").map((s) => s.trim()).filter(Boolean) : [],
-        notes: data.notes,
-        paymentStatus: "pending" as const,
-        paymentAmount: calculatedFee,
-        metadata: {
-          ipAddress: "127.0.0.1",
-          userAgent: navigator.userAgent,
-        },
-      };
-
-      await bookAppointmentMutation.mutateAsync(appointmentPayload);
-      
-      // Reset forms and show success
-      patientForm.reset();
-      appointmentForm.reset();
-      setCreatedPatient(null);
-      setCurrentStep("patient");
-      setShowAppointmentForm(false);
-    } catch (error) {
-      console.error("Error creating appointment:", error);
+  const handleAppointmentInputChange = (field: keyof AppointmentFormData, value: any) => {
+    setAppointmentData(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors((prev: any) => ({ ...prev, [field]: '' }));
     }
   };
 
-  const handleBookAppointment = () => {
-    setShowAppointmentForm(true);
-    setCurrentStep("appointment");
+  const addTag = (field: 'allergies' | 'chronicConditions' | 'currentMedications', value: string) => {
+    const trimmedValue = value.trim();
+    if (!trimmedValue) return;
+    
+    const currentValues = patientData[field];
+    if (!currentValues.includes(trimmedValue)) {
+      handlePatientInputChange(field, [...currentValues, trimmedValue]);
+    }
   };
 
-  const handleSkipAppointment = () => {
-    patientForm.reset();
-    setCreatedPatient(null);
-    setCurrentStep("patient");
+  const removeTag = (field: 'allergies' | 'chronicConditions' | 'currentMedications', index: number) => {
+    const currentValues = patientData[field];
+    handlePatientInputChange(field, currentValues.filter((_, i) => i !== index));
   };
 
-  const getDoctorDisplayName = (doctor: DoctorInfo) => {
-    return doctor.fullName || `Dr. ${doctor.personalInfo.firstName} ${doctor.personalInfo.lastName}`;
+  const validateStep = (step: FormStep): boolean => {
+    const newErrors: any = {};
+
+    switch (step) {
+      case 'personal':
+        if (!patientData.firstName.trim()) newErrors.firstName = 'First name is required';
+        if (!patientData.lastName.trim()) newErrors.lastName = 'Last name is required';
+        if (!patientData.dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required';
+        if (!patientData.gender) newErrors.gender = 'Gender is required';
+        break;
+
+      case 'contact':
+        if (!patientData.email.trim()) newErrors.email = 'Email is required';
+        if (!/\S+@\S+\.\S+/.test(patientData.email)) newErrors.email = 'Invalid email format';
+        if (!patientData.phone.trim()) newErrors.phone = 'Phone number is required';
+        if (!/^[6-9]\d{9}$/.test(patientData.phone)) newErrors.phone = 'Invalid phone number';
+        break;
+
+      case 'medical':
+        if (!patientData.password) newErrors.password = 'Password is required';
+        if (patientData.password.length < 8) newErrors.password = 'Password must be at least 8 characters';
+        if (patientData.password !== patientData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
+        break;
+
+      case 'appointment':
+        if (!appointmentData.doctor) newErrors.doctor = 'Please select a doctor';
+        if (!appointmentData.appointmentDate) newErrors.appointmentDate = 'Please select a date';
+        if (!appointmentData.appointmentTime) newErrors.appointmentTime = 'Please select a time';
+        if (!appointmentData.appointmentType) newErrors.appointmentType = 'Please select appointment type';
+        break;
+
+      case 'payment':
+        if (!appointmentData.paymentMethod) newErrors.paymentMethod = 'Please select payment method';
+        break;
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  const renderPatientForm = () => (
-    <FormSection>
-      <SectionHeader>
-        <SectionIcon>👤</SectionIcon>
-        <SectionTitle>Patient Registration</SectionTitle>
-      </SectionHeader>
-      
-      <form onSubmit={patientForm.handleSubmit(handlePatientSubmit)}>
-        <FormGrid>
-          <FormGroup>
-            <Label>First Name *</Label>
-            <Controller
-              name="firstName"
-              control={patientForm.control}
-              render={({ field }) => (
-                <Input {...field} hasError={!!patientForm.formState.errors.firstName} />
-              )}
-            />
-            {patientForm.formState.errors.firstName && (
-              <ErrorText>{patientForm.formState.errors.firstName.message}</ErrorText>
-            )}
-          </FormGroup>
+  const handleNext = () => {
+    if (validateStep(currentStep)) {
+      const currentIndex = steps.findIndex(step => step.id === currentStep);
+      if (currentIndex < steps.length - 1) {
+        setCurrentStep(steps[currentIndex + 1].id as FormStep);
+      }
+    }
+  };
 
-          <FormGroup>
-            <Label>Last Name *</Label>
-            <Controller
-              name="lastName"
-              control={patientForm.control}
-              render={({ field }) => (
-                <Input {...field} hasError={!!patientForm.formState.errors.lastName} />
-              )}
-            />
-            {patientForm.formState.errors.lastName && (
-              <ErrorText>{patientForm.formState.errors.lastName.message}</ErrorText>
-            )}
-          </FormGroup>
+  const handleBack = () => {
+    const currentIndex = steps.findIndex(step => step.id === currentStep);
+    if (currentIndex > 0) {
+      setCurrentStep(steps[currentIndex - 1].id as FormStep);
+    }
+  };
 
-          <FormGroup>
-            <Label>Date of Birth *</Label>
-            <Controller
-              name="dateOfBirth"
-              control={patientForm.control}
-              render={({ field }) => (
-                <Input {...field} type="date" hasError={!!patientForm.formState.errors.dateOfBirth} />
-              )}
-            />
-            {patientForm.formState.errors.dateOfBirth && (
-              <ErrorText>{patientForm.formState.errors.dateOfBirth.message}</ErrorText>
-            )}
-          </FormGroup>
+  const handleSubmit = async () => {
+    if (!validateStep('payment')) return;
+    
+    setLoading(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      setCurrentStep('confirmation');
+    } catch (error) {
+      console.error('Submission error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-          <FormGroup>
-            <Label>Gender *</Label>
-            <Controller
-              name="gender"
-              control={patientForm.control}
-              render={({ field }) => (
-                <Select {...field} hasError={!!patientForm.formState.errors.gender}>
-                  <option value="">Select gender</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
-                </Select>
-              )}
-            />
-            {patientForm.formState.errors.gender && (
-              <ErrorText>{patientForm.formState.errors.gender.message}</ErrorText>
-            )}
-          </FormGroup>
+  const currentStepIndex = steps.findIndex(step => step.id === currentStep);
+  const progressPercentage = ((currentStepIndex + 1) / steps.length) * 100;
 
-          <FormGroup className="full-width">
-            <Label>Email Address *</Label>
-            <Controller
-              name="email"
-              control={patientForm.control}
-              render={({ field }) => (
-                <Input {...field} type="email" hasError={!!patientForm.formState.errors.email} />
-              )}
-            />
-            {patientForm.formState.errors.email && (
-              <ErrorText>{patientForm.formState.errors.email.message}</ErrorText>
-            )}
-          </FormGroup>
-
-          <FormGroup className="full-width">
-            <Label>Phone Number *</Label>
-            <Controller
-              name="phone"
-              control={patientForm.control}
-              render={({ field }) => (
-                <Input {...field} placeholder="Enter 10-digit mobile number" hasError={!!patientForm.formState.errors.phone} />
-              )}
-            />
-            {patientForm.formState.errors.phone && (
-              <ErrorText>{patientForm.formState.errors.phone.message}</ErrorText>
-            )}
-          </FormGroup>
-
-          <FormGroup>
-            <Label>Password *</Label>
-            <Controller
-              name="password"
-              control={patientForm.control}
-              render={({ field }) => (
-                <Input {...field} type="password" hasError={!!patientForm.formState.errors.password} />
-              )}
-            />
-            {patientForm.formState.errors.password && (
-              <ErrorText>{patientForm.formState.errors.password.message}</ErrorText>
-            )}
-            <HelperText>Minimum 8 characters with uppercase and special character required</HelperText>
-          </FormGroup>
-
-          <FormGroup>
-            <Label>Confirm Password *</Label>
-            <Controller
-              name="confirmPassword"
-              control={patientForm.control}
-              render={({ field }) => (
-                <Input {...field} type="password" hasError={!!patientForm.formState.errors.confirmPassword} />
-              )}
-            />
-            {patientForm.formState.errors.confirmPassword && (
-              <ErrorText>{patientForm.formState.errors.confirmPassword.message}</ErrorText>
-            )}
-          </FormGroup>
-        </FormGrid>
-
-        <FormActions>
-          <ActionButton type="submit" disabled={createPatientMutation.isPending}>
-            {createPatientMutation.isPending ? "Creating Patient..." : "Register Patient"}
-          </ActionButton>
-        </FormActions>
-      </form>
-    </FormSection>
-  );
-
-  const renderAppointmentPrompt = () => (
-    <SuccessSection>
-      <SuccessIcon>🎉</SuccessIcon>
-      <SuccessTitle>Patient Registered Successfully!</SuccessTitle>
-      <SuccessMessage>
-        <strong>{createdPatient?.fullName} </strong> has been registered with Patient ID: <strong>{createdPatient?.patientId}</strong>
-      </SuccessMessage>
-      
-      <AppointmentPrompt>
-        <PromptTitle>Would you like to book an appointment?</PromptTitle>
-        <PromptActions>
-          <ActionButton onClick={handleBookAppointment}>
-            📅 Yes, Book Appointment
-          </ActionButton>
-          <ActionButton variant="secondary" onClick={handleSkipAppointment}>
-            Skip for Now
-          </ActionButton>
-        </PromptActions>
-      </AppointmentPrompt>
-    </SuccessSection>
-  );
-
-  const renderAppointmentForm = () => (
-    <FormSection>
-      <SectionHeader>
-        <SectionIcon>📅</SectionIcon>
+  const renderPersonalInfo = () => (
+    <StepContent>
+      <StepHeader>
+        <StepIcon>👤</StepIcon>
         <div>
-          <SectionTitle>Book Appointment</SectionTitle>
-          <PatientInfo>
-            for {createdPatient?.fullName} 
-            (ID: {createdPatient?.patientId})
-          </PatientInfo>
+          <StepTitle>Personal Information</StepTitle>
+          <StepDescription>Tell us about yourself</StepDescription>
         </div>
-      </SectionHeader>
+      </StepHeader>
 
-      <form onSubmit={appointmentForm.handleSubmit(handleAppointmentSubmit)}>
-        <FormGrid>
-          <FormGroup>
-            <Label>Doctor *</Label>
-            <Controller
-              name="doctor"
-              control={appointmentForm.control}
-              render={({ field }) => (
-                <Select {...field} hasError={!!appointmentForm.formState.errors.doctor}>
-                  <option value="">Select doctor</option>
-                  { doctors.map((doctor: DoctorInfo) => (
-                    <option key={doctor._id} value={doctor._id}>
-                      {getDoctorDisplayName(doctor)} - {doctor.professionalInfo.specialization}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            />
-            {appointmentForm.formState.errors.doctor && (
-              <ErrorText>{appointmentForm.formState.errors.doctor.message}</ErrorText>
-            )}
-          </FormGroup>
+      <FormGrid>
+        <FormGroup>
+          <Label>First Name *</Label>
+          <Input
+            value={patientData.firstName}
+            onChange={(e) => handlePatientInputChange('firstName', e.target.value)}
+            placeholder="Enter your first name"
+            hasError={!!errors.firstName}
+          />
+          {errors.firstName && <ErrorText>{errors.firstName}</ErrorText>}
+        </FormGroup>
 
-          <FormGroup>
-            <Label>Appointment Type *</Label>
-            <Controller
-              name="appointmentType"
-              control={appointmentForm.control}
-              render={({ field }) => (
-                <Select {...field} hasError={!!appointmentForm.formState.errors.appointmentType}>
-                  <option value="">Select type</option>
-                  <option value="consultation">Consultation</option>
-                  <option value="follow-up">Follow-up</option>
-                  <option value="emergency">Emergency</option>
-                </Select>
-              )}
-            />
-            {appointmentForm.formState.errors.appointmentType && (
-              <ErrorText>{appointmentForm.formState.errors.appointmentType.message}</ErrorText>
-            )}
-          </FormGroup>
+        <FormGroup>
+          <Label>Last Name *</Label>
+          <Input
+            value={patientData.lastName}
+            onChange={(e) => handlePatientInputChange('lastName', e.target.value)}
+            placeholder="Enter your last name"
+            hasError={!!errors.lastName}
+          />
+          {errors.lastName && <ErrorText>{errors.lastName}</ErrorText>}
+        </FormGroup>
 
-          <FormGroup>
-            <Label>Appointment Date *</Label>
-            <Controller
-              name="appointmentDate"
-              control={appointmentForm.control}
-              render={({ field }) => (
-                <DatePicker
-                  selected={field.value ? new Date(field.value) : null}
-                  onChange={(date) => field.onChange(date ? date.toISOString().split('T')[0] : "")}
-                  filterDate={isDateAvailable}
-                  minDate={new Date()}
-                  dateFormat="yyyy-MM-dd"
-                  customInput={<Input hasError={!!appointmentForm.formState.errors.appointmentDate} />}
-                />
-              )}
-            />
-            {appointmentForm.formState.errors.appointmentDate && (
-              <ErrorText>{appointmentForm.formState.errors.appointmentDate.message}</ErrorText>
-            )}
-          </FormGroup>
+        <FormGroup>
+          <Label>Date of Birth *</Label>
+          <Input
+            type="date"
+            value={patientData.dateOfBirth}
+            onChange={(e) => handlePatientInputChange('dateOfBirth', e.target.value)}
+            hasError={!!errors.dateOfBirth}
+            max={new Date().toISOString().split('T')[0]}
+          />
+          {errors.dateOfBirth && <ErrorText>{errors.dateOfBirth}</ErrorText>}
+        </FormGroup>
 
-          <FormGroup className="full-width">
-            <Label>Symptoms</Label>
-            <Controller
-              name="symptoms"
-              control={appointmentForm.control}
-              render={({ field }) => (
-                <TextArea {...field} placeholder="Describe your symptoms (separate multiple with commas)" />
-              )}
-            />
-            <HelperText>Optional - describe your symptoms</HelperText>
-          </FormGroup>
+        <FormGroup>
+          <Label>Gender *</Label>
+          <Select
+            value={patientData.gender}
+            onChange={(e) => handlePatientInputChange('gender', e.target.value)}
+            hasError={!!errors.gender}
+          >
+            <option value="">Select gender</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </Select>
+          {errors.gender && <ErrorText>{errors.gender}</ErrorText>}
+        </FormGroup>
 
-          <FormGroup className="full-width">
-            <Label>Additional Notes</Label>
-            <Controller
-              name="notes"
-              control={appointmentForm.control}
-              render={({ field }) => (
-                <TextArea {...field} placeholder="Any additional information or special requests" />
-              )}
-            />
-          </FormGroup>
-        </FormGrid>
+        <FormGroup>
+          <Label>Blood Group</Label>
+          <Select
+            value={patientData.bloodGroup}
+            onChange={(e) => handlePatientInputChange('bloodGroup', e.target.value)}
+          >
+            <option value="">Select blood group</option>
+            <option value="A+">A+</option>
+            <option value="A-">A-</option>
+            <option value="B+">B+</option>
+            <option value="B-">B-</option>
+            <option value="AB+">AB+</option>
+            <option value="AB-">AB-</option>
+            <option value="O+">O+</option>
+            <option value="O-">O-</option>
+          </Select>
+        </FormGroup>
+      </FormGrid>
+    </StepContent>
+  );
 
-        {watchedDoctor && watchedAppointmentType && (
-          <FeeDisplayCard>
-            <FeeLabel>Consultation Fee</FeeLabel>
+  const renderContactInfo = () => (
+    <StepContent>
+      <StepHeader>
+        <StepIcon>📧</StepIcon>
+        <div>
+          <StepTitle>Contact Information</StepTitle>
+          <StepDescription>How can we reach you?</StepDescription>
+        </div>
+      </StepHeader>
+
+      <FormGrid>
+        <FormGroup className="full-width">
+          <Label>Email Address *</Label>
+          <Input
+            type="email"
+            value={patientData.email}
+            onChange={(e) => handlePatientInputChange('email', e.target.value)}
+            placeholder="Enter your email address"
+            hasError={!!errors.email}
+          />
+          {errors.email && <ErrorText>{errors.email}</ErrorText>}
+        </FormGroup>
+
+        <FormGroup>
+          <Label>Phone Number *</Label>
+          <Input
+            value={patientData.phone}
+            onChange={(e) => handlePatientInputChange('phone', e.target.value)}
+            placeholder="Enter 10-digit mobile number"
+            hasError={!!errors.phone}
+          />
+          {errors.phone && <ErrorText>{errors.phone}</ErrorText>}
+        </FormGroup>
+
+        <FormGroup>
+          <Label>Alternate Phone</Label>
+          <Input
+            value={patientData.alternatePhone}
+            onChange={(e) => handlePatientInputChange('alternatePhone', e.target.value)}
+            placeholder="Alternate phone number"
+          />
+        </FormGroup>
+
+        <FormGroup className="full-width">
+          <Label>Street Address</Label>
+          <Input
+            value={patientData.street}
+            onChange={(e) => handlePatientInputChange('street', e.target.value)}
+            placeholder="Enter your street address"
+          />
+        </FormGroup>
+
+        <FormGroup>
+          <Label>City</Label>
+          <Input
+            value={patientData.city}
+            onChange={(e) => handlePatientInputChange('city', e.target.value)}
+            placeholder="Enter your city"
+          />
+        </FormGroup>
+
+        <FormGroup>
+          <Label>State</Label>
+          <Input
+            value={patientData.state}
+            onChange={(e) => handlePatientInputChange('state', e.target.value)}
+            placeholder="Enter your state"
+          />
+        </FormGroup>
+
+        <FormGroup>
+          <Label>ZIP Code</Label>
+          <Input
+            value={patientData.zipCode}
+            onChange={(e) => handlePatientInputChange('zipCode', e.target.value)}
+            placeholder="Enter ZIP code"
+          />
+        </FormGroup>
+
+        <FormGroup>
+          <Label>Country</Label>
+          <Input
+            value={patientData.country}
+            onChange={(e) => handlePatientInputChange('country', e.target.value)}
+            placeholder="Enter your country"
+          />
+        </FormGroup>
+      </FormGrid>
+    </StepContent>
+  );
+
+  const renderMedicalInfo = () => (
+    <StepContent>
+      <StepHeader>
+        <StepIcon>🏥</StepIcon>
+        <div>
+          <StepTitle>Medical Information & Security</StepTitle>
+          <StepDescription>Medical history and account security</StepDescription>
+        </div>
+      </StepHeader>
+
+      <FormGrid>
+        {/* Medical Tags */}
+        <FormGroup className="full-width">
+          <Label>Allergies</Label>
+          <TagContainer>
+            <TagsList>
+              {patientData.allergies.map((tag, index) => (
+                <Tag key={index}>
+                  <TagText>{tag}</TagText>
+                  <TagRemove onClick={() => removeTag('allergies', index)}>×</TagRemove>
+                </Tag>
+              ))}
+              <TagInput
+                placeholder="Type allergy and press Enter"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const value = e.currentTarget.value.trim();
+                    if (value) {
+                      addTag('allergies', value);
+                      e.currentTarget.value = '';
+                    }
+                  }
+                }}
+              />
+            </TagsList>
+          </TagContainer>
+        </FormGroup>
+
+        <FormGroup className="full-width">
+          <Label>Chronic Conditions</Label>
+          <TagContainer>
+            <TagsList>
+              {patientData.chronicConditions.map((tag, index) => (
+                <Tag key={index}>
+                  <TagText>{tag}</TagText>
+                  <TagRemove onClick={() => removeTag('chronicConditions', index)}>×</TagRemove>
+                </Tag>
+              ))}
+              <TagInput
+                placeholder="Type condition and press Enter"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const value = e.currentTarget.value.trim();
+                    if (value) {
+                      addTag('chronicConditions', value);
+                      e.currentTarget.value = '';
+                    }
+                  }
+                }}
+              />
+            </TagsList>
+          </TagContainer>
+        </FormGroup>
+
+        <FormGroup className="full-width">
+          <Label>Current Medications</Label>
+          <TagContainer>
+            <TagsList>
+              {patientData.currentMedications.map((tag, index) => (
+                <Tag key={index}>
+                  <TagText>{tag}</TagText>
+                  <TagRemove onClick={() => removeTag('currentMedications', index)}>×</TagRemove>
+                </Tag>
+              ))}
+              <TagInput
+                placeholder="Type medication and press Enter"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const value = e.currentTarget.value.trim();
+                    if (value) {
+                      addTag('currentMedications', value);
+                      e.currentTarget.value = '';
+                    }
+                  }
+                }}
+              />
+            </TagsList>
+          </TagContainer>
+        </FormGroup>
+
+        {/* Emergency Contact */}
+        <SectionDivider>
+          <SectionTitle>Emergency Contact</SectionTitle>
+        </SectionDivider>
+
+        <FormGroup>
+          <Label>Contact Name</Label>
+          <Input
+            value={patientData.emergencyContactName}
+            onChange={(e) => handlePatientInputChange('emergencyContactName', e.target.value)}
+            placeholder="Emergency contact name"
+          />
+        </FormGroup>
+
+        <FormGroup>
+          <Label>Relationship</Label>
+          <Input
+            value={patientData.emergencyContactRelationship}
+            onChange={(e) => handlePatientInputChange('emergencyContactRelationship', e.target.value)}
+            placeholder="Relationship to you"
+          />
+        </FormGroup>
+
+        <FormGroup>
+          <Label>Contact Phone</Label>
+          <Input
+            value={patientData.emergencyContactPhone}
+            onChange={(e) => handlePatientInputChange('emergencyContactPhone', e.target.value)}
+            placeholder="Emergency contact phone"
+          />
+        </FormGroup>
+
+        {/* Account Security */}
+        <SectionDivider>
+          <SectionTitle>Account Security</SectionTitle>
+        </SectionDivider>
+
+        <FormGroup>
+          <Label>Password *</Label>
+          <Input
+            type="password"
+            value={patientData.password}
+            onChange={(e) => handlePatientInputChange('password', e.target.value)}
+            placeholder="Create a secure password"
+            hasError={!!errors.password}
+          />
+          {errors.password && <ErrorText>{errors.password}</ErrorText>}
+          <HelperText>Minimum 8 characters with uppercase and special character</HelperText>
+        </FormGroup>
+
+        <FormGroup>
+          <Label>Confirm Password *</Label>
+          <Input
+            type="password"
+            value={patientData.confirmPassword}
+            onChange={(e) => handlePatientInputChange('confirmPassword', e.target.value)}
+            placeholder="Confirm your password"
+            hasError={!!errors.confirmPassword}
+          />
+          {errors.confirmPassword && <ErrorText>{errors.confirmPassword}</ErrorText>}
+        </FormGroup>
+      </FormGrid>
+    </StepContent>
+  );
+
+  const renderAppointment = () => (
+    <StepContent>
+      <StepHeader>
+        <StepIcon>📅</StepIcon>
+        <div>
+          <StepTitle>Book Your Appointment</StepTitle>
+          <StepDescription>Choose your preferred doctor and time</StepDescription>
+        </div>
+      </StepHeader>
+
+      <FormGrid>
+        <FormGroup className="full-width">
+          <Label>Select Doctor *</Label>
+          <DoctorGrid>
+            {doctors.map((doctor) => (
+              <DoctorCard
+                key={doctor._id}
+                selected={appointmentData.doctor === doctor._id}
+                onClick={() => handleAppointmentInputChange('doctor', doctor._id)}
+              >
+                <DoctorAvatar>{doctor.fullName.split(' ').map(n => n[0]).join('')}</DoctorAvatar>
+                <DoctorInfo>
+                  <DoctorName>{doctor.fullName}</DoctorName>
+                  <DoctorSpecialty>{doctor.specialization}</DoctorSpecialty>
+                  <DoctorExperience>{doctor.experience} years experience</DoctorExperience>
+                </DoctorInfo>
+                <DoctorFees>
+                  <FeeItem>Consultation: ₹{doctor.fees.consultationFee}</FeeItem>
+                  <FeeItem>Follow-up: ₹{doctor.fees.followUpFee}</FeeItem>
+                </DoctorFees>
+              </DoctorCard>
+            ))}
+          </DoctorGrid>
+          {errors.doctor && <ErrorText>{errors.doctor}</ErrorText>}
+        </FormGroup>
+
+        <FormGroup>
+          <Label>Appointment Type *</Label>
+          <Select
+            value={appointmentData.appointmentType}
+            onChange={(e) => handleAppointmentInputChange('appointmentType', e.target.value)}
+            hasError={!!errors.appointmentType}
+          >
+            <option value="">Select type</option>
+            <option value="consultation">Consultation</option>
+            <option value="follow-up">Follow-up</option>
+            <option value="emergency">Emergency</option>
+          </Select>
+          {errors.appointmentType && <ErrorText>{errors.appointmentType}</ErrorText>}
+        </FormGroup>
+
+        <FormGroup>
+          <Label>Appointment Date *</Label>
+          <Input
+            type="date"
+            value={appointmentData.appointmentDate}
+            onChange={(e) => handleAppointmentInputChange('appointmentDate', e.target.value)}
+            hasError={!!errors.appointmentDate}
+            min={new Date().toISOString().split('T')[0]}
+          />
+          {errors.appointmentDate && <ErrorText>{errors.appointmentDate}</ErrorText>}
+        </FormGroup>
+
+        <FormGroup>
+          <Label>Preferred Time *</Label>
+          <Select
+            value={appointmentData.appointmentTime}
+            onChange={(e) => handleAppointmentInputChange('appointmentTime', e.target.value)}
+            hasError={!!errors.appointmentTime}
+            disabled={!appointmentData.doctor}
+          >
+            <option value="">Select time</option>
+            {availableTimes.map((time) => (
+              <option key={time} value={time}>{time}</option>
+            ))}
+          </Select>
+          {errors.appointmentTime && <ErrorText>{errors.appointmentTime}</ErrorText>}
+        </FormGroup>
+
+        <FormGroup>
+          <Label>Priority</Label>
+          <Select
+            value={appointmentData.priority}
+            onChange={(e) => handleAppointmentInputChange('priority', e.target.value)}
+          >
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </Select>
+        </FormGroup>
+
+        <FormGroup className="full-width">
+          <Label>Symptoms</Label>
+          <TextArea
+            value={appointmentData.symptoms}
+            onChange={(e) => handleAppointmentInputChange('symptoms', e.target.value)}
+            placeholder="Describe your symptoms"
+            rows={3}
+          />
+        </FormGroup>
+
+        <FormGroup className="full-width">
+          <Label>Additional Notes</Label>
+          <TextArea
+            value={appointmentData.notes}
+            onChange={(e) => handleAppointmentInputChange('notes', e.target.value)}
+            placeholder="Any additional notes or special requirements"
+            rows={3}
+          />
+        </FormGroup>
+
+        <FormGroup>
+          <Label>How did you hear about us?</Label>
+          <Input
+            value={appointmentData.referralSource}
+            onChange={(e) => handleAppointmentInputChange('referralSource', e.target.value)}
+            placeholder="e.g., Google, Facebook, Friend referral"
+          />
+        </FormGroup>
+
+        {calculatedFee > 0 && (
+          <FeeCard className="full-width">
+            <FeeCardHeader>
+              <FeeIcon>💰</FeeIcon>
+              <FeeTitle>Consultation Fee</FeeTitle>
+            </FeeCardHeader>
             <FeeAmount>₹{calculatedFee.toLocaleString()}</FeeAmount>
             <FeeDescription>
-              {watchedAppointmentType.replace("-", " ").replace(/\b\w/g, (l) => l.toUpperCase())} 
-              with {getDoctorDisplayName(doctors?.find((doc: DoctorInfo) => doc._id === watchedDoctor) || {} as DoctorInfo)}
+              {appointmentData.appointmentType.replace(/\b\w/g, l => l.toUpperCase())} with{' '}
+              {doctors.find(d => d._id === appointmentData.doctor)?.fullName}
             </FeeDescription>
-          </FeeDisplayCard>
+          </FeeCard>
         )}
+      </FormGrid>
+    </StepContent>
+  );
 
-        <FormActions>
-          <ActionButton type="button" variant="secondary" onClick={handleSkipAppointment}>
-            Cancel
-          </ActionButton>
-          <ActionButton type="submit" disabled={bookAppointmentMutation.isPending}>
-            {bookAppointmentMutation.isPending ? "Booking Appointment..." : "Book Appointment"}
-          </ActionButton>
-        </FormActions>
-      </form>
-    </FormSection>
+  const renderPayment = () => (
+    <StepContent>
+      <StepHeader>
+        <StepIcon>💳</StepIcon>
+        <div>
+          <StepTitle>Payment Information</StepTitle>
+          <StepDescription>Choose your payment method</StepDescription>
+        </div>
+      </StepHeader>
+
+      <FormGrid>
+        <FormGroup className="full-width">
+          <Label>Payment Method *</Label>
+          <PaymentGrid>
+            {[
+              { id: 'upi', name: 'UPI', icon: '📱', description: 'Pay with UPI apps' },
+              { id: 'card', name: 'Card', icon: '💳', description: 'Credit/Debit card' },
+              { id: 'netbanking', name: 'Net Banking', icon: '🏦', description: 'Online banking' },
+              { id: 'wallet', name: 'Wallet', icon: '💰', description: 'Digital wallets' },
+              { id: 'cash', name: 'Cash', icon: '💵', description: 'Pay at clinic' }
+            ].map((method) => (
+              <PaymentCard
+                key={method.id}
+                selected={appointmentData.paymentMethod === method.id}
+                onClick={() => handleAppointmentInputChange('paymentMethod', method.id)}
+              >
+                <PaymentIcon>{method.icon}</PaymentIcon>
+                <PaymentName>{method.name}</PaymentName>
+                <PaymentDescription>{method.description}</PaymentDescription>
+              </PaymentCard>
+            ))}
+          </PaymentGrid>
+          {errors.paymentMethod && <ErrorText>{errors.paymentMethod}</ErrorText>}
+        </FormGroup>
+
+        <SummaryCard className="full-width">
+          <SummaryHeader>
+            <SummaryIcon>📋</SummaryIcon>
+            <SummaryTitle>Booking Summary</SummaryTitle>
+          </SummaryHeader>
+          <SummaryContent>
+            <SummaryRow>
+              <SummaryLabel>Patient:</SummaryLabel>
+              <SummaryValue>{patientData.firstName} {patientData.lastName}</SummaryValue>
+            </SummaryRow>
+            <SummaryRow>
+              <SummaryLabel>Doctor:</SummaryLabel>
+              <SummaryValue>
+                {doctors.find(d => d._id === appointmentData.doctor)?.fullName || 'Not selected'}
+              </SummaryValue>
+            </SummaryRow>
+            <SummaryRow>
+              <SummaryLabel>Specialization:</SummaryLabel>
+              <SummaryValue>
+                {doctors.find(d => d._id === appointmentData.doctor)?.specialization || 'Not selected'}
+              </SummaryValue>
+            </SummaryRow>
+            <SummaryRow>
+              <SummaryLabel>Date & Time:</SummaryLabel>
+              <SummaryValue>
+                {appointmentData.appointmentDate} at {appointmentData.appointmentTime}
+              </SummaryValue>
+            </SummaryRow>
+            <SummaryRow>
+              <SummaryLabel>Type:</SummaryLabel>
+              <SummaryValue>
+                {appointmentData.appointmentType.replace(/\b\w/g, l => l.toUpperCase())}
+              </SummaryValue>
+            </SummaryRow>
+            <SummaryDivider />
+            <SummaryRow>
+              <SummaryLabel>Total Fee:</SummaryLabel>
+              <SummaryTotal>₹{calculatedFee.toLocaleString()}</SummaryTotal>
+            </SummaryRow>
+          </SummaryContent>
+        </SummaryCard>
+      </FormGrid>
+    </StepContent>
+  );
+
+  const renderConfirmation = () => (
+    <ConfirmationContent>
+      <ConfirmationIcon>🎉</ConfirmationIcon>
+      <ConfirmationTitle>Booking Confirmed!</ConfirmationTitle>
+      <ConfirmationMessage>
+        Your appointment has been successfully booked. You will receive a confirmation email shortly.
+      </ConfirmationMessage>
+      
+      <ConfirmationDetails>
+        <DetailRow>
+          <DetailLabel>Appointment ID:</DetailLabel>
+          <DetailValue>#APT-{Math.random().toString(36).substr(2, 9).toUpperCase()}</DetailValue>
+        </DetailRow>
+        <DetailRow>
+          <DetailLabel>Patient:</DetailLabel>
+          <DetailValue>{patientData.firstName} {patientData.lastName}</DetailValue>
+        </DetailRow>
+        <DetailRow>
+          <DetailLabel>Doctor:</DetailLabel>
+          <DetailValue>{doctors.find(d => d._id === appointmentData.doctor)?.fullName}</DetailValue>
+        </DetailRow>
+        <DetailRow>
+          <DetailLabel>Date & Time:</DetailLabel>
+          <DetailValue>{appointmentData.appointmentDate} at {appointmentData.appointmentTime}</DetailValue>
+        </DetailRow>
+        <DetailRow>
+          <DetailLabel>Fee Paid:</DetailLabel>
+          <DetailValue>₹{calculatedFee.toLocaleString()}</DetailValue>
+        </DetailRow>
+      </ConfirmationDetails>
+
+      <ConfirmationActions>
+        <ActionButton onClick={() => window.print()}>📄 Download Receipt</ActionButton>
+        <ActionButton variant="secondary" onClick={() => window.location.reload()}>
+          📅 Book Another Appointment
+        </ActionButton>
+      </ConfirmationActions>
+    </ConfirmationContent>
   );
 
   return (
-    <FormContainer>
-      <FormHeader>
-        <HeaderContent>
-          <Title>Patient Registration & Appointment Booking</Title>
-          <Subtitle>
-            {currentStep === "patient" && "Register as a new patient"}
-            {currentStep === "appointment-prompt" && "Registration completed successfully"}
-            {currentStep === "appointment" && "Book your appointment"}
-          </Subtitle>
-        </HeaderContent>
-        <ProgressIndicator>
-          <ProgressStep active={currentStep === "patient"} completed={currentStep !== "patient"}>
-            1
-          </ProgressStep>
-          <ProgressConnector />
-          <ProgressStep active={currentStep !== "patient"} completed={false}>
-            2
-          </ProgressStep>
-        </ProgressIndicator>
-      </FormHeader>
+    <PlatformContainer>
+      {/* Header */}
+      <PlatformHeader>
+        <HeaderLogo>
+          <LogoIcon>🏥</LogoIcon>
+          <LogoText>MediCare Platform</LogoText>
+        </HeaderLogo>
+        <HeaderSubtitle>Professional Healthcare Booking</HeaderSubtitle>
+      </PlatformHeader>
 
-      <FormContent>
-        {currentStep === "patient" && renderPatientForm()}
-        {currentStep === "appointment-prompt" && renderAppointmentPrompt()}
-        {currentStep === "appointment" && renderAppointmentForm()}
-      </FormContent>
+      {/* Progress Indicator */}
+      <ProgressContainer>
+        <ProgressHeader>
+          <ProgressTitle>Complete Your Registration & Booking</ProgressTitle>
+          <ProgressText>Step {currentStepIndex + 1} of {steps.length}</ProgressText>
+        </ProgressHeader>
+        
+        <ProgressBar>
+          <ProgressFill percentage={progressPercentage} />
+        </ProgressBar>
+        
+        <StepIndicators>
+          {steps.map((step, index) => (
+            <StepIndicator
+              key={step.id}
+              active={step.id === currentStep}
+              completed={index < currentStepIndex}
+            >
+              <StepIndicatorIcon>{step.icon}</StepIndicatorIcon>
+              <StepIndicatorTitle>{step.title}</StepIndicatorTitle>
+              <StepIndicatorDescription>{step.description}</StepIndicatorDescription>
+            </StepIndicator>
+          ))}
+        </StepIndicators>
+      </ProgressContainer>
 
-      <Toaster />
-    </FormContainer>
+      {/* Main Content */}
+      <MainContainer>
+        <FormCard>
+          {currentStep === 'personal' && renderPersonalInfo()}
+          {currentStep === 'contact' && renderContactInfo()}
+          {currentStep === 'medical' && renderMedicalInfo()}
+          {currentStep === 'appointment' && renderAppointment()}
+          {currentStep === 'payment' && renderPayment()}
+          {currentStep === 'confirmation' && renderConfirmation()}
+        </FormCard>
+
+        {/* Form Actions */}
+        {currentStep !== 'confirmation' && (
+          <FormActions>
+            <ActionButton
+              variant="secondary"
+              onClick={handleBack}
+              disabled={currentStepIndex === 0}
+            >
+              ← Back
+            </ActionButton>
+
+            {currentStep === 'payment' ? (
+              <ActionButton onClick={handleSubmit} disabled={loading}>
+                {loading ? 'Processing...' : 'Complete Booking'}
+              </ActionButton>
+            ) : (
+              <ActionButton onClick={handleNext}>
+                Next Step →
+              </ActionButton>
+            )}
+          </FormActions>
+        )}
+      </MainContainer>
+    </PlatformContainer>
   );
 };
 
 // Styled Components
-const FormContainer = styled.div`
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  width: 100%;
-  max-width: 800px;
-  margin: 0 auto;
+const PlatformContainer = styled.div`
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 `;
 
-const FormHeader = styled.div`
-  background: linear-gradient(135deg, ${theme.colors.primary} 0%, #8b5cf6 100%);
-  color: white;
-  padding: 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+const PlatformHeader = styled.div`
+  text-align: center;
+  margin-bottom: 30px;
 `;
 
-const HeaderContent = styled.div`
-  flex: 1;
-`;
-
-const Title = styled.h1`
-  font-size: 24px;
-  font-weight: 700;
-  margin: 0 0 4px 0;
-`;
-
-const Subtitle = styled.p`
-  font-size: 14px;
-  margin: 0;
-  opacity: 0.9;
-`;
-
-const ProgressIndicator = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-`;
-
-const ProgressStep = styled.div<{ active: boolean; completed: boolean }>`
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+const HeaderLogo = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  font-size: 14px;
-  background: ${props => 
-    props.completed ? "#10b981" : 
-    props.active ? "white" : 
-    "rgba(255, 255, 255, 0.3)"};
-  color: ${props => 
-    props.completed ? "white" : 
-    props.active ? theme.colors.primary : 
-    "white"};
-  transition: all 0.3s ease;
-`;
-
-const ProgressConnector = styled.div`
-  width: 40px;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.3);
-`;
-
-const FormContent = styled.div`
-  padding: 32px;
-`;
-
-const FormSection = styled.div`
-  width: 100%;
-`;
-
-const SectionHeader = styled.div`
-  display: flex;
-  align-items: flex-start;
   gap: 12px;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid #f1f5f9;
+  margin-bottom: 8px;
 `;
 
-const SectionIcon = styled.div`
-  font-size: 24px;
-  margin-top: 2px;
+const LogoIcon = styled.div`
+  font-size: 32px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
 `;
 
-const SectionTitle = styled.h2`
+const LogoText = styled.h1`
+  font-size: 28px;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+`;
+
+const HeaderSubtitle = styled.p`
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 16px;
+  margin: 0;
+  font-weight: 500;
+`;
+
+const ProgressContainer = styled.div`
+  max-width: 1000px;
+  margin: 0 auto 30px auto;
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+`;
+
+const ProgressHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+`;
+
+const ProgressTitle = styled.h2`
   font-size: 20px;
   font-weight: 600;
   color: #1f2937;
   margin: 0;
 `;
 
-const PatientInfo = styled.p`
+const ProgressText = styled.span`
   font-size: 14px;
   color: #6b7280;
-  margin: 4px 0 0 0;
   font-weight: 500;
+`;
+
+const ProgressBar = styled.div`
+  width: 100%;
+  height: 8px;
+  background: #f3f4f6;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 24px;
+`;
+
+const ProgressFill = styled.div<{ percentage: number }>`
+  width: ${props => props.percentage}%;
+  height: 100%;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+`;
+
+const StepIndicators = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+`;
+
+const StepIndicator = styled.div<{ active: boolean; completed: boolean }>`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 12px;
+  border-radius: 12px;
+  background: ${props => 
+    props.active ? 'linear-gradient(135deg, #667eea, #764ba2)' :
+    props.completed ? '#10b981' : '#f9fafb'
+  };
+  color: ${props => props.active || props.completed ? 'white' : '#6b7280'};
+  transition: all 0.3s ease;
+  cursor: pointer;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+`;
+
+const StepIndicatorIcon = styled.div`
+  font-size: 20px;
+  margin-bottom: 6px;
+`;
+
+const StepIndicatorTitle = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 2px;
+`;
+
+const StepIndicatorDescription = styled.div`
+  font-size: 10px;
+  opacity: 0.8;
+`;
+
+const MainContainer = styled.div`
+  max-width: 1000px;
+  margin: 0 auto;
+`;
+
+const FormCard = styled.div`
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  margin-bottom: 24px;
+`;
+
+const StepContent = styled.div`
+  padding: 32px;
+  
+  @media (max-width: 768px) {
+    padding: 24px;
+  }
+`;
+
+const StepHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 32px;
+  text-align: left;
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+  }
+`;
+
+const StepIcon = styled.div`
+  font-size: 32px;
+  padding: 12px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-radius: 50%;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: grayscale(0.8);
+`;
+
+const StepTitle = styled.h3`
+  font-size: 24px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 4px 0;
+`;
+
+const StepDescription = styled.p`
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
 `;
 
 const FormGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 20px;
-  margin-bottom: 24px;
-
+  
   .full-width {
     grid-column: 1 / -1;
   }
-
+  
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
     gap: 16px;
@@ -742,18 +1180,18 @@ const Label = styled.label`
 
 const Input = styled.input<{ hasError?: boolean }>`
   padding: 12px 16px;
-  border: 2px solid ${props => props.hasError ? "#ef4444" : "#e5e7eb"};
+  border: 2px solid ${props => props.hasError ? '#ef4444' : '#e5e7eb'};
   border-radius: 8px;
   font-size: 14px;
   transition: all 0.2s ease;
   background: white;
-
+  
   &:focus {
     outline: none;
-    border-color: ${theme.colors.primary};
-    box-shadow: 0 0 0 3px ${theme.colors.primary}20;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
   }
-
+  
   &::placeholder {
     color: #9ca3af;
   }
@@ -761,17 +1199,17 @@ const Input = styled.input<{ hasError?: boolean }>`
 
 const Select = styled.select<{ hasError?: boolean }>`
   padding: 12px 16px;
-  border: 2px solid ${props => props.hasError ? "#ef4444" : "#e5e7eb"};
+  border: 2px solid ${props => props.hasError ? '#ef4444' : '#e5e7eb'};
   border-radius: 8px;
   font-size: 14px;
   background: white;
   cursor: pointer;
   transition: all 0.2s ease;
-
+  
   &:focus {
     outline: none;
-    border-color: ${theme.colors.primary};
-    box-shadow: 0 0 0 3px ${theme.colors.primary}20;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
   }
 `;
 
@@ -785,13 +1223,13 @@ const TextArea = styled.textarea`
   transition: all 0.2s ease;
   font-family: inherit;
   background: white;
-
+  
   &:focus {
     outline: none;
-    border-color: ${theme.colors.primary};
-    box-shadow: 0 0 0 3px ${theme.colors.primary}20;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
   }
-
+  
   &::placeholder {
     color: #9ca3af;
   }
@@ -810,129 +1248,230 @@ const HelperText = styled.span`
   margin-top: 4px;
 `;
 
-const FormActions = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: 16px;
-  padding-top: 24px;
-  border-top: 1px solid #e5e7eb;
+const SectionDivider = styled.div`
+  grid-column: 1 / -1;
+  margin: 20px 0 10px 0;
+`;
 
-  @media (max-width: 768px) {
-    flex-direction: column-reverse;
+const SectionTitle = styled.h4`
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e5e7eb;
+`;
+
+// Tag Components
+const TagContainer = styled.div`
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px;
+  background: white;
+  transition: all 0.2s ease;
+  
+  &:focus-within {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
   }
 `;
 
-const ActionButton = styled.button<{ variant?: "secondary" }>`
-  padding: 12px 24px;
-  border-radius: 8px;
+const TagsList = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-height: 24px;
+`;
+
+const Tag = styled.div`
+  display: flex;
+  align-items: center;
+  background: #667eea20;
+  border: 1px solid #667eea50;
+  border-radius: 20px;
+  padding: 4px 8px 4px 12px;
+  font-size: 12px;
+  color: #667eea;
+`;
+
+const TagText = styled.span`
+  margin-right: 6px;
+`;
+
+const TagRemove = styled.button`
+  background: none;
+  border: none;
+  color: #667eea;
+  cursor: pointer;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: bold;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: #667eea20;
+    color: #dc2626;
+  }
+`;
+
+const TagInput = styled.input`
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  flex: 1;
+  min-width: 120px;
+  padding: 4px 0;
+  color: #374151;
+  
+  &::placeholder {
+    color: #9ca3af;
+  }
+`;
+
+// Doctor Selection Components
+const DoctorGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+`;
+
+const DoctorCard = styled.div<{ selected: boolean }>`
+  border: 2px solid ${props => props.selected ? '#667eea' : '#e5e7eb'};
+  border-radius: 12px;
+  padding: 16px;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-width: 160px;
-
-  ${props => props.variant === "secondary" ? `
-    background: white;
-    color: #374151;
-    border: 2px solid #e5e7eb;
-
-    &:hover:not(:disabled) {
-      background: #f9fafb;
-      border-color: #d1d5db;
-    }
-  ` : `
-    background: ${theme.colors.primary};
-    color: white;
-    border: 2px solid ${theme.colors.primary};
-
-    &:hover:not(:disabled) {
-      background: ${theme.colors.primary}dd;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-    }
-  `}
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  @media (max-width: 768px) {
-    width: 100%;
-    min-width: auto;
+  background: ${props => props.selected ? '#667eea10' : 'white'};
+  
+  &:hover {
+    border-color: #667eea;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
   }
 `;
 
-const SuccessSection = styled.div`
-  text-align: center;
-  padding: 40px 20px;
-`;
-
-const SuccessIcon = styled.div`
-  font-size: 64px;
-  margin-bottom: 16px;
-`;
-
-const SuccessTitle = styled.h2`
-  font-size: 24px;
-  font-weight: 700;
-  color: #10b981;
-  margin: 0 0 8px 0;
-`;
-
-const SuccessMessage = styled.p`
-  font-size: 16px;
-  color: #6b7280;
-  margin: 0 0 32px 0;
-  line-height: 1.5;
-`;
-
-const AppointmentPrompt = styled.div`
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  border: 2px solid #0ea5e9;
-  border-radius: 16px;
-  padding: 24px;
-  margin-top: 24px;
-`;
-
-const PromptTitle = styled.h3`
-  font-size: 18px;
-  font-weight: 600;
-  color: #0c4a6e;
-  margin: 0 0 20px 0;
-`;
-
-const PromptActions = styled.div`
+const DoctorAvatar = styled.div`
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
   display: flex;
-  gap: 12px;
+  align-items: center;
   justify-content: center;
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 12px;
+`;
 
-  @media (max-width: 768px) {
-    flex-direction: column;
+const DoctorInfo = styled.div`
+  margin-bottom: 12px;
+`;
+
+const DoctorName = styled.div`
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 4px;
+`;
+
+const DoctorSpecialty = styled.div`
+  font-size: 14px;
+  color: #667eea;
+  font-weight: 500;
+  margin-bottom: 2px;
+`;
+
+const DoctorExperience = styled.div`
+  font-size: 12px;
+  color: #6b7280;
+`;
+
+const DoctorFees = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`;
+
+const FeeItem = styled.div`
+  font-size: 12px;
+  color: #374151;
+`;
+
+// Payment Components
+const PaymentGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+`;
+
+const PaymentCard = styled.div<{ selected: boolean }>`
+  border: 2px solid ${props => props.selected ? '#667eea' : '#e5e7eb'};
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: ${props => props.selected ? '#667eea10' : 'white'};
+  
+  &:hover {
+    border-color: #667eea;
+    transform: translateY(-2px);
   }
 `;
 
-const FeeDisplayCard = styled.div`
+const PaymentIcon = styled.div`
+  font-size: 24px;
+  margin-bottom: 8px;
+`;
+
+const PaymentName = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 4px;
+`;
+
+const PaymentDescription = styled.div`
+  font-size: 11px;
+  color: #6b7280;
+`;
+
+const FeeCard = styled.div`
   background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
   border: 2px solid #0ea5e9;
   border-radius: 12px;
   padding: 20px;
   text-align: center;
-  margin: 20px 0;
 `;
 
-const FeeLabel = styled.div`
+const FeeCardHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 12px;
+`;
+
+const FeeIcon = styled.div`
+  font-size: 18px;
+`;
+
+const FeeTitle = styled.div`
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   color: #0369a1;
-  margin-bottom: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 `;
 
 const FeeAmount = styled.div`
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 700;
   color: #0c4a6e;
   margin-bottom: 4px;
@@ -941,7 +1480,191 @@ const FeeAmount = styled.div`
 const FeeDescription = styled.div`
   font-size: 12px;
   color: #0369a1;
-  opacity: 0.8;
 `;
 
-export default CombinedPatientAppointmentForm;
+// Summary Components
+const SummaryCard = styled.div`
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+`;
+
+const SummaryHeader = styled.div`
+  background: #1f2937;
+  color: white;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const SummaryIcon = styled.div`
+  font-size: 18px;
+`;
+
+const SummaryTitle = styled.div`
+  font-size: 16px;
+  font-weight: 600;
+`;
+
+const SummaryContent = styled.div`
+  padding: 16px;
+`;
+
+const SummaryRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #e2e8f0;
+  
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const SummaryLabel = styled.span`
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 500;
+`;
+
+const SummaryValue = styled.span`
+  font-size: 14px;
+  color: #1f2937;
+  font-weight: 600;
+  text-align: right;
+`;
+
+const SummaryTotal = styled.span`
+  font-size: 18px;
+  color: #059669;
+  font-weight: 700;
+`;
+
+const SummaryDivider = styled.div`
+  height: 1px;
+  background: #d1d5db;
+  margin: 12px 0;
+`;
+
+// Confirmation Components
+const ConfirmationContent = styled.div`
+  text-align: center;
+  padding: 40px 32px;
+`;
+
+const ConfirmationIcon = styled.div`
+  font-size: 64px;
+  margin-bottom: 20px;
+`;
+
+const ConfirmationTitle = styled.h2`
+  font-size: 28px;
+  font-weight: 700;
+  color: #059669;
+  margin: 0 0 12px 0;
+`;
+
+const ConfirmationMessage = styled.p`
+  font-size: 16px;
+  color: #6b7280;
+  margin: 0 0 32px 0;
+  line-height: 1.5;
+`;
+
+const ConfirmationDetails = styled.div`
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 32px;
+  text-align: left;
+`;
+
+const DetailRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #e5e7eb;
+  
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const DetailLabel = styled.span`
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 500;
+`;
+
+const DetailValue = styled.span`
+  font-size: 14px;
+  color: #1f2937;
+  font-weight: 600;
+`;
+
+const ConfirmationActions = styled.div`
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+  }
+`;
+
+const FormActions = styled.div`
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  
+  @media (max-width: 768px) {
+    flex-direction: column-reverse;
+  }
+`;
+
+const ActionButton = styled.button<{ variant?: 'secondary' }>`
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 140px;
+  
+  ${props => props.variant === 'secondary' ? `
+    background: white;
+    color: #374151;
+    border: 2px solid #d1d5db;
+    
+    &:hover:not(:disabled) {
+      background: #f9fafb;
+      border-color: #9ca3af;
+    }
+  ` : `
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: 2px solid transparent;
+    
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+  `}
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+  
+  @media (max-width: 768px) {
+    width: 100%;
+    min-width: auto;
+  }
+`;
+
+export default PublicBookingPlatform;

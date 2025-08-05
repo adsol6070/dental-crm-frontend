@@ -20,6 +20,7 @@ import {
   UsersListApiResponse,
   UserStatusPayload,
   ApiResponse,
+  AdminDashboardStatsResponse,
 } from "./adminTypes";
 import { Doctor, DoctorsApiResponse } from "../doctor/doctorTypes";
 
@@ -234,5 +235,16 @@ updateUserStatus: async (
       }
     );
     return response.data.data;
+  },
+
+    getDashboardStats: async (): Promise<ApiResponse<AdminDashboardStatsResponse>> => {
+    const response = await httpClient.get<ApiResponse<AdminDashboardStatsResponse>>(
+      API_ENDPOINTS.ADMIN.GET_DASHBOARD_STATS,
+      {
+        headers: getAuthHeader(),
+      }
+    );
+
+    return response.data;
   },
 };

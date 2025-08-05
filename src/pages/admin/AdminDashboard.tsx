@@ -1,48 +1,10 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { useAdminDashboard } from "@/hooks/useAdmin";
 
-interface DentalData {
-  practiceInfo: {
-    name: string;
-    todayDate: string;
-    activePatients: number;
-    todayAppointments: number;
-    completedToday: number;
-  };
-  todayStats: {
-    scheduled: number;
-    checkedIn: number;
-    inProgress: number;
-    completed: number;
-    cancelled: number;
-    revenue: number;
-  };
-  upcomingAppointments: Array<{
-    id: string;
-    time: string;
-    patient: string;
-    type: string;
-    status: 'scheduled' | 'checked-in' | 'in-progress' | 'completed';
-    duration: number;
-  }>;
-  recentPatients: Array<{
-    id: string;
-    name: string;
-    lastVisit: string;
-    nextAppointment: string;
-    treatment: string;
-    status: 'active' | 'pending' | 'completed';
-  }>;
-  quickActions: Array<{
-    icon: string;
-    label: string;
-    count?: number;
-  }>;
-}
-
-const DentalDashboard = () => {
-  const [dentalData, setDentalData] = useState<DentalData | null>(null);
-  const [loading, setLoading] = useState(true);
+const MedicalDashboard = () => {
+  const { data, isLoading, error } = useAdminDashboard();
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -50,123 +12,6 @@ const DentalDashboard = () => {
       setCurrentTime(new Date());
     }, 60000);
     return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    const fetchDentalData = async () => {
-      setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const mockData: DentalData = {
-        practiceInfo: {
-          name: 'DentalCare Pro',
-          todayDate: new Date().toLocaleDateString('en-US', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          }),
-          activePatients: 847,
-          todayAppointments: 16,
-          completedToday: 8
-        },
-        todayStats: {
-          scheduled: 16,
-          checkedIn: 3,
-          inProgress: 2,
-          completed: 8,
-          cancelled: 1,
-          revenue: 3240
-        },
-        upcomingAppointments: [
-          {
-            id: '1',
-            time: '2:30 PM',
-            patient: 'Sarah Johnson',
-            type: 'Cleaning',
-            status: 'checked-in',
-            duration: 60
-          },
-          {
-            id: '2',
-            time: '3:00 PM',
-            patient: 'Michael Chen',
-            type: 'Root Canal',
-            status: 'scheduled',
-            duration: 90
-          },
-          {
-            id: '3',
-            time: '3:45 PM',
-            patient: 'Emma Davis',
-            type: 'Consultation',
-            status: 'scheduled',
-            duration: 30
-          },
-          {
-            id: '4',
-            time: '4:30 PM',
-            patient: 'David Wilson',
-            type: 'Filling',
-            status: 'scheduled',
-            duration: 45
-          },
-          {
-            id: '5',
-            time: '5:15 PM',
-            patient: 'Lisa Brown',
-            type: 'Whitening',
-            status: 'scheduled',
-            duration: 75
-          }
-        ],
-        recentPatients: [
-          {
-            id: '1',
-            name: 'Jennifer Smith',
-            lastVisit: '2 days ago',
-            nextAppointment: 'Jan 15, 2025',
-            treatment: 'Orthodontics',
-            status: 'active'
-          },
-          {
-            id: '2',
-            name: 'Robert Lee',
-            lastVisit: '1 week ago',
-            nextAppointment: 'Jan 20, 2025',
-            treatment: 'Crown Prep',
-            status: 'pending'
-          },
-          {
-            id: '3',
-            name: 'Maria Garcia',
-            lastVisit: '3 days ago',
-            nextAppointment: 'Completed',
-            treatment: 'Extraction',
-            status: 'completed'
-          },
-          {
-            id: '4',
-            name: 'Thomas Anderson',
-            lastVisit: '5 days ago',
-            nextAppointment: 'Jan 18, 2025',
-            treatment: 'Implant',
-            status: 'active'
-          }
-        ],
-        quickActions: [
-          { icon: '📅', label: 'Schedule', count: 5 },
-          { icon: '👤', label: 'New Patient' },
-          { icon: '💰', label: 'Billing', count: 3 },
-          { icon: '📊', label: 'Reports' }
-        ]
-      };
-      
-      setDentalData(mockData);
-      setLoading(false);
-    };
-
-    fetchDentalData();
   }, []);
 
   const formatTime = (date: Date): string => {
@@ -177,101 +22,141 @@ const DentalDashboard = () => {
     });
   };
 
-  if (loading) {
+const calculateVerificationRate = () => {
+  const { verifiedPatients = 0, totalPatients = 0 } = data?.data?.specializationStats || {};
+  if (totalPatients === 0) return "0.0";
+  return ((verifiedPatients / totalPatients) * 100).toFixed(1);
+};
+
+const getGenderStats = () => {
+  const genderDistribution = data?.data?.specializationStats?.genderDistribution || {};
+  return {
+    male: genderDistribution.male || 0,
+    female: genderDistribution.female || 0,
+  };
+};
+
+  const getSpecializationIcon = (specialization: string) => {
+    const icons: { [key: string]: string } = {
+      'Cardiology': '❤️',
+      'Neurology': '🧠',
+      'Orthopedics': '🦴',
+      'Pediatrics': '👶',
+      'Dermatology': '🩺',
+      'Oncology': '🎗️',
+      'General': '👨‍⚕️'
+    };
+    return icons[specialization] || '🏥';
+  };
+
+  if (isLoading) {
     return (
       <LoadingContainer>
         <LoadingSpinner />
-        <LoadingText>Loading dashboard...</LoadingText>
+        <LoadingText>Loading medical dashboard...</LoadingText>
       </LoadingContainer>
     );
   }
 
-  if (!dentalData) {
+  if (error || !data?.success) {
     return (
       <ErrorContainer>
-        <ErrorText>Unable to load dashboard</ErrorText>
+        <ErrorText>Unable to load dashboard data</ErrorText>
+        <RetryButton onClick={() => window.location.reload()}>
+          Retry
+        </RetryButton>
       </ErrorContainer>
     );
   }
+
+  const dashboardData = data.data;
+  const genderStats = getGenderStats();
 
   return (
     <DashboardContainer>
       {/* Header */}
       <DashboardHeader>
         <HeaderLeft>
-          <PracticeIcon>🦷</PracticeIcon>
+          <PracticeIcon>🏥</PracticeIcon>
           <PracticeInfo>
-            <PracticeName>{dentalData.practiceInfo.name}</PracticeName>
-            <PracticeDate>{dentalData.practiceInfo.todayDate}</PracticeDate>
+            <PracticeName>Medical Analytics</PracticeName>
+            <PracticeDate>
+              {new Date().toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}
+            </PracticeDate>
             <CurrentTime>{formatTime(currentTime)}</CurrentTime>
           </PracticeInfo>
         </HeaderLeft>
         
         <HeaderStats>
           <StatItem>
-            <StatValue>{dentalData.practiceInfo.activePatients}</StatValue>
+            <StatValue>{dashboardData.specializationStats.totalPatients}</StatValue>
+            <StatLabel>Total Patients</StatLabel>
+          </StatItem>
+          <StatItem>
+            <StatValue>{dashboardData.specializationStats.activePatients}</StatValue>
             <StatLabel>Active Patients</StatLabel>
           </StatItem>
           <StatItem>
-            <StatValue>{dentalData.practiceInfo.todayAppointments}</StatValue>
-            <StatLabel>Today's Appointments</StatLabel>
-          </StatItem>
-          <StatItem>
-            <StatValue>{dentalData.practiceInfo.completedToday}</StatValue>
-            <StatLabel>Completed</StatLabel>
+            <StatValue>{calculateVerificationRate()}%</StatValue>
+            <StatLabel>Verified Rate</StatLabel>
           </StatItem>
         </HeaderStats>
       </DashboardHeader>
 
-      {/* Today's Overview */}
+      {/* Overview Cards */}
       <OverviewSection>
-        <SectionTitle>Today's Overview</SectionTitle>
+        <SectionTitle>Dashboard Overview</SectionTitle>
         <OverviewGrid>
           <OverviewCard>
-            <CardIcon>📋</CardIcon>
+            <CardIcon>👥</CardIcon>
             <CardContent>
-              <CardValue>{dentalData.todayStats.scheduled}</CardValue>
-              <CardLabel>Scheduled</CardLabel>
+              <CardValue>{dashboardData.specializationStats.totalPatients}</CardValue>
+              <CardLabel>Total Patients</CardLabel>
             </CardContent>
           </OverviewCard>
           
           <OverviewCard>
             <CardIcon>✅</CardIcon>
             <CardContent>
-              <CardValue>{dentalData.todayStats.checkedIn}</CardValue>
-              <CardLabel>Checked In</CardLabel>
+              <CardValue>{dashboardData.specializationStats.verifiedPatients}</CardValue>
+              <CardLabel>Verified Patients</CardLabel>
             </CardContent>
           </OverviewCard>
           
           <OverviewCard>
-            <CardIcon>🔄</CardIcon>
+            <CardIcon>📅</CardIcon>
             <CardContent>
-              <CardValue>{dentalData.todayStats.inProgress}</CardValue>
-              <CardLabel>In Progress</CardLabel>
+              <CardValue>{dashboardData.appointmentTrends.patientsWithAppointments}</CardValue>
+              <CardLabel>With Appointments</CardLabel>
             </CardContent>
           </OverviewCard>
           
           <OverviewCard>
-            <CardIcon>✨</CardIcon>
+            <CardIcon>🎯</CardIcon>
             <CardContent>
-              <CardValue>{dentalData.todayStats.completed}</CardValue>
-              <CardLabel>Completed</CardLabel>
+              <CardValue>{dashboardData.appointmentTrends.engagementRate}%</CardValue>
+              <CardLabel>Engagement Rate</CardLabel>
             </CardContent>
           </OverviewCard>
           
           <OverviewCard>
-            <CardIcon>❌</CardIcon>
+            <CardIcon>📊</CardIcon>
             <CardContent>
-              <CardValue>{dentalData.todayStats.cancelled}</CardValue>
-              <CardLabel>Cancelled</CardLabel>
+              <CardValue>{dashboardData.appointmentTrends.averageAppointmentsPerPatient}</CardValue>
+              <CardLabel>Avg Appointments</CardLabel>
             </CardContent>
           </OverviewCard>
           
-          <OverviewCard revenue>
-            <CardIcon>💰</CardIcon>
+          <OverviewCard highlight>
+            <CardIcon>🏥</CardIcon>
             <CardContent>
-              <CardValue>${dentalData.todayStats.revenue.toLocaleString()}</CardValue>
-              <CardLabel>Today's Revenue</CardLabel>
+              <CardValue>{dashboardData.doctorPerformance.stats.length}</CardValue>
+              <CardLabel>Specializations</CardLabel>
             </CardContent>
           </OverviewCard>
         </OverviewGrid>
@@ -279,84 +164,145 @@ const DentalDashboard = () => {
 
       {/* Main Content */}
       <MainContent>
-        {/* Upcoming Appointments */}
-        <AppointmentsSection>
+        {/* Doctor Performance */}
+        <PerformanceSection>
           <SectionHeader>
-            <SectionTitle>Upcoming Appointments</SectionTitle>
-            <ViewAllLink>View Schedule</ViewAllLink>
+            <SectionTitle>Doctor Performance by Specialization</SectionTitle>
+            <ViewAllLink>View All Doctors</ViewAllLink>
           </SectionHeader>
           
-          <AppointmentsList>
-            {dentalData.upcomingAppointments.map((appointment) => (
-              <AppointmentItem key={appointment.id}>
-                <AppointmentTime>
-                  <TimeText>{appointment.time}</TimeText>
-                  <DurationText>{appointment.duration}min</DurationText>
-                </AppointmentTime>
+          <PerformanceList>
+            {dashboardData.doctorPerformance.stats.map((stat, index) => (
+              <PerformanceItem key={index}>
+                <SpecializationInfo>
+                  <SpecializationIcon>
+                    {getSpecializationIcon(stat._id)}
+                  </SpecializationIcon>
+                  <SpecializationDetails>
+                    <SpecializationName>{stat._id}</SpecializationName>
+                    <DoctorCount>{stat.count} doctors</DoctorCount>
+                  </SpecializationDetails>
+                </SpecializationInfo>
                 
-                <AppointmentInfo>
-                  <PatientName>{appointment.patient}</PatientName>
-                  <TreatmentType>{appointment.type}</TreatmentType>
-                </AppointmentInfo>
+                <PerformanceMetrics>
+                  <MetricItem>
+                    <MetricValue>{stat.averageExperience}y</MetricValue>
+                    <MetricLabel>Avg Experience</MetricLabel>
+                  </MetricItem>
+                  
+                  <MetricItem>
+                    <MetricValue>
+                      {stat.averageRating > 0 ? `⭐ ${stat.averageRating}` : 'No ratings'}
+                    </MetricValue>
+                    <MetricLabel>Rating</MetricLabel>
+                  </MetricItem>
+                </PerformanceMetrics>
                 
-                <AppointmentStatus status={appointment.status}>
-                  {appointment.status === 'checked-in' ? 'Checked In' :
-                   appointment.status === 'in-progress' ? 'In Progress' :
-                   appointment.status === 'completed' ? 'Completed' : 'Scheduled'}
-                </AppointmentStatus>
-              </AppointmentItem>
+                <StatusIndicator>
+                  <StatusDot />
+                  Active
+                </StatusIndicator>
+              </PerformanceItem>
             ))}
-          </AppointmentsList>
-        </AppointmentsSection>
+          </PerformanceList>
+        </PerformanceSection>
 
-        {/* Sidebar */}
+        {/* Analytics Sidebar */}
         <Sidebar>
-          {/* Recent Patients */}
-          <RecentPatientsSection>
+          {/* Patient Demographics */}
+          <DemographicsSection>
             <SectionHeader>
-              <SectionTitle>Recent Patients</SectionTitle>
-              <ViewAllLink>View All</ViewAllLink>
+              <SectionTitle>Patient Demographics</SectionTitle>
+              <ViewAllLink>View Details</ViewAllLink>
             </SectionHeader>
             
-            <PatientsList>
-              {dentalData.recentPatients.map((patient) => (
-                <PatientItem key={patient.id}>
-                  <PatientAvatar>
-                    {patient.name.split(' ').map(n => n[0]).join('')}
-                  </PatientAvatar>
-                  
-                  <PatientInfo>
-                    <PatientName>{patient.name}</PatientName>
-                    <PatientDetails>
-                      <DetailText>Last: {patient.lastVisit}</DetailText>
-                      <DetailText>Next: {patient.nextAppointment}</DetailText>
-                      <TreatmentText>{patient.treatment}</TreatmentText>
-                    </PatientDetails>
-                  </PatientInfo>
-                  
-                  <PatientStatus status={patient.status}>
-                    {patient.status}
-                  </PatientStatus>
-                </PatientItem>
-              ))}
-            </PatientsList>
-          </RecentPatientsSection>
+            {/* Gender Distribution */}
+            <DemographicBlock>
+              <BlockTitle>Gender Distribution</BlockTitle>
+              <GenderStats>
+                <GenderItem>
+                  <GenderLabel>
+                    <GenderIcon>👨</GenderIcon>
+                    Male
+                  </GenderLabel>
+                  <GenderBar>
+                    <GenderFill 
+                      percentage={(genderStats.male / (genderStats.male + genderStats.female)) * 100}
+                      color="#3b82f6"
+                    />
+                  </GenderBar>
+                  <GenderValue>{genderStats.male}</GenderValue>
+                </GenderItem>
+                
+                <GenderItem>
+                  <GenderLabel>
+                    <GenderIcon>👩</GenderIcon>
+                    Female
+                  </GenderLabel>
+                  <GenderBar>
+                    <GenderFill 
+                      percentage={(genderStats.female / (genderStats.male + genderStats.female)) * 100}
+                      color="#ec4899"
+                    />
+                  </GenderBar>
+                  <GenderValue>{genderStats.female}</GenderValue>
+                </GenderItem>
+              </GenderStats>
+            </DemographicBlock>
 
-          {/* Quick Actions */}
-          {/* <QuickActionsSection>
-            <SectionTitle>Quick Actions</SectionTitle>
-            <ActionsList>
-              {dentalData.quickActions.map((action, index) => (
-                <ActionItem key={index}>
-                  <ActionIcon>{action.icon}</ActionIcon>
-                  <ActionLabel>{action.label}</ActionLabel>
-                  {action.count && (
-                    <ActionBadge>{action.count}</ActionBadge>
-                  )}
-                </ActionItem>
+            {/* Age Distribution */}
+            <DemographicBlock>
+              <BlockTitle>Age Distribution</BlockTitle>
+              <AgeStats>
+                {Object.entries(dashboardData.specializationStats.ageDistribution).map(([age, count]) => (
+                  <AgeItem key={age}>
+                    <AgeLabel>{age}</AgeLabel>
+                    <AgeValue>{count}</AgeValue>
+                  </AgeItem>
+                ))}
+              </AgeStats>
+            </DemographicBlock>
+
+            {/* Registration Sources */}
+            <DemographicBlock>
+              <BlockTitle>Registration Sources</BlockTitle>
+              <SourceStats>
+                {Object.entries(dashboardData.specializationStats.registrationSources).map(([source, count]) => (
+                  <SourceItem key={source}>
+                    <SourceLabel>{source.charAt(0).toUpperCase() + source.slice(1)}</SourceLabel>
+                    <SourceValue>{count}</SourceValue>
+                  </SourceItem>
+                ))}
+              </SourceStats>
+            </DemographicBlock>
+          </DemographicsSection>
+
+          {/* Appointment Analytics */}
+          <AppointmentSection>
+            <SectionTitle>Appointment Analytics</SectionTitle>
+            
+            <AppointmentGrid>
+              <AppointmentCard>
+                <AppointmentValue>{dashboardData.appointmentTrends.averageAppointmentsPerPatient}</AppointmentValue>
+                <AppointmentLabel>Avg per Patient</AppointmentLabel>
+              </AppointmentCard>
+              
+              <AppointmentCard>
+                <AppointmentValue>{dashboardData.appointmentTrends.engagementRate}%</AppointmentValue>
+                <AppointmentLabel>Engagement</AppointmentLabel>
+              </AppointmentCard>
+            </AppointmentGrid>
+
+            <DistributionTitle>Appointment Distribution</DistributionTitle>
+            <DistributionList>
+              {Object.entries(dashboardData.appointmentTrends.appointmentDistribution).map(([range, count]) => (
+                <DistributionItem key={range}>
+                  <DistributionRange>{range}</DistributionRange>
+                  <DistributionCount>{count}</DistributionCount>
+                </DistributionItem>
               ))}
-            </ActionsList>
-          </QuickActionsSection> */}
+            </DistributionList>
+          </AppointmentSection>
         </Sidebar>
       </MainContent>
     </DashboardContainer>
@@ -365,13 +311,15 @@ const DentalDashboard = () => {
 
 // Styled Components
 const DashboardContainer = styled.div`
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 16px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #f8fafc;
+  min-height: 100vh;
 `;
 
 const LoadingContainer = styled.div`
@@ -379,14 +327,16 @@ const LoadingContainer = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px;
+  padding: 60px;
+  background: #f8fafc;
+  min-height: 100vh;
 `;
 
 const LoadingSpinner = styled.div`
-  width: 24px;
-  height: 24px;
-  border: 2px solid #e2e8f0;
-  border-top: 2px solid #3b82f6;
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e2e8f0;
+  border-top: 3px solid #3b82f6;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   
@@ -397,35 +347,58 @@ const LoadingSpinner = styled.div`
 `;
 
 const LoadingText = styled.div`
-  margin-top: 8px;
-  font-size: 12px;
+  margin-top: 12px;
+  font-size: 14px;
   color: #6b7280;
+  font-weight: 500;
 `;
 
 const ErrorContainer = styled.div`
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px;
+  padding: 60px;
+  background: #f8fafc;
+  min-height: 100vh;
 `;
 
 const ErrorText = styled.div`
   color: #ef4444;
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 16px;
+`;
+
+const RetryButton = styled.button`
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
   font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  
+  &:hover {
+    background: #2563eb;
+  }
 `;
 
 const DashboardHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  padding: 16px 20px;
-  border-radius: 10px;
+  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #06b6d4 100%);
+  padding: 24px 28px;
+  border-radius: 12px;
   color: white;
+  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.15);
   
   @media (max-width: 768px) {
     flex-direction: column;
-    gap: 12px;
+    gap: 16px;
     text-align: center;
   }
 `;
@@ -433,38 +406,43 @@ const DashboardHeader = styled.div`
 const HeaderLeft = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 `;
 
 const PracticeIcon = styled.div`
-  font-size: 32px;
+  font-size: 40px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
 `;
 
 const PracticeInfo = styled.div``;
 
 const PracticeName = styled.h1`
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0 0 2px 0;
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+  letter-spacing: -0.025em;
 `;
 
 const PracticeDate = styled.div`
-  font-size: 11px;
+  font-size: 13px;
   opacity: 0.9;
-  margin-bottom: 1px;
+  margin-bottom: 2px;
+  font-weight: 500;
 `;
 
 const CurrentTime = styled.div`
-  font-size: 10px;
+  font-size: 11px;
   opacity: 0.8;
+  font-weight: 400;
 `;
 
 const HeaderStats = styled.div`
   display: flex;
-  gap: 20px;
+  gap: 32px;
   
   @media (max-width: 768px) {
     justify-content: center;
+    gap: 24px;
   }
 `;
 
@@ -473,56 +451,62 @@ const StatItem = styled.div`
 `;
 
 const StatValue = styled.div`
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 2px;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  letter-spacing: -0.025em;
 `;
 
 const StatLabel = styled.div`
-  font-size: 9px;
-  opacity: 0.8;
+  font-size: 10px;
+  opacity: 0.85;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  font-weight: 600;
 `;
 
 const OverviewSection = styled.div`
   background: white;
-  border-radius: 8px;
-  padding: 16px;
+  border-radius: 12px;
+  padding: 24px;
   border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 `;
 
 const SectionTitle = styled.h3`
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 600;
   color: #1f2937;
-  margin: 0 0 12px 0;
+  margin: 0 0 20px 0;
+  letter-spacing: -0.025em;
 `;
 
 const OverviewGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
 `;
 
-const OverviewCard = styled.div<{ revenue?: boolean }>`
+const OverviewCard = styled.div<{ highlight?: boolean }>`
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px;
+  gap: 12px;
+  padding: 16px;
   border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  background: ${props => props.revenue ? '#f0f9ff' : 'white'};
-  transition: all 0.2s ease;
+  border-radius: 8px;
+  background: ${props => props.highlight ? 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)' : 'white'};
+  transition: all 0.3s ease;
   
   &:hover {
     border-color: #3b82f6;
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
   }
 `;
 
 const CardIcon = styled.div`
-  font-size: 14px;
+  font-size: 20px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
 `;
 
 const CardContent = styled.div`
@@ -530,281 +514,372 @@ const CardContent = styled.div`
 `;
 
 const CardValue = styled.div`
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   color: #1f2937;
-  margin-bottom: 1px;
+  margin-bottom: 2px;
+  letter-spacing: -0.025em;
 `;
 
 const CardLabel = styled.div`
-  font-size: 9px;
+  font-size: 11px;
   color: #6b7280;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
+  font-weight: 600;
 `;
 
 const MainContent = styled.div`
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 16px;
+  gap: 20px;
   
-  @media (max-width: 968px) {
+  @media (max-width: 1024px) {
     grid-template-columns: 1fr;
   }
 `;
 
-const AppointmentsSection = styled.div`
+const PerformanceSection = styled.div`
   background: white;
-  border-radius: 8px;
-  padding: 16px;
+  border-radius: 12px;
+  padding: 24px;
   border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 `;
 
 const SectionHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 20px;
 `;
 
 const ViewAllLink = styled.button`
   background: none;
   border: none;
   color: #3b82f6;
-  font-size: 10px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
+  transition: color 0.2s;
   
   &:hover {
+    color: #2563eb;
     text-decoration: underline;
   }
 `;
 
-const AppointmentsList = styled.div`
+const PerformanceList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 `;
 
-const AppointmentItem = styled.div`
+const PerformanceItem = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px;
+  justify-content: space-between;
+  padding: 16px;
   border: 1px solid #f3f4f6;
-  border-radius: 6px;
+  border-radius: 8px;
   transition: all 0.2s ease;
   
   &:hover {
     border-color: #e2e8f0;
     background: #f9fafb;
+    transform: translateX(4px);
   }
 `;
 
-const AppointmentTime = styled.div`
-  min-width: 60px;
-  text-align: center;
-`;
-
-const TimeText = styled.div`
-  font-size: 11px;
-  font-weight: 600;
-  color: #3b82f6;
-`;
-
-const DurationText = styled.div`
-  font-size: 9px;
-  color: #6b7280;
-`;
-
-const AppointmentInfo = styled.div`
+const SpecializationInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
   flex: 1;
 `;
 
-const PatientName = styled.div`
-  font-size: 12px;
-  font-weight: 500;
-  color: #1f2937;
-  margin-bottom: 1px;
+const SpecializationIcon = styled.div`
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
 `;
 
-const TreatmentType = styled.div`
+const SpecializationDetails = styled.div``;
+
+const SpecializationName = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 2px;
+`;
+
+const DoctorCount = styled.div`
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+`;
+
+const PerformanceMetrics = styled.div`
+  display: flex;
+  gap: 24px;
+`;
+
+const MetricItem = styled.div`
+  text-align: center;
+`;
+
+const MetricValue = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 2px;
+`;
+
+const MetricLabel = styled.div`
   font-size: 10px;
   color: #6b7280;
-`;
-
-const AppointmentStatus = styled.span<{ status: string }>`
-  padding: 3px 6px;
-  border-radius: 4px;
-  font-size: 9px;
-  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.3px;
-  background: ${props => {
-    switch (props.status) {
-      case 'checked-in': return '#dbeafe';
-      case 'in-progress': return '#fef3c7';
-      case 'completed': return '#d1fae5';
-      default: return '#f3f4f6';
-    }
-  }};
-  color: ${props => {
-    switch (props.status) {
-      case 'checked-in': return '#1e40af';
-      case 'in-progress': return '#92400e';
-      case 'completed': return '#065f46';
-      default: return '#374151';
-    }
-  }};
+`;
+
+const StatusIndicator = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #059669;
+  font-weight: 500;
+`;
+
+const StatusDot = styled.div`
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
 `;
 
 const Sidebar = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 `;
 
-const RecentPatientsSection = styled.div`
+const DemographicsSection = styled.div`
   background: white;
-  border-radius: 8px;
-  padding: 16px;
+  border-radius: 12px;
+  padding: 24px;
   border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 `;
 
-const PatientsList = styled.div`
+const DemographicBlock = styled.div`
+  margin-bottom: 24px;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const BlockTitle = styled.h4`
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 12px;
+`;
+
+const GenderStats = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const GenderItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const GenderLabel = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #374151;
+  font-weight: 500;
+  min-width: 60px;
+`;
+
+const GenderIcon = styled.span`
+  font-size: 14px;
+`;
+
+const GenderBar = styled.div`
+  flex: 1;
+  height: 6px;
+  background: #f3f4f6;
+  border-radius: 3px;
+  overflow: hidden;
+`;
+
+const GenderFill = styled.div<{ percentage: number; color: string }>`
+  height: 100%;
+  width: ${props => props.percentage}%;
+  background: ${props => props.color};
+  transition: width 0.3s ease;
+`;
+
+const GenderValue = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: #1f2937;
+  min-width: 32px;
+  text-align: right;
+`;
+
+const AgeStats = styled.div`
   display: flex;
   flex-direction: column;
   gap: 8px;
 `;
 
-const PatientItem = styled.div`
+const AgeItem = styled.div`
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 10px;
-  padding: 8px;
-  border: 1px solid #f3f4f6;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    border-color: #e2e8f0;
-    background: #f9fafb;
-  }
+  padding: 6px 0;
 `;
 
-const PatientAvatar = styled.div`
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-  color: white;
+const AgeLabel = styled.div`
+  font-size: 12px;
+  color: #374151;
+  font-weight: 500;
+`;
+
+const AgeValue = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: #1f2937;
+  background: #f3f4f6;
+  padding: 2px 8px;
+  border-radius: 4px;
+`;
+
+const SourceStats = styled.div`
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const SourceItem = styled.div`
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  font-size: 9px;
+  padding: 6px 0;
+`;
+
+const SourceLabel = styled.div`
+  font-size: 12px;
+  color: #374151;
+  font-weight: 500;
+`;
+
+const SourceValue = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: #3b82f6;
+  background: #eff6ff;
+  padding: 2px 8px;
+  border-radius: 4px;
+`;
+
+const AppointmentSection = styled.div`
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+`;
+
+const AppointmentGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+`;
+
+const AppointmentCard = styled.div`
+  text-align: center;
+  padding: 16px;
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  border-radius: 8px;
+  border: 1px solid #e0f2fe;
+`;
+
+const AppointmentValue = styled.div`
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e40af;
+  margin-bottom: 4px;
+`;
+
+const AppointmentLabel = styled.div`
+  font-size: 10px;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   font-weight: 600;
 `;
 
-const PatientInfo = styled.div`
-  flex: 1;
+const DistributionTitle = styled.h4`
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 12px;
 `;
 
-const PatientDetails = styled.div`
-  margin-top: 2px;
+const DistributionList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 `;
 
-const DetailText = styled.div`
-  font-size: 9px;
-  color: #6b7280;
-  margin-bottom: 1px;
-`;
-
-const TreatmentText = styled.div`
-  font-size: 9px;
-  color: #3b82f6;
-  font-weight: 500;
-`;
-
-const PatientStatus = styled.span<{ status: string }>`
-  padding: 2px 4px;
-  border-radius: 3px;
-  font-size: 8px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  background: ${props => {
-    switch (props.status) {
-      case 'active': return '#d1fae5';
-      case 'pending': return '#fef3c7';
-      case 'completed': return '#e0e7ff';
-      default: return '#f3f4f6';
-    }
-  }};
-  color: ${props => {
-    switch (props.status) {
-      case 'active': return '#065f46';
-      case 'pending': return '#92400e';
-      case 'completed': return '#3730a3';
-      default: return '#374151';
-    }
-  }};
-`;
-
-// const QuickActionsSection = styled.div`
-//   background: white;
-//   border-radius: 8px;
-//   padding: 16px;
-//   border: 1px solid #e2e8f0;
-// `;
-
-// const ActionsList = styled.div`
-//   display: flex;
-//   flex-direction: column;
-//   gap: 8px;
-// `;
-
-// const ActionItem = styled.button`
-//   display: flex;
-//   align-items: center;
-//   gap: 8px;
-//   padding: 8px;
-//   border: 1px solid #f3f4f6;
-//   border-radius: 6px;
-//   background: white;
-//   cursor: pointer;
-//   transition: all 0.2s ease;
+const DistributionItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f9fafb;
+  border-radius: 6px;
+  border: 1px solid #f3f4f6;
+  transition: all 0.2s ease;
   
-//   &:hover {
-//     border-color: #3b82f6;
-//     background: #f8fafc;
-//   }
-// `;
+  &:hover {
+    background: #f3f4f6;
+    border-color: #e2e8f0;
+  }
+`;
 
-// const ActionIcon = styled.div`
-//   font-size: 14px;
-// `;
+const DistributionRange = styled.div`
+  font-size: 12px;
+  color: #374151;
+  font-weight: 500;
+`;
 
-// const ActionLabel = styled.div`
-//   flex: 1;
-//   text-align: left;
-//   font-size: 11px;
-//   font-weight: 500;
-//   color: #374151;
-// `;
+const DistributionCount = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: #1f2937;
+  background: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+`;
 
-// const ActionBadge = styled.div`
-//   background: #ef4444;
-//   color: white;
-//   border-radius: 50%;
-//   width: 16px;
-//   height: 16px;
-//   display: flex;
-//   align-items: center;
-//   justify-content: center;
-//   font-size: 8px;
-//   font-weight: 600;
-// `;
-
-export default DentalDashboard;
+export default MedicalDashboard;
