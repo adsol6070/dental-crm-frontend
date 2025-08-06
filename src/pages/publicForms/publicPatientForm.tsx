@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { useCreatePatient } from "@/hooks/usePatient"
+import { usePublicDoctorList } from "@/hooks/useDoctor"
+import { useBookAppointment } from "@/hooks/useAppointment"
+import { Toaster } from "react-hot-toast";
 
-// Types and Interfaces
+// Types
 interface PatientFormData {
-  // Personal Information
   firstName: string;
   lastName: string;
   dateOfBirth: string;
   gender: 'male' | 'female' | 'other' | '';
   bloodGroup: string;
-  
-  // Contact Information
   email: string;
   phone: string;
   alternatePhone: string;
@@ -19,22 +20,16 @@ interface PatientFormData {
   state: string;
   zipCode: string;
   country: string;
-  
-  // Medical Information
   allergies: string[];
   chronicConditions: string[];
   currentMedications: string[];
   emergencyContactName: string;
   emergencyContactRelationship: string;
   emergencyContactPhone: string;
-  
-  // Preferences
   preferredLanguage: string;
   communicationMethod: 'email' | 'sms' | 'whatsapp' | 'phone';
   enableReminders: boolean;
   reminderTime: number;
-  
-  // Security
   password: string;
   confirmPassword: string;
 }
@@ -52,23 +47,13 @@ interface AppointmentFormData {
   referralSource: string;
 }
 
-interface DoctorInfo {
-  _id: string;
-  fullName: string;
-  specialization: string;
-  experience: number;
-  fees: {
-    consultationFee: number;
-    followUpFee: number;
-    emergencyFee: number;
-  };
-  availability: string[];
-}
-
-type FormStep = 'personal' | 'contact' | 'medical' | 'appointment' | 'payment' | 'confirmation';
+type FormStep = 'personal' | 'contact' | 'medical' | 'appointment' | 'payment' | 'confirmation' | 'post-registration';
 
 const PublicBookingPlatform = () => {
   const [currentStep, setCurrentStep] = useState<FormStep>('personal');
+  const [createdPatient, setCreatedPatient] = useState(null);
+  const [showBookingOption, setShowBookingOption] = useState(false);
+  
   const [patientData, setPatientData] = useState<PatientFormData>({
     firstName: '',
     lastName: '',
@@ -111,43 +96,19 @@ const PublicBookingPlatform = () => {
   });
 
   const [errors, setErrors] = useState<any>({});
-  const [loading, setLoading] = useState(false);
   const [calculatedFee, setCalculatedFee] = useState(0);
   const [availableTimes, setAvailableTimes] = useState<string[]>([]);
 
-  // Mock doctors data
-  const doctors: DoctorInfo[] = [
-    {
-      _id: '1',
-      fullName: 'Dr. Rajesh Kumar',
-      specialization: 'Cardiology',
-      experience: 15,
-      fees: { consultationFee: 1500, followUpFee: 800, emergencyFee: 2500 },
-      availability: ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00']
-    },
-    {
-      _id: '2',
-      fullName: 'Dr. Priya Sharma',
-      specialization: 'Dermatology',
-      experience: 12,
-      fees: { consultationFee: 1200, followUpFee: 600, emergencyFee: 2000 },
-      availability: ['10:00', '11:00', '12:00', '15:00', '16:00', '17:00']
-    },
-    {
-      _id: '3',
-      fullName: 'Dr. Amit Verma',
-      specialization: 'Orthopedics',
-      experience: 18,
-      fees: { consultationFee: 1800, followUpFee: 1000, emergencyFee: 3000 },
-      availability: ['09:00', '10:00', '14:00', '15:00', '16:00']
-    }
-  ];
-
+  // Hooks
+  const createPatientMutation = useCreatePatient();
+  const { data: doctors, isLoading: doctorsLoading } = usePublicDoctorList();
+  const bookAppointmentMutation = useBookAppointment();
+console.log("doctors", doctors)
   // Calculate fee when doctor or appointment type changes
   useEffect(() => {
-    if (appointmentData.doctor && appointmentData.appointmentType) {
-      const selectedDoctor = doctors.find(doc => doc._id === appointmentData.doctor);
-      if (selectedDoctor) {
+    if (appointmentData.doctor && appointmentData.appointmentType && doctors) {
+      const selectedDoctor = doctors?.data.doctors.find(doc => doc._id === appointmentData.doctor);
+      if (selectedDoctor?.fees) {
         let fee = 0;
         switch (appointmentData.appointmentType) {
           case 'consultation':
@@ -163,20 +124,21 @@ const PublicBookingPlatform = () => {
         setCalculatedFee(fee);
       }
     }
-  }, [appointmentData.doctor, appointmentData.appointmentType]);
+  }, [appointmentData.doctor, appointmentData.appointmentType, doctors]);
 
   // Update available times when doctor is selected
   useEffect(() => {
-    if (appointmentData.doctor) {
-      const selectedDoctor = doctors.find(doc => doc._id === appointmentData.doctor);
+    if (appointmentData.doctor && doctors) {
+      const selectedDoctor = doctors?.data.doctors.find(doc => doc._id === appointmentData.doctor);
       setAvailableTimes(selectedDoctor?.availability || []);
     }
-  }, [appointmentData.doctor]);
+  }, [appointmentData.doctor, doctors]);
 
   const steps = [
     { id: 'personal', title: 'Personal Info', icon: '👤', description: 'Basic details' },
     { id: 'contact', title: 'Contact Info', icon: '📧', description: 'Contact & address' },
     { id: 'medical', title: 'Medical Info', icon: '🏥', description: 'Medical history' },
+    { id: 'post-registration', title: 'Options', icon: '🎯', description: 'Choose action' },
     { id: 'appointment', title: 'Appointment', icon: '📅', description: 'Book appointment' },
     { id: 'payment', title: 'Payment', icon: '💳', description: 'Payment details' },
     { id: 'confirmation', title: 'Confirm', icon: '✅', description: 'Review & submit' }
@@ -184,7 +146,6 @@ const PublicBookingPlatform = () => {
 
   const handlePatientInputChange = (field: keyof PatientFormData, value: any) => {
     setPatientData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
     if (errors[field]) {
       setErrors((prev: any) => ({ ...prev, [field]: '' }));
     }
@@ -252,11 +213,86 @@ const PublicBookingPlatform = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    if (currentStep === 'medical' && validateStep(currentStep)) {
+      // Create patient after medical step
+      try {
+        const payload = {
+          personalInfo: {
+            firstName: patientData.firstName.trim(),
+            lastName: patientData.lastName.trim(),
+            dateOfBirth: patientData.dateOfBirth,
+            gender: patientData.gender,
+            ...(patientData.bloodGroup && { bloodGroup: patientData.bloodGroup }),
+          },
+          contactInfo: {
+            email: patientData.email.trim().toLowerCase(),
+            phone: patientData.phone.replace(/\D/g, ""),
+            ...(patientData.alternatePhone && {
+              alternatePhone: patientData.alternatePhone.replace(/\D/g, ""),
+            }),
+            address: {
+              ...(patientData.street && { street: patientData.street.trim() }),
+              ...(patientData.city && { city: patientData.city.trim() }),
+              ...(patientData.state && { state: patientData.state.trim() }),
+              ...(patientData.zipCode && { zipCode: patientData.zipCode.trim() }),
+              country: patientData.country.trim(),
+            },
+          },
+          medicalInfo: {
+            ...(patientData.allergies.length > 0 && { allergies: patientData.allergies }),
+            ...(patientData.chronicConditions.length > 0 && {
+              chronicConditions: patientData.chronicConditions,
+            }),
+            ...(patientData.currentMedications.length > 0 && {
+              currentMedications: patientData.currentMedications,
+            }),
+            ...(patientData.emergencyContactName && {
+              emergencyContact: {
+                name: patientData.emergencyContactName.trim(),
+                ...(patientData.emergencyContactRelationship && {
+                  relationship: patientData.emergencyContactRelationship.trim(),
+                }),
+                ...(patientData.emergencyContactPhone && {
+                  phone: patientData.emergencyContactPhone.replace(/\D/g, ""),
+                }),
+              },
+            }),
+          },
+          preferences: {
+            preferredLanguage: patientData.preferredLanguage.trim(),
+            communicationMethod: patientData.communicationMethod,
+            reminderSettings: {
+              enableReminders: patientData.enableReminders,
+              reminderTime: patientData.reminderTime,
+            },
+          },
+          registrationSource: 'website',
+          authentication: { password: patientData.password },
+        };
+
+        const result = await createPatientMutation.mutateAsync(payload);
+        console.log("result", result)
+        setCreatedPatient(result?.patient);
+        setCurrentStep('post-registration');
+      } catch (error) {
+        console.error('Error creating patient:', error);
+        setErrors({ general: 'Failed to create patient. Please try again.' });
+      }
+      return;
+    }
+
     if (validateStep(currentStep)) {
       const currentIndex = steps.findIndex(step => step.id === currentStep);
       if (currentIndex < steps.length - 1) {
-        setCurrentStep(steps[currentIndex + 1].id as FormStep);
+        let nextStep = steps[currentIndex + 1].id as FormStep;
+        
+        // Skip appointment and payment steps if not booking
+        if (nextStep === 'appointment' && !showBookingOption) {
+          nextStep = 'confirmation';
+        }
+        
+        setCurrentStep(nextStep);
       }
     }
   };
@@ -264,22 +300,60 @@ const PublicBookingPlatform = () => {
   const handleBack = () => {
     const currentIndex = steps.findIndex(step => step.id === currentStep);
     if (currentIndex > 0) {
-      setCurrentStep(steps[currentIndex - 1].id as FormStep);
+      let prevStep = steps[currentIndex - 1].id as FormStep;
+      
+      // Skip post-registration when going back from appointment
+      if (currentStep === 'appointment' && prevStep === 'post-registration') {
+        prevStep = 'medical';
+      }
+      
+      setCurrentStep(prevStep);
     }
   };
 
-  const handleSubmit = async () => {
+  const handleBookAppointment = () => {
+    setShowBookingOption(true);
+    setCurrentStep('appointment');
+  };
+
+  const handleSkipAppointment = () => {
+    setShowBookingOption(false);
+    setCurrentStep('confirmation');
+  };
+
+  const handleSubmitAppointment = async () => {
     if (!validateStep('payment')) return;
     
-    setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const appointmentPayload = {
+        patient: createdPatient._id,
+        doctor: appointmentData.doctor,
+        appointmentDate: appointmentData.appointmentDate,
+        appointmentStartTime: `${appointmentData.appointmentDate}T${appointmentData.appointmentTime}:00+05:30`,
+        appointmentEndTime: `${appointmentData.appointmentDate}T${appointmentData.appointmentTime}:00+05:30`, // You might want to calculate end time
+        duration: 30, // Default duration
+        appointmentType: appointmentData.appointmentType,
+        status: 'scheduled',
+        priority: appointmentData.priority,
+        bookingSource: 'website',
+        symptoms: appointmentData.symptoms ? appointmentData.symptoms.split(',').map(s => s.trim()).filter(Boolean) : [],
+        notes: appointmentData.notes,
+        specialRequirements: appointmentData.specialRequirements,
+        paymentStatus: 'pending',
+        paymentAmount: calculatedFee,
+        paymentMethod: appointmentData.paymentMethod,
+        metadata: {
+          ipAddress: '127.0.0.1',
+          userAgent: navigator.userAgent,
+          ...(appointmentData.referralSource && { referralSource: appointmentData.referralSource }),
+        },
+      };
+
+      await bookAppointmentMutation.mutateAsync(appointmentPayload);
       setCurrentStep('confirmation');
     } catch (error) {
-      console.error('Submission error:', error);
-    } finally {
-      setLoading(false);
+      console.error('Error booking appointment:', error);
+      setErrors({ general: 'Failed to book appointment. Please try again.' });
     }
   };
 
@@ -469,7 +543,6 @@ const PublicBookingPlatform = () => {
       </StepHeader>
 
       <FormGrid>
-        {/* Medical Tags */}
         <FormGroup className="full-width">
           <Label>Allergies</Label>
           <TagContainer>
@@ -551,7 +624,6 @@ const PublicBookingPlatform = () => {
           </TagContainer>
         </FormGroup>
 
-        {/* Emergency Contact */}
         <SectionDivider>
           <SectionTitle>Emergency Contact</SectionTitle>
         </SectionDivider>
@@ -583,7 +655,6 @@ const PublicBookingPlatform = () => {
           />
         </FormGroup>
 
-        {/* Account Security */}
         <SectionDivider>
           <SectionTitle>Account Security</SectionTitle>
         </SectionDivider>
@@ -616,143 +687,190 @@ const PublicBookingPlatform = () => {
     </StepContent>
   );
 
-  const renderAppointment = () => (
+  const renderPostRegistration = () => (
     <StepContent>
-      <StepHeader>
-        <StepIcon>📅</StepIcon>
-        <div>
-          <StepTitle>Book Your Appointment</StepTitle>
-          <StepDescription>Choose your preferred doctor and time</StepDescription>
-        </div>
-      </StepHeader>
+      <PostRegHeader>
+        <PostRegIcon>🎉</PostRegIcon>
+        <PostRegTitle>Registration Successful!</PostRegTitle>
+        <PostRegMessage>
+          Welcome, {createdPatient?.personalInfo?.firstName}! Your patient account has been created successfully.
+        </PostRegMessage>
+        <PatientIdCard>
+          <PatientIdLabel>Your Patient ID:</PatientIdLabel>
+          <PatientIdValue>{createdPatient?.patientId}</PatientIdValue>
+        </PatientIdCard>
+      </PostRegHeader>
 
-      <FormGrid>
-        <FormGroup className="full-width">
-          <Label>Select Doctor *</Label>
-          <DoctorGrid>
-            {doctors.map((doctor) => (
-              <DoctorCard
-                key={doctor._id}
-                selected={appointmentData.doctor === doctor._id}
-                onClick={() => handleAppointmentInputChange('doctor', doctor._id)}
-              >
-                <DoctorAvatar>{doctor.fullName.split(' ').map(n => n[0]).join('')}</DoctorAvatar>
-                <DoctorInfo>
-                  <DoctorName>{doctor.fullName}</DoctorName>
-                  <DoctorSpecialty>{doctor.specialization}</DoctorSpecialty>
-                  <DoctorExperience>{doctor.experience} years experience</DoctorExperience>
-                </DoctorInfo>
-                <DoctorFees>
-                  <FeeItem>Consultation: ₹{doctor.fees.consultationFee}</FeeItem>
-                  <FeeItem>Follow-up: ₹{doctor.fees.followUpFee}</FeeItem>
-                </DoctorFees>
-              </DoctorCard>
-            ))}
-          </DoctorGrid>
-          {errors.doctor && <ErrorText>{errors.doctor}</ErrorText>}
-        </FormGroup>
+      <OptionsContainer>
+        <OptionCard onClick={handleBookAppointment}>
+          <OptionIcon>📅</OptionIcon>
+          <OptionTitle>Book Appointment</OptionTitle>
+          <OptionDescription>Schedule an appointment with our doctors</OptionDescription>
+          <OptionButton>Book Now</OptionButton>
+        </OptionCard>
 
-        <FormGroup>
-          <Label>Appointment Type *</Label>
-          <Select
-            value={appointmentData.appointmentType}
-            onChange={(e) => handleAppointmentInputChange('appointmentType', e.target.value)}
-            hasError={!!errors.appointmentType}
-          >
-            <option value="">Select type</option>
-            <option value="consultation">Consultation</option>
-            <option value="follow-up">Follow-up</option>
-            <option value="emergency">Emergency</option>
-          </Select>
-          {errors.appointmentType && <ErrorText>{errors.appointmentType}</ErrorText>}
-        </FormGroup>
-
-        <FormGroup>
-          <Label>Appointment Date *</Label>
-          <Input
-            type="date"
-            value={appointmentData.appointmentDate}
-            onChange={(e) => handleAppointmentInputChange('appointmentDate', e.target.value)}
-            hasError={!!errors.appointmentDate}
-            min={new Date().toISOString().split('T')[0]}
-          />
-          {errors.appointmentDate && <ErrorText>{errors.appointmentDate}</ErrorText>}
-        </FormGroup>
-
-        <FormGroup>
-          <Label>Preferred Time *</Label>
-          <Select
-            value={appointmentData.appointmentTime}
-            onChange={(e) => handleAppointmentInputChange('appointmentTime', e.target.value)}
-            hasError={!!errors.appointmentTime}
-            disabled={!appointmentData.doctor}
-          >
-            <option value="">Select time</option>
-            {availableTimes.map((time) => (
-              <option key={time} value={time}>{time}</option>
-            ))}
-          </Select>
-          {errors.appointmentTime && <ErrorText>{errors.appointmentTime}</ErrorText>}
-        </FormGroup>
-
-        <FormGroup>
-          <Label>Priority</Label>
-          <Select
-            value={appointmentData.priority}
-            onChange={(e) => handleAppointmentInputChange('priority', e.target.value)}
-          >
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-            <option value="urgent">Urgent</option>
-          </Select>
-        </FormGroup>
-
-        <FormGroup className="full-width">
-          <Label>Symptoms</Label>
-          <TextArea
-            value={appointmentData.symptoms}
-            onChange={(e) => handleAppointmentInputChange('symptoms', e.target.value)}
-            placeholder="Describe your symptoms"
-            rows={3}
-          />
-        </FormGroup>
-
-        <FormGroup className="full-width">
-          <Label>Additional Notes</Label>
-          <TextArea
-            value={appointmentData.notes}
-            onChange={(e) => handleAppointmentInputChange('notes', e.target.value)}
-            placeholder="Any additional notes or special requirements"
-            rows={3}
-          />
-        </FormGroup>
-
-        <FormGroup>
-          <Label>How did you hear about us?</Label>
-          <Input
-            value={appointmentData.referralSource}
-            onChange={(e) => handleAppointmentInputChange('referralSource', e.target.value)}
-            placeholder="e.g., Google, Facebook, Friend referral"
-          />
-        </FormGroup>
-
-        {calculatedFee > 0 && (
-          <FeeCard className="full-width">
-            <FeeCardHeader>
-              <FeeIcon>💰</FeeIcon>
-              <FeeTitle>Consultation Fee</FeeTitle>
-            </FeeCardHeader>
-            <FeeAmount>₹{calculatedFee.toLocaleString()}</FeeAmount>
-            <FeeDescription>
-              {appointmentData.appointmentType.replace(/\b\w/g, l => l.toUpperCase())} with{' '}
-              {doctors.find(d => d._id === appointmentData.doctor)?.fullName}
-            </FeeDescription>
-          </FeeCard>
-        )}
-      </FormGrid>
+        <OptionCard onClick={handleSkipAppointment}>
+          <OptionIcon>📋</OptionIcon>
+          <OptionTitle>Complete Registration</OptionTitle>
+          <OptionDescription>Finish registration and book appointment later</OptionDescription>
+          <OptionButton variant="secondary">Complete</OptionButton>
+        </OptionCard>
+      </OptionsContainer>
     </StepContent>
   );
+
+  const renderAppointment = () => {
+    if (doctorsLoading) {
+      return (
+        <StepContent>
+          <LoadingContainer>
+            <LoadingSpinner />
+            <LoadingText>Loading doctors...</LoadingText>
+          </LoadingContainer>
+        </StepContent>
+      );
+    }
+
+    return (
+      <StepContent>
+        <StepHeader>
+          <StepIcon>📅</StepIcon>
+          <div>
+            <StepTitle>Book Your Appointment</StepTitle>
+            <StepDescription>Choose your preferred doctor and time</StepDescription>
+          </div>
+        </StepHeader>
+
+        <FormGrid>
+          <FormGroup className="full-width">
+            <Label>Select Doctor *</Label>
+            <DoctorGrid>
+              {doctors?.data.doctors.map((doctor) => (
+                <DoctorCard
+                  key={doctor._id}
+                  selected={appointmentData.doctor === doctor._id}
+                  onClick={() => handleAppointmentInputChange('doctor', doctor._id)}
+                >
+                  <DoctorAvatar>
+                    {doctor.personalInfo.firstName[0]}{doctor.personalInfo.lastName[0]}
+                  </DoctorAvatar>
+                  <DoctorInfo>
+                    <DoctorName>Dr. {doctor.personalInfo.firstName} {doctor.personalInfo.lastName}</DoctorName>
+                    <DoctorSpecialty>{doctor.professionalInfo.specialization}</DoctorSpecialty>
+                    <DoctorExperience>{doctor.professionalInfo.experience} years experience</DoctorExperience>
+                  </DoctorInfo>
+                  <DoctorFees>
+                    <FeeItem>Consultation: ₹{doctor.fees.consultationFee}</FeeItem>
+                    <FeeItem>Follow-up: ₹{doctor.fees.followUpFee}</FeeItem>
+                  </DoctorFees>
+                </DoctorCard>
+              ))}
+            </DoctorGrid>
+            {errors.doctor && <ErrorText>{errors.doctor}</ErrorText>}
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Appointment Type *</Label>
+            <Select
+              value={appointmentData.appointmentType}
+              onChange={(e) => handleAppointmentInputChange('appointmentType', e.target.value)}
+              hasError={!!errors.appointmentType}
+            >
+              <option value="">Select type</option>
+              <option value="consultation">Consultation</option>
+              <option value="follow-up">Follow-up</option>
+              <option value="emergency">Emergency</option>
+            </Select>
+            {errors.appointmentType && <ErrorText>{errors.appointmentType}</ErrorText>}
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Appointment Date *</Label>
+            <Input
+              type="date"
+              value={appointmentData.appointmentDate}
+              onChange={(e) => handleAppointmentInputChange('appointmentDate', e.target.value)}
+              hasError={!!errors.appointmentDate}
+              min={new Date().toISOString().split('T')[0]}
+            />
+            {errors.appointmentDate && <ErrorText>{errors.appointmentDate}</ErrorText>}
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Preferred Time *</Label>
+            <Select
+              value={appointmentData.appointmentTime}
+              onChange={(e) => handleAppointmentInputChange('appointmentTime', e.target.value)}
+              hasError={!!errors.appointmentTime}
+              disabled={!appointmentData.doctor}
+            >
+              <option value="">Select time</option>
+              {availableTimes.map((time) => (
+                <option key={time} value={time}>{time}</option>
+              ))}
+            </Select>
+            {errors.appointmentTime && <ErrorText>{errors.appointmentTime}</ErrorText>}
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Priority</Label>
+            <Select
+              value={appointmentData.priority}
+              onChange={(e) => handleAppointmentInputChange('priority', e.target.value)}
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </Select>
+          </FormGroup>
+
+          <FormGroup className="full-width">
+            <Label>Symptoms</Label>
+            <TextArea
+              value={appointmentData.symptoms}
+              onChange={(e) => handleAppointmentInputChange('symptoms', e.target.value)}
+              placeholder="Describe your symptoms"
+              rows={3}
+            />
+          </FormGroup>
+
+          <FormGroup className="full-width">
+            <Label>Additional Notes</Label>
+            <TextArea
+              value={appointmentData.notes}
+              onChange={(e) => handleAppointmentInputChange('notes', e.target.value)}
+              placeholder="Any additional notes or special requirements"
+              rows={3}
+            />
+          </FormGroup>
+
+          <FormGroup>
+            <Label>How did you hear about us?</Label>
+            <Input
+              value={appointmentData.referralSource}
+              onChange={(e) => handleAppointmentInputChange('referralSource', e.target.value)}
+              placeholder="e.g., Google, Facebook, Friend referral"
+            />
+          </FormGroup>
+
+          {calculatedFee > 0 && (
+            <FeeCard className="full-width">
+              <FeeCardHeader>
+                <FeeIcon>💰</FeeIcon>
+                <FeeTitle>Consultation Fee</FeeTitle>
+              </FeeCardHeader>
+              <FeeAmount>₹{calculatedFee.toLocaleString()}</FeeAmount>
+              <FeeDescription>
+                {appointmentData.appointmentType.replace(/\b\w/g, l => l.toUpperCase())} with{' '}
+                Dr. {doctors?.data.doctors.find(d => d._id === appointmentData.doctor)?.personalInfo?.firstName} {doctors?.data.doctors.find(d => d._id === appointmentData.doctor)?.personalInfo?.lastName}
+              </FeeDescription>
+            </FeeCard>
+          )}
+        </FormGrid>
+      </StepContent>
+    );
+  };
 
   const renderPayment = () => (
     <StepContent>
@@ -797,18 +915,22 @@ const PublicBookingPlatform = () => {
           <SummaryContent>
             <SummaryRow>
               <SummaryLabel>Patient:</SummaryLabel>
-              <SummaryValue>{patientData.firstName} {patientData.lastName}</SummaryValue>
+              <SummaryValue>{createdPatient?.personalInfo?.firstName} {createdPatient?.personalInfo?.lastName}</SummaryValue>
+            </SummaryRow>
+            <SummaryRow>
+              <SummaryLabel>Patient ID:</SummaryLabel>
+              <SummaryValue>{createdPatient?.patientId}</SummaryValue>
             </SummaryRow>
             <SummaryRow>
               <SummaryLabel>Doctor:</SummaryLabel>
               <SummaryValue>
-                {doctors.find(d => d._id === appointmentData.doctor)?.fullName || 'Not selected'}
+                Dr. {doctors?.find(d => d._id === appointmentData.doctor)?.personalInfo?.firstName} {doctors?.find(d => d._id === appointmentData.doctor)?.personalInfo?.lastName}
               </SummaryValue>
             </SummaryRow>
             <SummaryRow>
               <SummaryLabel>Specialization:</SummaryLabel>
               <SummaryValue>
-                {doctors.find(d => d._id === appointmentData.doctor)?.specialization || 'Not selected'}
+                {doctors?.find(d => d._id === appointmentData.doctor)?.professionalInfo?.specialization}
               </SummaryValue>
             </SummaryRow>
             <SummaryRow>
@@ -837,45 +959,78 @@ const PublicBookingPlatform = () => {
   const renderConfirmation = () => (
     <ConfirmationContent>
       <ConfirmationIcon>🎉</ConfirmationIcon>
-      <ConfirmationTitle>Booking Confirmed!</ConfirmationTitle>
+      <ConfirmationTitle>
+        {showBookingOption ? 'Appointment Booked!' : 'Registration Complete!'}
+      </ConfirmationTitle>
       <ConfirmationMessage>
-        Your appointment has been successfully booked. You will receive a confirmation email shortly.
+        {showBookingOption 
+          ? 'Your appointment has been successfully booked. You will receive a confirmation email shortly.'
+          : 'Your patient account has been created successfully. You can book appointments anytime from your dashboard.'
+        }
       </ConfirmationMessage>
       
       <ConfirmationDetails>
         <DetailRow>
-          <DetailLabel>Appointment ID:</DetailLabel>
-          <DetailValue>#APT-{Math.random().toString(36).substr(2, 9).toUpperCase()}</DetailValue>
+          <DetailLabel>Patient ID:</DetailLabel>
+          <DetailValue>{createdPatient?.patientId}</DetailValue>
         </DetailRow>
         <DetailRow>
           <DetailLabel>Patient:</DetailLabel>
-          <DetailValue>{patientData.firstName} {patientData.lastName}</DetailValue>
+          <DetailValue>{createdPatient?.personalInfo?.firstName} {createdPatient?.personalInfo?.lastName}</DetailValue>
         </DetailRow>
         <DetailRow>
-          <DetailLabel>Doctor:</DetailLabel>
-          <DetailValue>{doctors.find(d => d._id === appointmentData.doctor)?.fullName}</DetailValue>
+          <DetailLabel>Email:</DetailLabel>
+          <DetailValue>{createdPatient?.contactInfo?.email}</DetailValue>
         </DetailRow>
         <DetailRow>
-          <DetailLabel>Date & Time:</DetailLabel>
-          <DetailValue>{appointmentData.appointmentDate} at {appointmentData.appointmentTime}</DetailValue>
+          <DetailLabel>Phone:</DetailLabel>
+          <DetailValue>{createdPatient?.contactInfo?.phone}</DetailValue>
         </DetailRow>
-        <DetailRow>
-          <DetailLabel>Fee Paid:</DetailLabel>
-          <DetailValue>₹{calculatedFee.toLocaleString()}</DetailValue>
-        </DetailRow>
+        {showBookingOption && (
+          <>
+            <DetailRow>
+              <DetailLabel>Appointment ID:</DetailLabel>
+              <DetailValue>#APT-{Math.random().toString(36).substr(2, 9).toUpperCase()}</DetailValue>
+            </DetailRow>
+            <DetailRow>
+              <DetailLabel>Doctor:</DetailLabel>
+              <DetailValue>Dr. {doctors?.find(d => d._id === appointmentData.doctor)?.personalInfo?.firstName} {doctors?.find(d => d._id === appointmentData.doctor)?.personalInfo?.lastName}</DetailValue>
+            </DetailRow>
+            <DetailRow>
+              <DetailLabel>Date & Time:</DetailLabel>
+              <DetailValue>{appointmentData.appointmentDate} at {appointmentData.appointmentTime}</DetailValue>
+            </DetailRow>
+            <DetailRow>
+              <DetailLabel>Fee Paid:</DetailLabel>
+              <DetailValue>₹{calculatedFee.toLocaleString()}</DetailValue>
+            </DetailRow>
+          </>
+        )}
       </ConfirmationDetails>
 
       <ConfirmationActions>
         <ActionButton onClick={() => window.print()}>📄 Download Receipt</ActionButton>
         <ActionButton variant="secondary" onClick={() => window.location.reload()}>
-          📅 Book Another Appointment
+          {showBookingOption ? '📅 Book Another Appointment' : '👤 Register Another Patient'}
         </ActionButton>
       </ConfirmationActions>
     </ConfirmationContent>
   );
 
+  const getVisibleSteps = () => {
+    if (!showBookingOption && currentStep !== 'post-registration') {
+      return steps.filter(step => !['appointment', 'payment'].includes(step.id));
+    }
+    return steps;
+  };
+
+  const visibleSteps = getVisibleSteps();
+  const visibleCurrentStepIndex = visibleSteps.findIndex(step => step.id === currentStep);
+  const visibleProgressPercentage = ((visibleCurrentStepIndex + 1) / visibleSteps.length) * 100;
+
   return (
     <PlatformContainer>
+      <Toaster position="top-right" />
       {/* Header */}
       <PlatformHeader>
         <HeaderLogo>
@@ -888,20 +1043,25 @@ const PublicBookingPlatform = () => {
       {/* Progress Indicator */}
       <ProgressContainer>
         <ProgressHeader>
-          <ProgressTitle>Complete Your Registration & Booking</ProgressTitle>
-          <ProgressText>Step {currentStepIndex + 1} of {steps.length}</ProgressText>
+          <ProgressTitle>
+            {showBookingOption 
+              ? 'Complete Your Registration & Booking' 
+              : 'Complete Your Registration'
+            }
+          </ProgressTitle>
+          <ProgressText>Step {visibleCurrentStepIndex + 1} of {visibleSteps.length}</ProgressText>
         </ProgressHeader>
         
         <ProgressBar>
-          <ProgressFill percentage={progressPercentage} />
+          <ProgressFill percentage={visibleProgressPercentage} />
         </ProgressBar>
         
         <StepIndicators>
-          {steps.map((step, index) => (
+          {visibleSteps.map((step, index) => (
             <StepIndicator
               key={step.id}
               active={step.id === currentStep}
-              completed={index < currentStepIndex}
+              completed={index < visibleCurrentStepIndex}
             >
               <StepIndicatorIcon>{step.icon}</StepIndicatorIcon>
               <StepIndicatorTitle>{step.title}</StepIndicatorTitle>
@@ -917,29 +1077,36 @@ const PublicBookingPlatform = () => {
           {currentStep === 'personal' && renderPersonalInfo()}
           {currentStep === 'contact' && renderContactInfo()}
           {currentStep === 'medical' && renderMedicalInfo()}
+          {currentStep === 'post-registration' && renderPostRegistration()}
           {currentStep === 'appointment' && renderAppointment()}
           {currentStep === 'payment' && renderPayment()}
           {currentStep === 'confirmation' && renderConfirmation()}
         </FormCard>
 
         {/* Form Actions */}
-        {currentStep !== 'confirmation' && (
+        {!['confirmation', 'post-registration'].includes(currentStep) && (
           <FormActions>
             <ActionButton
               variant="secondary"
               onClick={handleBack}
-              disabled={currentStepIndex === 0}
+              disabled={visibleCurrentStepIndex === 0}
             >
               ← Back
             </ActionButton>
 
             {currentStep === 'payment' ? (
-              <ActionButton onClick={handleSubmit} disabled={loading}>
-                {loading ? 'Processing...' : 'Complete Booking'}
+              <ActionButton 
+                onClick={handleSubmitAppointment} 
+                disabled={bookAppointmentMutation.isLoading}
+              >
+                {bookAppointmentMutation.isLoading ? 'Booking...' : 'Complete Booking'}
               </ActionButton>
             ) : (
-              <ActionButton onClick={handleNext}>
-                Next Step →
+              <ActionButton 
+                onClick={handleNext}
+                disabled={createPatientMutation.isLoading}
+              >
+                {createPatientMutation.isLoading ? 'Creating Account...' : 'Next Step →'}
               </ActionButton>
             )}
           </FormActions>
@@ -955,11 +1122,19 @@ const PlatformContainer = styled.div`
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 20px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  
+  @media (max-width: 768px) {
+    padding: 10px;
+  }
 `;
 
 const PlatformHeader = styled.div`
   text-align: center;
   margin-bottom: 30px;
+  
+  @media (max-width: 768px) {
+    margin-bottom: 20px;
+  }
 `;
 
 const HeaderLogo = styled.div`
@@ -973,6 +1148,10 @@ const HeaderLogo = styled.div`
 const LogoIcon = styled.div`
   font-size: 32px;
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  
+  @media (max-width: 768px) {
+    font-size: 28px;
+  }
 `;
 
 const LogoText = styled.h1`
@@ -981,6 +1160,10 @@ const LogoText = styled.h1`
   color: white;
   margin: 0;
   text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  
+  @media (max-width: 768px) {
+    font-size: 24px;
+  }
 `;
 
 const HeaderSubtitle = styled.p`
@@ -988,6 +1171,10 @@ const HeaderSubtitle = styled.p`
   font-size: 16px;
   margin: 0;
   font-weight: 500;
+  
+  @media (max-width: 768px) {
+    font-size: 14px;
+  }
 `;
 
 const ProgressContainer = styled.div`
@@ -997,6 +1184,12 @@ const ProgressContainer = styled.div`
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  
+  @media (max-width: 768px) {
+    margin: 0 auto 20px auto;
+    padding: 16px;
+    border-radius: 12px;
+  }
 `;
 
 const ProgressHeader = styled.div`
@@ -1009,6 +1202,7 @@ const ProgressHeader = styled.div`
     flex-direction: column;
     gap: 8px;
     text-align: center;
+    margin-bottom: 16px;
   }
 `;
 
@@ -1017,12 +1211,20 @@ const ProgressTitle = styled.h2`
   font-weight: 600;
   color: #1f2937;
   margin: 0;
+  
+  @media (max-width: 768px) {
+    font-size: 18px;
+  }
 `;
 
 const ProgressText = styled.span`
   font-size: 14px;
   color: #6b7280;
   font-weight: 500;
+  
+  @media (max-width: 768px) {
+    font-size: 13px;
+  }
 `;
 
 const ProgressBar = styled.div`
@@ -1032,6 +1234,10 @@ const ProgressBar = styled.div`
   border-radius: 4px;
   overflow: hidden;
   margin-bottom: 24px;
+  
+  @media (max-width: 768px) {
+    margin-bottom: 16px;
+  }
 `;
 
 const ProgressFill = styled.div<{ percentage: number }>`
@@ -1044,12 +1250,12 @@ const ProgressFill = styled.div<{ percentage: number }>`
 
 const StepIndicators = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 16px;
   
   @media (max-width: 768px) {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 8px;
   }
 `;
 
@@ -1072,22 +1278,40 @@ const StepIndicator = styled.div<{ active: boolean; completed: boolean }>`
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
+  
+  @media (max-width: 768px) {
+    padding: 8px;
+    border-radius: 8px;
+  }
 `;
 
 const StepIndicatorIcon = styled.div`
   font-size: 20px;
   margin-bottom: 6px;
+  
+  @media (max-width: 768px) {
+    font-size: 16px;
+    margin-bottom: 4px;
+  }
 `;
 
 const StepIndicatorTitle = styled.div`
   font-size: 12px;
   font-weight: 600;
   margin-bottom: 2px;
+  
+  @media (max-width: 768px) {
+    font-size: 10px;
+  }
 `;
 
 const StepIndicatorDescription = styled.div`
   font-size: 10px;
   opacity: 0.8;
+  
+  @media (max-width: 768px) {
+    font-size: 9px;
+  }
 `;
 
 const MainContainer = styled.div`
@@ -1101,13 +1325,18 @@ const FormCard = styled.div`
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   margin-bottom: 24px;
+  
+  @media (max-width: 768px) {
+    border-radius: 12px;
+    margin-bottom: 16px;
+  }
 `;
 
 const StepContent = styled.div`
   padding: 32px;
   
   @media (max-width: 768px) {
-    padding: 24px;
+    padding: 16px;
   }
 `;
 
@@ -1122,6 +1351,7 @@ const StepHeader = styled.div`
     flex-direction: column;
     text-align: center;
     gap: 12px;
+    margin-bottom: 24px;
   }
 `;
 
@@ -1136,6 +1366,13 @@ const StepIcon = styled.div`
   align-items: center;
   justify-content: center;
   filter: grayscale(0.8);
+  
+  @media (max-width: 768px) {
+    font-size: 24px;
+    width: 48px;
+    height: 48px;
+    padding: 8px;
+  }
 `;
 
 const StepTitle = styled.h3`
@@ -1143,12 +1380,49 @@ const StepTitle = styled.h3`
   font-weight: 700;
   color: #1f2937;
   margin: 0 0 4px 0;
+  
+  @media (max-width: 768px) {
+    font-size: 20px;
+  }
 `;
 
 const StepDescription = styled.p`
   font-size: 14px;
   color: #6b7280;
   margin: 0;
+  
+  @media (max-width: 768px) {
+    font-size: 13px;
+  }
+`;
+
+const LoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  gap: 16px;
+`;
+
+const LoadingSpinner = styled.div`
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e2e8f0;
+  border-top: 3px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
+
+const LoadingText = styled.div`
+  font-size: 16px;
+  color: #6b7280;
+  font-weight: 500;
 `;
 
 const FormGrid = styled.div`
@@ -1262,6 +1536,150 @@ const SectionTitle = styled.h4`
   border-bottom: 2px solid #e5e7eb;
 `;
 
+// Post Registration Components
+const PostRegHeader = styled.div`
+  text-align: center;
+  margin-bottom: 32px;
+`;
+
+const PostRegIcon = styled.div`
+  font-size: 64px;
+  margin-bottom: 16px;
+`;
+
+const PostRegTitle = styled.h2`
+  font-size: 28px;
+  font-weight: 700;
+  color: #059669;
+  margin: 0 0 12px 0;
+`;
+
+const PostRegMessage = styled.p`
+  font-size: 16px;
+  color: #6b7280;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+`;
+
+const PatientIdCard = styled.div`
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 2px solid #0ea5e9;
+  border-radius: 12px;
+  padding: 16px;
+  display: inline-block;
+  margin-bottom: 24px;
+`;
+
+const PatientIdLabel = styled.div`
+  font-size: 12px;
+  color: #0369a1;
+  font-weight: 500;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const PatientIdValue = styled.div`
+  font-size: 24px;
+  font-weight: 700;
+  color: #0c4a6e;
+  font-family: 'Courier New', monospace;
+`;
+
+const OptionsContainer = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+`;
+
+const OptionCard = styled.div`
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    border-color: #667eea;
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+  }
+  
+  @media (max-width: 768px) {
+    padding: 20px;
+  }
+`;
+
+const OptionIcon = styled.div`
+  font-size: 48px;
+  margin-bottom: 16px;
+  
+  @media (max-width: 768px) {
+    font-size: 40px;
+    margin-bottom: 12px;
+  }
+`;
+
+const OptionTitle = styled.h3`
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 8px 0;
+  
+  @media (max-width: 768px) {
+    font-size: 18px;
+  }
+`;
+
+const OptionDescription = styled.p`
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+  
+  @media (max-width: 768px) {
+    font-size: 13px;
+    margin: 0 0 16px 0;
+  }
+`;
+
+const OptionButton = styled.button<{ variant?: 'secondary' }>`
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  
+  ${props => props.variant === 'secondary' ? `
+    background: white;
+    color: #374151;
+    border: 2px solid #d1d5db;
+    
+    &:hover {
+      background: #f9fafb;
+      border-color: #9ca3af;
+    }
+  ` : `
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: 2px solid transparent;
+    
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+  `}
+`;
+
 // Tag Components
 const TagContainer = styled.div`
   border: 2px solid #e5e7eb;
@@ -1340,6 +1758,10 @@ const DoctorGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 16px;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const DoctorCard = styled.div<{ selected: boolean }>`
@@ -1410,6 +1832,10 @@ const PaymentGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 12px;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
 `;
 
 const PaymentCard = styled.div<{ selected: boolean }>`
@@ -1553,11 +1979,20 @@ const SummaryDivider = styled.div`
 const ConfirmationContent = styled.div`
   text-align: center;
   padding: 40px 32px;
+  
+  @media (max-width: 768px) {
+    padding: 24px 16px;
+  }
 `;
 
 const ConfirmationIcon = styled.div`
   font-size: 64px;
   margin-bottom: 20px;
+  
+  @media (max-width: 768px) {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
 `;
 
 const ConfirmationTitle = styled.h2`
@@ -1565,6 +2000,10 @@ const ConfirmationTitle = styled.h2`
   font-weight: 700;
   color: #059669;
   margin: 0 0 12px 0;
+  
+  @media (max-width: 768px) {
+    font-size: 24px;
+  }
 `;
 
 const ConfirmationMessage = styled.p`
@@ -1572,6 +2011,11 @@ const ConfirmationMessage = styled.p`
   color: #6b7280;
   margin: 0 0 32px 0;
   line-height: 1.5;
+  
+  @media (max-width: 768px) {
+    font-size: 14px;
+    margin: 0 0 24px 0;
+  }
 `;
 
 const ConfirmationDetails = styled.div`
@@ -1580,6 +2024,11 @@ const ConfirmationDetails = styled.div`
   padding: 24px;
   margin-bottom: 32px;
   text-align: left;
+  
+  @media (max-width: 768px) {
+    padding: 16px;
+    margin-bottom: 24px;
+  }
 `;
 
 const DetailRow = styled.div`
@@ -1591,6 +2040,12 @@ const DetailRow = styled.div`
   
   &:last-child {
     border-bottom: none;
+  }
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
   }
 `;
 
@@ -1604,6 +2059,10 @@ const DetailValue = styled.span`
   font-size: 14px;
   color: #1f2937;
   font-weight: 600;
+  
+  @media (max-width: 768px) {
+    font-size: 16px;
+  }
 `;
 
 const ConfirmationActions = styled.div`
@@ -1613,6 +2072,7 @@ const ConfirmationActions = styled.div`
   
   @media (max-width: 768px) {
     flex-direction: column;
+    gap: 12px;
   }
 `;
 
@@ -1623,6 +2083,7 @@ const FormActions = styled.div`
   
   @media (max-width: 768px) {
     flex-direction: column-reverse;
+    gap: 12px;
   }
 `;
 
