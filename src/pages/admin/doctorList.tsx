@@ -2,7 +2,15 @@ import React, { useState } from "react";
 import styled from "styled-components";
 import { theme } from "@/config/theme.config";
 import { useNavigate } from "react-router-dom";
-import { FiEye, FiTrash, FiRefreshCw, FiPlus, FiClock, FiShield, FiX } from "react-icons/fi";
+import {
+  FiEye,
+  FiTrash,
+  FiRefreshCw,
+  FiPlus,
+  FiClock,
+  FiShield,
+  FiX,
+} from "react-icons/fi";
 import { useDoctors, useVerifyDoctor, useDeleteDoctor } from "@/hooks/useAdmin";
 import { ROUTES } from "@/config/route-paths.config";
 import Swal from "sweetalert2";
@@ -26,22 +34,37 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
     refetch,
   } = useDoctors();
 
-  const { mutate: deleteDoctor, isPending: isDeletingDoctor } = useDeleteDoctor();
-  const { mutate: verifyDoctor, isPending: isVerifyingDoctor } = useVerifyDoctor();
+  const { mutate: deleteDoctor, isPending: isDeletingDoctor } =
+    useDeleteDoctor();
+  const { mutate: verifyDoctor, isPending: isVerifyingDoctor } =
+    useVerifyDoctor();
 
   // Local state
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
-  const [filterSpecialization, setFilterSpecialization] = useState<string>("all");
-  const [filterAvailability, setFilterAvailability] = useState<"all" | "available" | "unavailable">("all");
-  const [filterVerification, setFilterVerification] = useState<"all" | "verified" | "pending" | "rejected">("all");
-  const [sortBy, setSortBy] = useState<"name" | "specialization" | "experience" | "rating">("name");
+  const [filterStatus, setFilterStatus] = useState<
+    "all" | "active" | "inactive"
+  >("all");
+  const [filterSpecialization, setFilterSpecialization] =
+    useState<string>("all");
+  const [filterAvailability, setFilterAvailability] = useState<
+    "all" | "available" | "unavailable"
+  >("all");
+  const [filterVerification, setFilterVerification] = useState<
+    "all" | "verified" | "pending" | "rejected"
+  >("all");
+  const [sortBy, setSortBy] = useState<
+    "name" | "specialization" | "experience" | "rating"
+  >("name");
   const [currentPage, setCurrentPage] = useState(1);
-  const [verifyingDoctorId, setVerifyingDoctorId] = useState<string | null>(null);
+  const [verifyingDoctorId, setVerifyingDoctorId] = useState<string | null>(
+    null
+  );
   const itemsPerPage = 10;
 
   // Permission check
-  const hasPermission = (action: "create" | "edit" | "view" | "delete" | "verify") => {
+  const hasPermission = (
+    action: "create" | "edit" | "view" | "delete" | "verify"
+  ) => {
     switch (userType) {
       case "admin":
         return true; // Admin has all permissions
@@ -99,7 +122,9 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
 
   const getSpecializations = (): string[] => {
     const specializations = [
-      ...new Set(doctors.map((doctor) => doctor.professionalInfo.specialization)),
+      ...new Set(
+        doctors.map((doctor) => doctor.professionalInfo.specialization)
+      ),
     ];
     return specializations.sort();
   };
@@ -117,16 +142,28 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
 
   // Get verification stats for admin dashboard
   const getVerificationStats = () => {
-    const verifiedCount = doctors.filter(doctor => doctor.isVerifiedByAdmin === true).length;
-    const pendingCount = doctors.filter(doctor => doctor.isVerifiedByAdmin === null || doctor.isVerifiedByAdmin === undefined).length;
-    const rejectedCount = doctors.filter(doctor => doctor.isVerifiedByAdmin === false).length;
+    const verifiedCount = doctors.filter(
+      (doctor) => doctor.isVerifiedByAdmin === true
+    ).length;
+    const pendingCount = doctors.filter(
+      (doctor) =>
+        doctor.isVerifiedByAdmin === null ||
+        doctor.isVerifiedByAdmin === undefined
+    ).length;
+    const rejectedCount = doctors.filter(
+      (doctor) => doctor.isVerifiedByAdmin === false
+    ).length;
     return { verifiedCount, pendingCount, rejectedCount };
   };
 
   const { verifiedCount, pendingCount, rejectedCount } = getVerificationStats();
 
   // Handle verification status change
-  const handleVerificationChange = async (doctorId: string, newStatus: string, doctorName: string) => {
+  const handleVerificationChange = async (
+    doctorId: string,
+    newStatus: string,
+    doctorName: string
+  ) => {
     if (!hasPermission("verify")) {
       Swal.fire({
         title: "Access Denied",
@@ -136,12 +173,24 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
       return;
     }
 
-    const statusText = newStatus === "verified" ? "verify" : newStatus === "rejected" ? "reject" : "set to pending";
-    const statusColor = newStatus === "verified" ? "#10b981" : newStatus === "rejected" ? "#ef4444" : "#f59e0b";
+    const statusText =
+      newStatus === "verified"
+        ? "verify"
+        : newStatus === "rejected"
+        ? "reject"
+        : "set to pending";
+    const statusColor =
+      newStatus === "verified"
+        ? "#10b981"
+        : newStatus === "rejected"
+        ? "#ef4444"
+        : "#f59e0b";
 
     // Show confirmation dialog with reason input
     const { value: reason, isConfirmed } = await Swal.fire({
-      title: `${statusText.charAt(0).toUpperCase() + statusText.slice(1)} Doctor`,
+      title: `${
+        statusText.charAt(0).toUpperCase() + statusText.slice(1)
+      } Doctor`,
       text: `Are you sure you want to ${statusText} "${doctorName}"?`,
       input: "textarea",
       inputLabel: "Reason (optional)",
@@ -206,10 +255,16 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
       const fullName = `${doctor.personalInfo.firstName} ${doctor.personalInfo.lastName}`;
       const matchesSearch =
         fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doctor.personalInfo.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        doctor.personalInfo.email
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
         doctor.doctorId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doctor.professionalInfo.specialization.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doctor.professionalInfo.licenseNumber.toLowerCase().includes(searchTerm.toLowerCase());
+        doctor.professionalInfo.specialization
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        doctor.professionalInfo.licenseNumber
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase());
 
       const matchesStatus =
         filterStatus === "all" ||
@@ -222,14 +277,23 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
 
       const matchesAvailability =
         filterAvailability === "all" ||
-        (filterAvailability === "available" && doctor.availability.isAvailable) ||
-        (filterAvailability === "unavailable" && !doctor.availability.isAvailable);
+        (filterAvailability === "available" &&
+          doctor.availability.isAvailable) ||
+        (filterAvailability === "unavailable" &&
+          !doctor.availability.isAvailable);
 
       const doctorVerificationStatus = getVerificationStatus(doctor);
       const matchesVerification =
-        filterVerification === "all" || doctorVerificationStatus === filterVerification;
+        filterVerification === "all" ||
+        doctorVerificationStatus === filterVerification;
 
-      return matchesSearch && matchesStatus && matchesSpecialization && matchesAvailability && matchesVerification;
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesSpecialization &&
+        matchesAvailability &&
+        matchesVerification
+      );
     })
     .sort((a, b) => {
       switch (sortBy) {
@@ -238,7 +302,9 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
           const nameB = `${b.personalInfo.firstName} ${b.personalInfo.lastName}`;
           return nameA.localeCompare(nameB);
         case "specialization":
-          return a.professionalInfo.specialization.localeCompare(b.professionalInfo.specialization);
+          return a.professionalInfo.specialization.localeCompare(
+            b.professionalInfo.specialization
+          );
         case "experience":
           return b.professionalInfo.experience - a.professionalInfo.experience;
         case "rating":
@@ -250,7 +316,10 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
 
   const totalPages = Math.ceil(filteredAndSortedDoctors.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedDoctors = filteredAndSortedDoctors.slice(startIndex, startIndex + itemsPerPage);
+  const paginatedDoctors = filteredAndSortedDoctors.slice(
+    startIndex,
+    startIndex + itemsPerPage
+  );
 
   const handleViewDoctor = (doctorId: string) => {
     if (!hasPermission("view") || !routes.view) {
@@ -484,7 +553,9 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
           />
           <FilterSelect
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as "all" | "active" | "inactive")}
+            onChange={(e) =>
+              setFilterStatus(e.target.value as "all" | "active" | "inactive")
+            }
           >
             <option value="all">All Status</option>
             <option value="active">Active</option>
@@ -503,7 +574,11 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
           </FilterSelect>
           <FilterSelect
             value={filterAvailability}
-            onChange={(e) => setFilterAvailability(e.target.value as "all" | "available" | "unavailable")}
+            onChange={(e) =>
+              setFilterAvailability(
+                e.target.value as "all" | "available" | "unavailable"
+              )
+            }
           >
             <option value="all">All Availability</option>
             <option value="available">Available</option>
@@ -512,7 +587,11 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
           {userType === "admin" && (
             <FilterSelect
               value={filterVerification}
-              onChange={(e) => setFilterVerification(e.target.value as "all" | "verified" | "pending" | "rejected")}
+              onChange={(e) =>
+                setFilterVerification(
+                  e.target.value as "all" | "verified" | "pending" | "rejected"
+                )
+              }
             >
               <option value="all">All Verification</option>
               <option value="verified">Verified</option>
@@ -522,7 +601,15 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
           )}
           <SortSelect
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as "name" | "specialization" | "experience" | "rating")}
+            onChange={(e) =>
+              setSortBy(
+                e.target.value as
+                  | "name"
+                  | "specialization"
+                  | "experience"
+                  | "rating"
+              )
+            }
           >
             <option value="name">Sort by Name</option>
             <option value="specialization">Sort by Specialization</option>
@@ -532,7 +619,8 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
         </SearchAndFilter>
 
         <ResultsInfo>
-          Showing {paginatedDoctors.length} of {filteredAndSortedDoctors.length} doctors
+          Showing {paginatedDoctors.length} of {filteredAndSortedDoctors.length}{" "}
+          doctors
           {filteredAndSortedDoctors.length !== doctors.length && (
             <span> (filtered from {doctors.length} total)</span>
           )}
@@ -551,7 +639,9 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
               <TableHeaderCell>Rating</TableHeaderCell>
               <TableHeaderCell>Availability</TableHeaderCell>
               <TableHeaderCell>Status</TableHeaderCell>
-              {userType === "admin" && <TableHeaderCell>Verification</TableHeaderCell>}
+              {userType === "admin" && (
+                <TableHeaderCell>Verification</TableHeaderCell>
+              )}
               <TableHeaderCell>Actions</TableHeaderCell>
             </TableRow>
           </TableHeader>
@@ -573,7 +663,8 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
                       </DoctorAvatar>
                       <DoctorDetails>
                         <DoctorName>
-                          {doctor.personalInfo.firstName} {doctor.personalInfo.lastName}
+                          {doctor.personalInfo.firstName}{" "}
+                          {doctor.personalInfo.lastName}
                           {verificationStatus === "verified" && (
                             <VerifiedIcon title="Verified by Admin">
                               <FiShield size={12} />
@@ -581,28 +672,41 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
                           )}
                         </DoctorName>
                         <DoctorId>{doctor.doctorId}</DoctorId>
-                        <LicenseNumber>License: {doctor.professionalInfo.licenseNumber}</LicenseNumber>
+                        <LicenseNumber>
+                          License: {doctor.professionalInfo.licenseNumber}
+                        </LicenseNumber>
                       </DoctorDetails>
                     </DoctorInfo>
                   </TableCell>
 
                   <TableCell>
                     <SpecializationInfo>
-                      <Specialization>{doctor.professionalInfo.specialization}</Specialization>
+                      <Specialization>
+                        {doctor.professionalInfo.specialization}
+                      </Specialization>
                       {doctor.professionalInfo.department && (
-                        <Department>{doctor.professionalInfo.department}</Department>
+                        <Department>
+                          {doctor.professionalInfo.department}
+                        </Department>
                       )}
                       <QualificationCount>
-                        {doctor.professionalInfo.qualifications.length} qualification
-                        {doctor.professionalInfo.qualifications.length !== 1 ? "s" : ""}
+                        {doctor.professionalInfo.qualifications.length}{" "}
+                        qualification
+                        {doctor.professionalInfo.qualifications.length !== 1
+                          ? "s"
+                          : ""}
                       </QualificationCount>
                     </SpecializationInfo>
                   </TableCell>
 
                   <TableCell>
                     <ExperienceInfo>
-                      <ExperienceYears>{doctor.professionalInfo.experience} years</ExperienceYears>
-                      <JoinedDate>Joined {formatDate(doctor.createdAt)}</JoinedDate>
+                      <ExperienceYears>
+                        {doctor.professionalInfo.experience} years
+                      </ExperienceYears>
+                      <JoinedDate>
+                        Joined {formatDate(doctor.createdAt)}
+                      </JoinedDate>
                     </ExperienceInfo>
                   </TableCell>
 
@@ -615,12 +719,18 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
 
                   <TableCell>
                     <FeesInfo>
-                      <ConsultationFee>₹{doctor.fees.consultationFee}</ConsultationFee>
+                      <ConsultationFee>
+                        ₹{doctor.fees.consultationFee}
+                      </ConsultationFee>
                       {doctor.fees.followUpFee && (
-                        <FollowUpFee>Follow-up: ₹{doctor.fees.followUpFee}</FollowUpFee>
+                        <FollowUpFee>
+                          Follow-up: ₹{doctor.fees.followUpFee}
+                        </FollowUpFee>
                       )}
                       {doctor.fees.emergencyFee && (
-                        <EmergencyFee>Emergency: ₹{doctor.fees.emergencyFee}</EmergencyFee>
+                        <EmergencyFee>
+                          Emergency: ₹{doctor.fees.emergencyFee}
+                        </EmergencyFee>
                       )}
                     </FeesInfo>
                   </TableCell>
@@ -631,19 +741,28 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
                         <StarIcon>⭐</StarIcon>
                         {doctor.statistics.rating.toFixed(1)}
                       </Rating>
-                      <ReviewCount>{doctor.statistics.reviewCount} reviews</ReviewCount>
+                      <ReviewCount>
+                        {doctor.statistics.reviewCount} reviews
+                      </ReviewCount>
                       <AppointmentStats>
-                        {doctor.statistics.completedAppointments}/{doctor.statistics.totalAppointments} completed
+                        {doctor.statistics.completedAppointments}/
+                        {doctor.statistics.totalAppointments} completed
                       </AppointmentStats>
                     </RatingInfo>
                   </TableCell>
 
                   <TableCell>
                     <AvailabilityInfo>
-                      <AvailabilityBadge available={doctor.availability.isAvailable}>
-                        {doctor.availability.isAvailable ? "Available" : "Unavailable"}
+                      <AvailabilityBadge
+                        available={doctor.availability.isAvailable}
+                      >
+                        {doctor.availability.isAvailable
+                          ? "Available"
+                          : "Unavailable"}
                       </AvailabilityBadge>
-                      <MaxAppointments>Max {doctor.availability.maxAppointmentsPerDay}/day</MaxAppointments>
+                      <MaxAppointments>
+                        Max {doctor.availability.maxAppointmentsPerDay}/day
+                      </MaxAppointments>
                     </AvailabilityInfo>
                   </TableCell>
 
@@ -668,7 +787,6 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
                           disabled={verifyingDoctorId === doctor._id}
                           status={verificationStatus}
                         >
-                          <option value="pending">Pending</option>
                           <option value="verified">Verified</option>
                           <option value="rejected">Rejected</option>
                         </VerificationSelect>
@@ -713,7 +831,10 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
 
       {totalPages > 1 && (
         <Pagination>
-          <PaginationButton onClick={() => setCurrentPage(1)} disabled={currentPage === 1}>
+          <PaginationButton
+            onClick={() => setCurrentPage(1)}
+            disabled={currentPage === 1}
+          >
             First
           </PaginationButton>
           <PaginationButton
@@ -733,8 +854,13 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
               (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1);
 
             if (!shouldShow) {
-              if (pageNumber === currentPage - 2 || pageNumber === currentPage + 2) {
-                return <PaginationEllipsis key={pageNumber}>...</PaginationEllipsis>;
+              if (
+                pageNumber === currentPage - 2 ||
+                pageNumber === currentPage + 2
+              ) {
+                return (
+                  <PaginationEllipsis key={pageNumber}>...</PaginationEllipsis>
+                );
               }
               return null;
             }
@@ -751,7 +877,9 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
           })}
 
           <PaginationButton
-            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+            onClick={() =>
+              setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+            }
             disabled={currentPage === totalPages}
           >
             Next
@@ -770,7 +898,9 @@ const DoctorList: React.FC<DoctorListProps> = ({ userType = "admin" }) => {
         <LoadingOverlay>
           <LoadingSpinner />
           <LoadingText>
-            {isDeletingDoctor ? "Deleting doctor..." : "Processing verification..."}
+            {isDeletingDoctor
+              ? "Deleting doctor..."
+              : "Processing verification..."}
           </LoadingText>
         </LoadingOverlay>
       )}
@@ -840,7 +970,11 @@ const VerificationStats = styled.div`
   flex-wrap: wrap;
 `;
 
-const VerificationStat = styled.div<{ verified?: boolean; pending?: boolean; rejected?: boolean }>`
+const VerificationStat = styled.div<{
+  verified?: boolean;
+  pending?: boolean;
+  rejected?: boolean;
+}>`
   display: flex;
   align-items: center;
   gap: 4px;
@@ -1258,23 +1392,32 @@ const VerificationCell = styled.div`
   min-width: 120px;
 `;
 
-const VerificationSelect = styled.select<{ status: "verified" | "pending" | "rejected" }>`
+const VerificationSelect = styled.select<{
+  status: "verified" | "pending" | "rejected";
+}>`
   padding: 4px 8px;
   border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
-  border: 1px solid ${(props) => 
-    props.status === "verified" ? "#10b981" :
-    props.status === "pending" ? "#f59e0b" : "#ef4444"
-  };
-  background: ${(props) => 
-    props.status === "verified" ? "#d1fae5" :
-    props.status === "pending" ? "#fef3c7" : "#fee2e2"
-  };
-  color: ${(props) => 
-    props.status === "verified" ? "#065f46" :
-    props.status === "pending" ? "#92400e" : "#991b1b"
-  };
+  border: 1px solid
+    ${(props) =>
+      props.status === "verified"
+        ? "#10b981"
+        : props.status === "pending"
+        ? "#f59e0b"
+        : "#ef4444"};
+  background: ${(props) =>
+    props.status === "verified"
+      ? "#d1fae5"
+      : props.status === "pending"
+      ? "#fef3c7"
+      : "#fee2e2"};
+  color: ${(props) =>
+    props.status === "verified"
+      ? "#065f46"
+      : props.status === "pending"
+      ? "#92400e"
+      : "#991b1b"};
   cursor: pointer;
   min-width: 100px;
   transition: all 0.2s;
@@ -1341,7 +1484,8 @@ const Pagination = styled.div`
 
 const PaginationButton = styled.button<{ active?: boolean }>`
   padding: 8px 12px;
-  border: 1px solid ${(props) => (props.active ? theme.colors.primary : "#d1d5db")};
+  border: 1px solid
+    ${(props) => (props.active ? theme.colors.primary : "#d1d5db")};
   background: ${(props) => (props.active ? theme.colors.primary : "white")};
   color: ${(props) => (props.active ? "white" : "#374151")};
   border-radius: 6px;

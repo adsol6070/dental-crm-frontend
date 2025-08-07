@@ -33,16 +33,16 @@ export const adminApi = {
   > => {
     const response = await httpClient.get<
       ApiResponse<PaginatedPatientsResponse>
-    >(API_ENDPOINTS.ADMIN.GET_ALL,  {
-        headers: getAuthHeader(),
-      });
+    >(API_ENDPOINTS.ADMIN.GET_ALL, {
+      headers: getAuthHeader(),
+    });
     return response.data;
   },
 
   getPatientById: async (id: string): Promise<Patient> => {
     const response = await httpClient.get<ApiResponse<Patient>>(
       API_ENDPOINTS.ADMIN.GET_BY_ID(id),
-       {
+      {
         headers: getAuthHeader(),
       }
     );
@@ -52,7 +52,7 @@ export const adminApi = {
   getAdminProfile: async (): Promise<GetAdminProfileResponse> => {
     const response = await httpClient.get<GetAdminProfileResponse>(
       API_ENDPOINTS.ADMIN.GET_ADMIN_PROFILE,
-       {
+      {
         headers: getAuthHeader(),
       }
     );
@@ -91,7 +91,7 @@ export const adminApi = {
   deletePatient: async (id: string): Promise<{ message: string }> => {
     const response = await httpClient.delete<ApiResponse<{ message: string }>>(
       API_ENDPOINTS.ADMIN.DELETE(id),
-       {
+      {
         headers: getAuthHeader(),
       }
     );
@@ -101,7 +101,7 @@ export const adminApi = {
   getDoctors: async (): Promise<Doctor[]> => {
     const response = await httpClient.get<ApiResponse<DoctorsApiResponse>>(
       API_ENDPOINTS.ADMIN.GET_ALL_DOCTORS,
-     {
+      {
         headers: getAuthHeader(),
       }
     );
@@ -112,7 +112,7 @@ export const adminApi = {
   getDoctorById: async (id: string): Promise<Doctor> => {
     const response = await httpClient.get<ApiResponse<Doctor>>(
       API_ENDPOINTS.ADMIN.GET_DOCTOR_BY_ID(id),
-     {
+      {
         headers: getAuthHeader(),
       }
     );
@@ -126,7 +126,7 @@ export const adminApi = {
     const response = await httpClient.patch<ApiResponse<Doctor>>(
       API_ENDPOINTS.ADMIN.VERIFY_DOCTOR(id),
       data,
-     {
+      {
         headers: getAuthHeader(),
       }
     );
@@ -147,7 +147,7 @@ export const adminApi = {
     const response = await httpClient.post<TwoFAApiResponse>(
       API_ENDPOINTS.ADMIN.ENABLE_2FA,
       {},
-    {
+      {
         headers: getAuthHeader(),
       }
     );
@@ -189,7 +189,7 @@ export const adminApi = {
     return response.data;
   },
 
-    createUser: async (
+  createUser: async (
     data: UserCreatePayload
   ): Promise<UserCreatedApiResponse> => {
     const response = await httpClient.post<UserCreatedApiResponse>(
@@ -203,16 +203,16 @@ export const adminApi = {
   },
 
   getAllUsers: async (): Promise<UsersListApiResponse> => {
-  const response = await httpClient.get<UsersListApiResponse>(
-    API_ENDPOINTS.ADMIN.GET_ALL_USERS,
-    {
+    const response = await httpClient.get<UsersListApiResponse>(
+      API_ENDPOINTS.ADMIN.GET_ALL_USERS,
+      {
         headers: getAuthHeader(),
       }
-  );
-  return response.data;
-},
+    );
+    return response.data;
+  },
 
-updateUserStatus: async (
+  updateUserStatus: async (
     id: string,
     data: UserStatusPayload
   ): Promise<AdminUser> => {

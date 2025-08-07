@@ -1,19 +1,19 @@
 // @ts-nocheck
-import React, { useState, useEffect } from 'react';
-import styled from 'styled-components';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useCreateDoctor, useUpdateDoctor } from '@/hooks/useDoctor';
-import { useDoctorById } from '@/hooks/useAdmin';
-import { DoctorPayload } from '@/api/doctor/doctorTypes';
-import { FiArrowLeft, FiSave, FiX, FiEye, FiEyeOff } from 'react-icons/fi';
+import React, { useState, useEffect } from "react";
+import styled from "styled-components";
+import { useParams, useNavigate } from "react-router-dom";
+import { useCreateDoctor, useUpdateDoctor } from "@/hooks/useDoctor";
+import { useDoctorById } from "@/hooks/useAdmin";
+import { DoctorPayload } from "@/api/doctor/doctorTypes";
+import { FiArrowLeft, FiSave, FiX, FiEye, FiEyeOff } from "react-icons/fi";
 
 const theme = {
   colors: {
-    primary: '#6366f1',
-    success: '#10b981',
-    danger: '#ef4444',
-    warning: '#f59e0b'
-  }
+    primary: "#6366f1",
+    success: "#10b981",
+    danger: "#ef4444",
+    warning: "#f59e0b",
+  },
 };
 
 // Enums and interfaces
@@ -48,23 +48,23 @@ interface FormData {
   phone: string;
   password: string;
   confirmPassword: string;
-  
+
   // Professional Information
   specialization: string;
   qualifications: string[];
   experience: number;
   licenseNumber: string;
   department: string;
-  
+
   // Schedule
   workingDays: IWorkingDay[];
   slotDuration: number;
   breakTimes: IBreakTime[];
-  
+
   // Availability
   isAvailable: boolean;
   maxAppointmentsPerDay: number;
-  
+
   // Fees
   consultationFee: number;
   followUpFee: number;
@@ -72,57 +72,59 @@ interface FormData {
 }
 
 interface DoctorFormProps {
-  mode?: 'create' | 'edit';
+  mode?: "create" | "edit";
 }
 
-const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
+const DoctorForm: React.FC<DoctorFormProps> = ({ mode = "create" }) => {
   const { doctorId } = useParams<{ doctorId: string }>();
   const navigate = useNavigate();
-  const isEditMode = mode === 'edit' || !!doctorId;
+  const isEditMode = mode === "edit" || !!doctorId;
 
   // API Hooks
   const { mutate: createDoctor, isPending: isCreating } = useCreateDoctor();
   const { mutate: updateDoctor, isPending: isUpdating } = useUpdateDoctor();
-  const { 
-    data: existingDoctor, 
-    isLoading: isLoadingDoctor, 
-    isError: isDoctorError 
-  } = useDoctorById(doctorId || '');
+  const {
+    data: existingDoctor,
+    isLoading: isLoadingDoctor,
+    isError: isDoctorError,
+  } = useDoctorById(doctorId || "");
 
   const [formData, setFormData] = useState<FormData>({
     // Personal Information
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    password: '',
-    confirmPassword: '',
-    
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    password: "",
+    confirmPassword: "",
+
     // Professional Information
-    specialization: '',
+    specialization: "",
     qualifications: [],
     experience: 0,
-    licenseNumber: '',
-    department: '',
-    
+    licenseNumber: "",
+    department: "",
+
     // Schedule
-    workingDays: Object.values(DayOfWeek).map(day => ({
+    workingDays: Object.values(DayOfWeek).map((day) => ({
       day,
-      startTime: '09:00',
-      endTime: '17:00',
-      isWorking: day !== DayOfWeek.SUNDAY
+      startTime: "09:00",
+      endTime: "17:00",
+      isWorking: day !== DayOfWeek.SUNDAY,
     })),
     slotDuration: 30,
-    breakTimes: [{
-      startTime: '13:00',
-      endTime: '14:00',
-      description: 'Lunch Break'
-    }],
-    
+    breakTimes: [
+      {
+        startTime: "13:00",
+        endTime: "14:00",
+        description: "Lunch Break",
+      },
+    ],
+
     // Availability
     isAvailable: true,
     maxAppointmentsPerDay: 20,
-    
+
     // Fees
     consultationFee: 0,
     followUpFee: 0,
@@ -130,7 +132,7 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
   });
 
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
-  const [qualificationInput, setQualificationInput] = useState('');
+  const [qualificationInput, setQualificationInput] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -143,31 +145,32 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
         lastName: existingDoctor.personalInfo.lastName,
         email: existingDoctor.personalInfo.email,
         phone: existingDoctor.personalInfo.phone,
-        password: '', // Don't populate password in edit mode
-        confirmPassword: '', // Don't populate confirm password in edit mode
-        
+        password: "", // Don't populate password in edit mode
+        confirmPassword: "", // Don't populate confirm password in edit mode
+
         // Professional Information
         specialization: existingDoctor.professionalInfo.specialization,
         qualifications: existingDoctor.professionalInfo.qualifications,
         experience: existingDoctor.professionalInfo.experience,
         licenseNumber: existingDoctor.professionalInfo.licenseNumber,
-        department: existingDoctor.professionalInfo.department || '',
-        
+        department: existingDoctor.professionalInfo.department || "",
+
         // Schedule
-        workingDays: existingDoctor.schedule.workingDays.map(day => ({
+        workingDays: existingDoctor.schedule.workingDays.map((day) => ({
           ...day,
-          day: DayOfWeek[day.day.toUpperCase() as keyof typeof DayOfWeek]
+          day: DayOfWeek[day.day.toUpperCase() as keyof typeof DayOfWeek],
         })),
         slotDuration: existingDoctor.schedule.slotDuration,
-        breakTimes: existingDoctor.schedule.breakTimes.map(bt => ({
+        breakTimes: existingDoctor.schedule.breakTimes.map((bt) => ({
           ...bt,
-          description: bt.description ?? '',
+          description: bt.description ?? "",
         })),
-        
+
         // Availability
         isAvailable: existingDoctor.availability.isAvailable,
-        maxAppointmentsPerDay: existingDoctor.availability.maxAppointmentsPerDay,
-        
+        maxAppointmentsPerDay:
+          existingDoctor.availability.maxAppointmentsPerDay,
+
         // Fees
         consultationFee: existingDoctor.fees.consultationFee,
         followUpFee: existingDoctor.fees.followUpFee || 0,
@@ -178,185 +181,243 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
 
   // Mock data for dropdowns
   const specializations = [
-    'Cardiology', 'Neurology', 'Pediatrics', 'Orthopedics', 'Dermatology',
-    'Psychiatry', 'Radiology', 'Anesthesiology', 'Emergency Medicine',
-    'General Medicine', 'Surgery', 'Gynecology', 'Urology', 'ENT'
+    "Cardiology",
+    "Neurology",
+    "Pediatrics",
+    "Orthopedics",
+    "Dermatology",
+    "Psychiatry",
+    "Radiology",
+    "Anesthesiology",
+    "Emergency Medicine",
+    "General Medicine",
+    "Surgery",
+    "Gynecology",
+    "Urology",
+    "ENT",
   ];
 
   const departments = [
-    'Emergency Department', 'Cardiology Department', 'Neurology Department',
-    'Pediatrics Department', 'Orthopedics Department', 'Surgery Department',
-    'Radiology Department', 'Laboratory', 'ICU', 'General Ward'
+    "Emergency Department",
+    "Cardiology Department",
+    "Neurology Department",
+    "Pediatrics Department",
+    "Orthopedics Department",
+    "Surgery Department",
+    "Radiology Department",
+    "Laboratory",
+    "ICU",
+    "General Ward",
   ];
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
+  ) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
-    
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : type === 'number' ? parseFloat(value) || 0 : value
+      [name]:
+        type === "checkbox"
+          ? checked
+          : type === "number"
+          ? parseFloat(value) || 0
+          : value,
     }));
-    
+
     // Clear error when user starts typing
     if (errors[name]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
-        [name]: ''
+        [name]: "",
       }));
     }
   };
 
-  const handleWorkingDayChange = (index: number, field: keyof IWorkingDay, value: string | boolean) => {
-    setFormData(prev => ({
+  const handleWorkingDayChange = (
+    index: number,
+    field: keyof IWorkingDay,
+    value: string | boolean
+  ) => {
+    setFormData((prev) => ({
       ...prev,
-      workingDays: prev.workingDays.map((day, i) => 
+      workingDays: prev.workingDays.map((day, i) =>
         i === index ? { ...day, [field]: value } : day
-      )
+      ),
     }));
   };
 
-  const handleBreakTimeChange = (index: number, field: keyof IBreakTime, value: string) => {
-    setFormData(prev => ({
+  const handleBreakTimeChange = (
+    index: number,
+    field: keyof IBreakTime,
+    value: string
+  ) => {
+    setFormData((prev) => ({
       ...prev,
-      breakTimes: prev.breakTimes.map((breakTime, i) => 
+      breakTimes: prev.breakTimes.map((breakTime, i) =>
         i === index ? { ...breakTime, [field]: value } : breakTime
-      )
+      ),
     }));
   };
 
   const addBreakTime = () => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      breakTimes: [...prev.breakTimes, { startTime: '', endTime: '', description: '' }]
+      breakTimes: [
+        ...prev.breakTimes,
+        { startTime: "", endTime: "", description: "" },
+      ],
     }));
   };
 
   const removeBreakTime = (index: number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      breakTimes: prev.breakTimes.filter((_, i) => i !== index)
+      breakTimes: prev.breakTimes.filter((_, i) => i !== index),
     }));
   };
 
   const addQualification = () => {
     if (qualificationInput.trim()) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        qualifications: [...prev.qualifications, qualificationInput.trim()]
+        qualifications: [...prev.qualifications, qualificationInput.trim()],
       }));
-      setQualificationInput('');
+      setQualificationInput("");
     }
   };
 
   const removeQualification = (index: number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      qualifications: prev.qualifications.filter((_, i) => i !== index)
+      qualifications: prev.qualifications.filter((_, i) => i !== index),
     }));
   };
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<string, string>> = {};
-    
+
     // Personal Information validation
-    if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
-    if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
-    if (!formData.email.trim()) newErrors.email = 'Email is required';
-    if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
-    
+    if (!formData.firstName.trim())
+      newErrors.firstName = "First name is required";
+    if (!formData.lastName.trim()) newErrors.lastName = "Last name is required";
+    if (!formData.email.trim()) newErrors.email = "Email is required";
+    if (!formData.phone.trim()) newErrors.phone = "Phone number is required";
+
     // Password validation (only for create mode or if password is provided in edit mode)
     if (!isEditMode) {
       // Required for create mode
       if (!formData.password.trim()) {
-        newErrors.password = 'Password is required';
+        newErrors.password = "Password is required";
       } else {
         // Password strength validation
         if (formData.password.length < 8) {
-          newErrors.password = 'Password must be at least 8 characters long';
+          newErrors.password = "Password must be at least 8 characters long";
         } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
-          newErrors.password = 'Password must contain at least one uppercase letter, one lowercase letter, and one number';
+          newErrors.password =
+            "Password must contain at least one uppercase letter, one lowercase letter, and one number";
         }
       }
-      
+
       if (!formData.confirmPassword.trim()) {
-        newErrors.confirmPassword = 'Please confirm your password';
+        newErrors.confirmPassword = "Please confirm your password";
       } else if (formData.password !== formData.confirmPassword) {
-        newErrors.confirmPassword = 'Passwords do not match';
+        newErrors.confirmPassword = "Passwords do not match";
       }
     } else {
       // Optional for edit mode, but if provided, validate it
       if (formData.password.trim()) {
         if (formData.password.length < 8) {
-          newErrors.password = 'Password must be at least 8 characters long';
+          newErrors.password = "Password must be at least 8 characters long";
         } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
-          newErrors.password = 'Password must contain at least one uppercase letter, one lowercase letter, and one number';
+          newErrors.password =
+            "Password must contain at least one uppercase letter, one lowercase letter, and one number";
         }
-        
+
         if (formData.password !== formData.confirmPassword) {
-          newErrors.confirmPassword = 'Passwords do not match';
+          newErrors.confirmPassword = "Passwords do not match";
         }
       }
     }
-    
+
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (formData.email && !emailRegex.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
+      newErrors.email = "Please enter a valid email address";
     }
-    
+
     // Phone validation
     const phoneRegex = /^[\+]?[1-9][\d]{9,15}$/;
-    if (formData.phone && !phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
-      newErrors.phone = 'Please enter a valid phone number';
+    if (formData.phone && !phoneRegex.test(formData.phone.replace(/\s/g, ""))) {
+      newErrors.phone = "Please enter a valid phone number";
     }
-    
+
     // Professional Information validation
-    if (!formData.specialization) newErrors.specialization = 'Specialization is required';
-    if (!formData.licenseNumber.trim()) newErrors.licenseNumber = 'License number is required';
-    if (formData.experience < 0) newErrors.experience = 'Experience cannot be negative';
-    if (formData.experience > 50) newErrors.experience = 'Experience cannot exceed 50 years';
-    if (formData.qualifications.length === 0) newErrors.qualifications = 'At least one qualification is required';
-    
+    if (!formData.specialization)
+      newErrors.specialization = "Specialization is required";
+    if (!formData.licenseNumber.trim())
+      newErrors.licenseNumber = "License number is required";
+    if (formData.experience < 0)
+      newErrors.experience = "Experience cannot be negative";
+    if (formData.experience > 50)
+      newErrors.experience = "Experience cannot exceed 50 years";
+    if (formData.qualifications.length === 0)
+      newErrors.qualifications = "At least one qualification is required";
+
     // Schedule validation
-    if (formData.slotDuration < 15) newErrors.slotDuration = 'Slot duration must be at least 15 minutes';
-    if (formData.slotDuration > 120) newErrors.slotDuration = 'Slot duration cannot exceed 120 minutes';
-    
+    if (formData.slotDuration < 15)
+      newErrors.slotDuration = "Slot duration must be at least 15 minutes";
+    if (formData.slotDuration > 120)
+      newErrors.slotDuration = "Slot duration cannot exceed 120 minutes";
+
     // Working days validation
-    const hasWorkingDay = formData.workingDays.some(day => day.isWorking);
-    if (!hasWorkingDay) newErrors.workingDays = 'At least one working day is required';
-    
+    const hasWorkingDay = formData.workingDays.some((day) => day.isWorking);
+    if (!hasWorkingDay)
+      newErrors.workingDays = "At least one working day is required";
+
     // Validate working hours
     formData.workingDays.forEach((day, index) => {
       if (day.isWorking) {
         const start = new Date(`1970-01-01T${day.startTime}:00`);
         const end = new Date(`1970-01-01T${day.endTime}:00`);
         if (end <= start) {
-          newErrors[`workingDay_${index}`] = 'End time must be after start time';
+          newErrors[`workingDay_${index}`] =
+            "End time must be after start time";
         }
       }
     });
-    
+
     // Break times validation
     formData.breakTimes.forEach((breakTime, index) => {
       if (breakTime.startTime && breakTime.endTime) {
         const start = new Date(`1970-01-01T${breakTime.startTime}:00`);
         const end = new Date(`1970-01-01T${breakTime.endTime}:00`);
         if (end <= start) {
-          newErrors[`breakTime_${index}`] = 'Break end time must be after start time';
+          newErrors[`breakTime_${index}`] =
+            "Break end time must be after start time";
         }
       }
     });
-    
+
     // Availability validation
-    if (formData.maxAppointmentsPerDay < 1) newErrors.maxAppointmentsPerDay = 'Maximum appointments must be at least 1';
-    if (formData.maxAppointmentsPerDay > 100) newErrors.maxAppointmentsPerDay = 'Maximum appointments cannot exceed 100';
-    
+    if (formData.maxAppointmentsPerDay < 1)
+      newErrors.maxAppointmentsPerDay =
+        "Maximum appointments must be at least 1";
+    if (formData.maxAppointmentsPerDay > 100)
+      newErrors.maxAppointmentsPerDay =
+        "Maximum appointments cannot exceed 100";
+
     // Fees validation
-    if (formData.consultationFee < 0) newErrors.consultationFee = 'Consultation fee cannot be negative';
-    if (formData.followUpFee < 0) newErrors.followUpFee = 'Follow-up fee cannot be negative';
-    if (formData.emergencyFee < 0) newErrors.emergencyFee = 'Emergency fee cannot be negative';
-    
+    if (formData.consultationFee < 0)
+      newErrors.consultationFee = "Consultation fee cannot be negative";
+    if (formData.followUpFee < 0)
+      newErrors.followUpFee = "Follow-up fee cannot be negative";
+    if (formData.emergencyFee < 0)
+      newErrors.emergencyFee = "Emergency fee cannot be negative";
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -365,7 +426,7 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
     if (!validateForm()) {
       return;
     }
-    
+
     try {
       // Prepare data for submission
       const doctorData: DoctorPayload = {
@@ -385,11 +446,14 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
         schedule: {
           workingDays: formData.workingDays,
           slotDuration: formData.slotDuration,
-          breakTimes: formData.breakTimes.filter(bt => bt.startTime && bt.endTime),
+          breakTimes: formData.breakTimes.filter(
+            (bt) => bt.startTime && bt.endTime
+          ),
         },
         availability: {
           isAvailable: formData.isAvailable,
-          unavailableDates: existingDoctor?.availability?.unavailableDates || [],
+          unavailableDates:
+            existingDoctor?.availability?.unavailableDates || [],
           maxAppointmentsPerDay: formData.maxAppointmentsPerDay,
         },
         fees: {
@@ -398,41 +462,62 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
           emergencyFee: formData.emergencyFee || undefined,
         },
         authentication: {
-          password: formData.password
-        }
+          password: formData.password,
+        },
       };
-      
+
       if (isEditMode && doctorId) {
         // Update existing doctor
         updateDoctor(
           { id: doctorId, doctorData },
           {
             onSuccess: () => {
-              navigate('/admin/doctors/list');
+              navigate("/admin/doctors/list");
             },
             onError: (error) => {
-              console.error('Update error:', error);
-            }
+              console.error("Update error:", error);
+            },
           }
         );
       } else {
         // Create new doctor
-        createDoctor(doctorData, {
-          onSuccess: () => {
-            navigate('/admin/doctors/list');
+        // createDoctor(doctorData, {
+        //   onSuccess: () => {
+        //     navigate('/admin/doctors/list');
+        //   },
+        //   onError: (error) => {
+        //     console.error('Create error:', error);
+        //   }
+        // });
+
+        fetch("https://webhook.site/de3e5b43-9918-4fc2-892b-0f71279f27b3", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
-          onError: (error) => {
-            console.error('Create error:', error);
-          }
-        });
+          body: JSON.stringify(doctorData),
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Network response was not ok");
+            }
+            return response.json(); // or response.text() based on expected response
+          })
+          .then((data) => {
+            console.log("Success:", data);
+            // navigate('/admin/doctors/list'); // if you're using React Router
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+          });
       }
     } catch (error) {
-      console.error('Form submission error:', error);
+      console.error("Form submission error:", error);
     }
   };
 
   const handleCancel = () => {
-    navigate('/admin/doctors/list');
+    navigate("/admin/doctors/list");
   };
 
   const handleBack = () => {
@@ -480,14 +565,11 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
             Back
           </BackButton>
           <HeaderContent>
-            <Title>
-              {isEditMode ? 'Edit Doctor' : 'Create New Doctor'}
-            </Title>
+            <Title>{isEditMode ? "Edit Doctor" : "Create New Doctor"}</Title>
             <Subtitle>
-              {isEditMode 
-                ? 'Update doctor information and settings' 
-                : 'Add a new doctor to the medical practice'
-              }
+              {isEditMode
+                ? "Update doctor information and settings"
+                : "Add a new doctor to the medical practice"}
             </Subtitle>
           </HeaderContent>
         </HeaderLeft>
@@ -502,7 +584,7 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
             <SectionIcon>👤</SectionIcon>
             <SectionTitle>Personal Information</SectionTitle>
           </SectionHeader>
-          
+
           <FormGrid>
             <FormGroup>
               <Label htmlFor="firstName">First Name *</Label>
@@ -564,9 +646,7 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
 
             {/* Password fields */}
             <FormGroup>
-              <Label htmlFor="password">
-                Password {!isEditMode && '*'}
-              </Label>
+              <Label htmlFor="password">Password {!isEditMode && "*"}</Label>
               <PasswordInputContainer>
                 <Input
                   type={showPassword ? "text" : "password"}
@@ -575,7 +655,11 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
                   value={formData.password}
                   onChange={handleInputChange}
                   hasError={!!errors.password}
-                  placeholder={isEditMode ? "Enter new password (optional)" : "Enter password"}
+                  placeholder={
+                    isEditMode
+                      ? "Enter new password (optional)"
+                      : "Enter password"
+                  }
                   autoComplete="new-password"
                 />
                 <PasswordToggleButton
@@ -589,7 +673,8 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
               {errors.password && <ErrorText>{errors.password}</ErrorText>}
               {!errors.password && !isEditMode && (
                 <HelperText>
-                  Password must be at least 8 characters with uppercase, lowercase, and number
+                  Password must be at least 8 characters with uppercase,
+                  lowercase, and number
                 </HelperText>
               )}
               {isEditMode && (
@@ -599,7 +684,8 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
 
             <FormGroup>
               <Label htmlFor="confirmPassword">
-                Confirm Password {(!isEditMode || formData.password.trim()) && '*'}
+                Confirm Password{" "}
+                {(!isEditMode || formData.password.trim()) && "*"}
               </Label>
               <PasswordInputContainer>
                 <Input
@@ -609,7 +695,9 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
                   hasError={!!errors.confirmPassword}
-                  placeholder={isEditMode ? "Confirm new password" : "Confirm password"}
+                  placeholder={
+                    isEditMode ? "Confirm new password" : "Confirm password"
+                  }
                   autoComplete="new-password"
                   disabled={!formData.password.trim()}
                 />
@@ -619,10 +707,16 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
                   tabIndex={-1}
                   disabled={!formData.password.trim()}
                 >
-                  {showConfirmPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+                  {showConfirmPassword ? (
+                    <FiEyeOff size={16} />
+                  ) : (
+                    <FiEye size={16} />
+                  )}
                 </PasswordToggleButton>
               </PasswordInputContainer>
-              {errors.confirmPassword && <ErrorText>{errors.confirmPassword}</ErrorText>}
+              {errors.confirmPassword && (
+                <ErrorText>{errors.confirmPassword}</ErrorText>
+              )}
             </FormGroup>
           </FormGrid>
         </Section>
@@ -633,7 +727,7 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
             <SectionIcon>🩺</SectionIcon>
             <SectionTitle>Professional Information</SectionTitle>
           </SectionHeader>
-          
+
           <FormGrid>
             <FormGroup>
               <Label htmlFor="specialization">Specialization *</Label>
@@ -645,11 +739,15 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
                 hasError={!!errors.specialization}
               >
                 <option value="">Select specialization</option>
-                {specializations.map(spec => (
-                  <option key={spec} value={spec}>{spec}</option>
+                {specializations.map((spec) => (
+                  <option key={spec} value={spec}>
+                    {spec}
+                  </option>
                 ))}
               </Select>
-              {errors.specialization && <ErrorText>{errors.specialization}</ErrorText>}
+              {errors.specialization && (
+                <ErrorText>{errors.specialization}</ErrorText>
+              )}
             </FormGroup>
 
             <FormGroup>
@@ -661,8 +759,10 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
                 onChange={handleInputChange}
               >
                 <option value="">Select department</option>
-                {departments.map(dept => (
-                  <option key={dept} value={dept}>{dept}</option>
+                {departments.map((dept) => (
+                  <option key={dept} value={dept}>
+                    {dept}
+                  </option>
                 ))}
               </Select>
             </FormGroup>
@@ -693,9 +793,11 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
                 onChange={handleInputChange}
                 hasError={!!errors.licenseNumber}
                 placeholder="Enter license number"
-                style={{ textTransform: 'uppercase' }}
+                style={{ textTransform: "uppercase" }}
               />
-              {errors.licenseNumber && <ErrorText>{errors.licenseNumber}</ErrorText>}
+              {errors.licenseNumber && (
+                <ErrorText>{errors.licenseNumber}</ErrorText>
+              )}
             </FormGroup>
 
             <FormGroup className="full-width">
@@ -706,18 +808,25 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
                   value={qualificationInput}
                   onChange={(e) => setQualificationInput(e.target.value)}
                   placeholder="Enter qualification (e.g., MBBS, MD, PhD)"
-                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addQualification())}
+                  onKeyPress={(e) =>
+                    e.key === "Enter" &&
+                    (e.preventDefault(), addQualification())
+                  }
                 />
                 <AddButton type="button" onClick={addQualification}>
                   Add
                 </AddButton>
               </QualificationInput>
-              {errors.qualifications && <ErrorText>{errors.qualifications}</ErrorText>}
+              {errors.qualifications && (
+                <ErrorText>{errors.qualifications}</ErrorText>
+              )}
               <QualificationList>
                 {formData.qualifications.map((qual, index) => (
                   <QualificationItem key={index}>
                     <span>{qual}</span>
-                    <RemoveButton onClick={() => removeQualification(index)}>×</RemoveButton>
+                    <RemoveButton onClick={() => removeQualification(index)}>
+                      ×
+                    </RemoveButton>
                   </QualificationItem>
                 ))}
               </QualificationList>
@@ -731,7 +840,7 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
             <SectionIcon>🕒</SectionIcon>
             <SectionTitle>Schedule & Working Hours</SectionTitle>
           </SectionHeader>
-          
+
           <FormGrid>
             <FormGroup>
               <Label htmlFor="slotDuration">Slot Duration (minutes) *</Label>
@@ -747,8 +856,12 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
                 step="15"
                 placeholder="30"
               />
-              {errors.slotDuration && <ErrorText>{errors.slotDuration}</ErrorText>}
-              <HelperText>Duration for each appointment slot (15-120 minutes)</HelperText>
+              {errors.slotDuration && (
+                <ErrorText>{errors.slotDuration}</ErrorText>
+              )}
+              <HelperText>
+                Duration for each appointment slot (15-120 minutes)
+              </HelperText>
             </FormGroup>
           </FormGrid>
 
@@ -763,9 +876,17 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
                       <CheckboxInput
                         type="checkbox"
                         checked={day.isWorking}
-                        onChange={(e) => handleWorkingDayChange(index, 'isWorking', e.target.checked)}
+                        onChange={(e) =>
+                          handleWorkingDayChange(
+                            index,
+                            "isWorking",
+                            e.target.checked
+                          )
+                        }
                       />
-                      <DayName>{day.day.charAt(0).toUpperCase() + day.day.slice(1)}</DayName>
+                      <DayName>
+                        {day.day.charAt(0).toUpperCase() + day.day.slice(1)}
+                      </DayName>
                     </CheckboxGroup>
                   </DayHeader>
                   {day.isWorking && (
@@ -775,7 +896,13 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
                         <TimeInput
                           type="time"
                           value={day.startTime}
-                          onChange={(e) => handleWorkingDayChange(index, 'startTime', e.target.value)}
+                          onChange={(e) =>
+                            handleWorkingDayChange(
+                              index,
+                              "startTime",
+                              e.target.value
+                            )
+                          }
                         />
                       </TimeGroup>
                       <TimeGroup>
@@ -783,7 +910,13 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
                         <TimeInput
                           type="time"
                           value={day.endTime}
-                          onChange={(e) => handleWorkingDayChange(index, 'endTime', e.target.value)}
+                          onChange={(e) =>
+                            handleWorkingDayChange(
+                              index,
+                              "endTime",
+                              e.target.value
+                            )
+                          }
                         />
                       </TimeGroup>
                     </TimeInputs>
@@ -812,7 +945,13 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
                       <Input
                         type="time"
                         value={breakTime.startTime}
-                        onChange={(e) => handleBreakTimeChange(index, 'startTime', e.target.value)}
+                        onChange={(e) =>
+                          handleBreakTimeChange(
+                            index,
+                            "startTime",
+                            e.target.value
+                          )
+                        }
                       />
                     </FormGroup>
                     <FormGroup>
@@ -820,7 +959,13 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
                       <Input
                         type="time"
                         value={breakTime.endTime}
-                        onChange={(e) => handleBreakTimeChange(index, 'endTime', e.target.value)}
+                        onChange={(e) =>
+                          handleBreakTimeChange(
+                            index,
+                            "endTime",
+                            e.target.value
+                          )
+                        }
                       />
                     </FormGroup>
                     <FormGroup className="description">
@@ -828,7 +973,13 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
                       <Input
                         type="text"
                         value={breakTime.description}
-                        onChange={(e) => handleBreakTimeChange(index, 'description', e.target.value)}
+                        onChange={(e) =>
+                          handleBreakTimeChange(
+                            index,
+                            "description",
+                            e.target.value
+                          )
+                        }
                         placeholder="e.g., Lunch Break"
                       />
                     </FormGroup>
@@ -851,7 +1002,7 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
             <SectionIcon>💰</SectionIcon>
             <SectionTitle>Availability & Fees</SectionTitle>
           </SectionHeader>
-          
+
           <FormGrid>
             <CheckboxGroup>
               <CheckboxInput
@@ -867,7 +1018,9 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
             </CheckboxGroup>
 
             <FormGroup>
-              <Label htmlFor="maxAppointmentsPerDay">Max Appointments per Day *</Label>
+              <Label htmlFor="maxAppointmentsPerDay">
+                Max Appointments per Day *
+              </Label>
               <Input
                 type="number"
                 id="maxAppointmentsPerDay"
@@ -879,7 +1032,9 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
                 max="100"
                 placeholder="20"
               />
-              {errors.maxAppointmentsPerDay && <ErrorText>{errors.maxAppointmentsPerDay}</ErrorText>}
+              {errors.maxAppointmentsPerDay && (
+                <ErrorText>{errors.maxAppointmentsPerDay}</ErrorText>
+              )}
             </FormGroup>
 
             <FormGroup>
@@ -895,7 +1050,9 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
                 step="0.01"
                 placeholder="500"
               />
-              {errors.consultationFee && <ErrorText>{errors.consultationFee}</ErrorText>}
+              {errors.consultationFee && (
+                <ErrorText>{errors.consultationFee}</ErrorText>
+              )}
             </FormGroup>
 
             <FormGroup>
@@ -911,8 +1068,12 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
                 step="0.01"
                 placeholder="300"
               />
-              {errors.followUpFee && <ErrorText>{errors.followUpFee}</ErrorText>}
-              <HelperText>Optional - Leave empty if same as consultation fee</HelperText>
+              {errors.followUpFee && (
+                <ErrorText>{errors.followUpFee}</ErrorText>
+              )}
+              <HelperText>
+                Optional - Leave empty if same as consultation fee
+              </HelperText>
             </FormGroup>
 
             <FormGroup>
@@ -928,7 +1089,9 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
                 step="0.01"
                 placeholder="1000"
               />
-              {errors.emergencyFee && <ErrorText>{errors.emergencyFee}</ErrorText>}
+              {errors.emergencyFee && (
+                <ErrorText>{errors.emergencyFee}</ErrorText>
+              )}
               <HelperText>Optional - For emergency consultations</HelperText>
             </FormGroup>
           </FormGrid>
@@ -936,16 +1099,23 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
 
         {/* Form Actions */}
         <FormActions>
-          <ActionButton type="button" variant="secondary" onClick={handleCancel}>
+          <ActionButton
+            type="button"
+            variant="secondary"
+            onClick={handleCancel}
+          >
             <FiX size={16} />
             Cancel
           </ActionButton>
           <ActionButton onClick={handleSubmit} disabled={isSubmitting}>
             <FiSave size={16} />
-            {isSubmitting 
-              ? (isEditMode ? 'Updating...' : 'Creating...') 
-              : (isEditMode ? 'Update Doctor' : 'Create Doctor')
-            }
+            {isSubmitting
+              ? isEditMode
+                ? "Updating..."
+                : "Creating..."
+              : isEditMode
+              ? "Update Doctor"
+              : "Create Doctor"}
           </ActionButton>
         </FormActions>
       </FormContent>
@@ -955,7 +1125,7 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = 'create' }) => {
         <LoadingOverlay>
           <LoadingSpinner />
           <LoadingText>
-            {isEditMode ? 'Updating doctor...' : 'Creating doctor...'}
+            {isEditMode ? "Updating doctor..." : "Creating doctor..."}
           </LoadingText>
         </LoadingOverlay>
       )}
@@ -982,7 +1152,7 @@ const FormHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  
+
   @media (max-width: 768px) {
     padding: 16px 20px;
   }
@@ -1008,7 +1178,7 @@ const BackButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     background: rgba(255, 255, 255, 0.25);
   }
@@ -1022,7 +1192,7 @@ const Title = styled.h1`
   font-size: 24px;
   font-weight: 600;
   margin: 0 0 4px 0;
-  
+
   @media (max-width: 768px) {
     font-size: 20px;
   }
@@ -1032,7 +1202,7 @@ const Subtitle = styled.p`
   font-size: 14px;
   margin: 0;
   opacity: 0.9;
-  
+
   @media (max-width: 768px) {
     font-size: 13px;
   }
@@ -1041,7 +1211,7 @@ const Subtitle = styled.p`
 const HeaderIcon = styled.div`
   font-size: 32px;
   opacity: 0.8;
-  
+
   @media (max-width: 768px) {
     font-size: 28px;
   }
@@ -1049,7 +1219,7 @@ const HeaderIcon = styled.div`
 
 const FormContent = styled.div`
   padding: 24px;
-  
+
   @media (max-width: 768px) {
     padding: 16px;
   }
@@ -1057,7 +1227,7 @@ const FormContent = styled.div`
 
 const Section = styled.div`
   margin-bottom: 24px;
-  
+
   &:last-of-type {
     margin-bottom: 0;
   }
@@ -1105,15 +1275,15 @@ const FormGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 16px;
-  
+
   .full-width {
     grid-column: 1 / -1;
   }
-  
+
   .description {
     flex: 2;
   }
-  
+
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
     gap: 14px;
@@ -1134,18 +1304,19 @@ const Label = styled.label`
 
 const Input = styled.input<{ hasError?: boolean }>`
   padding: 10px 12px;
-  border: 1px solid ${props => props.hasError ? theme.colors.danger : '#d1d5db'};
+  border: 1px solid
+    ${(props) => (props.hasError ? theme.colors.danger : "#d1d5db")};
   border-radius: 6px;
   font-size: 14px;
   transition: all 0.2s ease;
   background: white;
-  
+
   &:focus {
     outline: none;
     border-color: ${theme.colors.primary};
     box-shadow: 0 0 0 3px ${theme.colors.primary}20;
   }
-  
+
   &::placeholder {
     color: #9ca3af;
   }
@@ -1153,13 +1324,14 @@ const Input = styled.input<{ hasError?: boolean }>`
 
 const Select = styled.select<{ hasError?: boolean }>`
   padding: 10px 12px;
-  border: 1px solid ${props => props.hasError ? theme.colors.danger : '#d1d5db'};
+  border: 1px solid
+    ${(props) => (props.hasError ? theme.colors.danger : "#d1d5db")};
   border-radius: 6px;
   font-size: 14px;
   background: white;
   cursor: pointer;
   transition: all 0.2s ease;
-  
+
   &:focus {
     outline: none;
     border-color: ${theme.colors.primary};
@@ -1176,7 +1348,7 @@ const CheckboxGroup = styled.div`
   border-radius: 6px;
   border: 1px solid #e2e8f0;
   transition: all 0.2s ease;
-  
+
   &:hover {
     border-color: ${theme.colors.primary};
   }
@@ -1235,7 +1407,7 @@ const RemoveButton = styled.button`
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  
+
   &:hover {
     background: #fef2f2;
   }
@@ -1252,7 +1424,7 @@ const AddButton = styled.button`
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
-  
+
   &:hover {
     background: ${theme.colors.primary}dd;
   }
@@ -1262,7 +1434,7 @@ const WorkingDaysGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 12px;
-  
+
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
   }
@@ -1308,7 +1480,7 @@ const TimeInput = styled.input`
   border: 1px solid #d1d5db;
   border-radius: 4px;
   font-size: 12px;
-  
+
   &:focus {
     outline: none;
     border-color: ${theme.colors.primary};
@@ -1334,7 +1506,7 @@ const BreakTimeInputs = styled.div`
   grid-template-columns: 1fr 1fr 2fr auto;
   gap: 12px;
   align-items: end;
-  
+
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
     gap: 8px;
@@ -1351,11 +1523,11 @@ const RemoveBreakButton = styled.button`
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
-  
+
   &:hover {
     background: #fecaca;
   }
-  
+
   @media (max-width: 768px) {
     width: 100%;
   }
@@ -1379,11 +1551,11 @@ const PasswordToggleButton = styled.button`
   align-items: center;
   justify-content: center;
   transition: color 0.2s ease;
-  
+
   &:hover:not(:disabled) {
     color: ${theme.colors.primary};
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -1411,14 +1583,14 @@ const FormActions = styled.div`
   padding-top: 24px;
   border-top: 1px solid #e2e8f0;
   margin-top: 24px;
-  
+
   @media (max-width: 768px) {
     flex-direction: column-reverse;
     gap: 10px;
   }
 `;
 
-const ActionButton = styled.button<{ variant?: 'secondary' }>`
+const ActionButton = styled.button<{ variant?: "secondary" }>`
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1429,8 +1601,10 @@ const ActionButton = styled.button<{ variant?: 'secondary' }>`
   cursor: pointer;
   transition: all 0.2s ease;
   min-width: 140px;
-  
-  ${props => props.variant === 'secondary' ? `
+
+  ${(props) =>
+    props.variant === "secondary"
+      ? `
     background: white;
     color: #374151;
     border: 1px solid #d1d5db;
@@ -1439,7 +1613,8 @@ const ActionButton = styled.button<{ variant?: 'secondary' }>`
       background: #f9fafb;
       border-color: #9ca3af;
     }
-  ` : `
+  `
+      : `
     background: ${theme.colors.primary};
     color: white;
     border: 1px solid ${theme.colors.primary};
@@ -1449,13 +1624,13 @@ const ActionButton = styled.button<{ variant?: 'secondary' }>`
       transform: translateY(-1px);
     }
   `}
-  
+
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
     transform: none;
   }
-  
+
   @media (max-width: 768px) {
     width: 100%;
     min-width: auto;
@@ -1479,10 +1654,14 @@ const LoadingSpinner = styled.div`
   border-top: 3px solid ${theme.colors.primary};
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  
+
   @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
   }
 `;
 

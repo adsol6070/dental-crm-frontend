@@ -159,7 +159,7 @@ export const useVerifyDoctor = () =>
       id: string;
       doctorVerificationData: Partial<DoctorVerificationPayload>;
     }) => adminApi.verifyDoctor(id, doctorVerificationData),
-    ["doctor"],
+    ["doctors"],
     "Doctor verified successfully!"
   );
 
