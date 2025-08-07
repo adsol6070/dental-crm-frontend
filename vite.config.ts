@@ -17,12 +17,12 @@ export default defineConfig(({ mode }) => {
     server: {
       host: "0.0.0.0",
       port: 5173,
-      allowedHosts: ["dentalcareprotest.netlify.app", "www.dentalcareprotest.netlify.app"],
+      allowedHosts: ["sujandental.netlify.app", "www.sujandental.netlify.app"],
     },
     preview: {
       host: "0.0.0.0",
       port: 4173,
-      allowedHosts: ["dentalcareprotest.netlify.app", "www.dentalcareprotest.netlify.app"],
+      allowedHosts: ["sujandental.netlify.app", "www.sujandental.netlify.app"],
     },
     define: {
       "process.env": {},

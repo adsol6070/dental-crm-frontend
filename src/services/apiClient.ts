@@ -16,7 +16,7 @@ class ApiClient {
 
   private getHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     };
 
     if (this.authToken) {
@@ -28,7 +28,7 @@ class ApiClient {
 
   async get(url: string): Promise<any> {
     const response = await fetch(`${this.baseURL}${url}`, {
-      method: 'GET',
+      method: "GET",
       headers: this.getHeaders(),
     });
 
@@ -41,7 +41,7 @@ class ApiClient {
 
   async post(url: string, data: any): Promise<any> {
     const response = await fetch(`${this.baseURL}${url}`, {
-      method: 'POST',
+      method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify(data),
     });
@@ -55,7 +55,7 @@ class ApiClient {
 
   async put(url: string, data: any): Promise<any> {
     const response = await fetch(`${this.baseURL}${url}`, {
-      method: 'PUT',
+      method: "PUT",
       headers: this.getHeaders(),
       body: JSON.stringify(data),
     });
@@ -69,7 +69,7 @@ class ApiClient {
 
   async delete(url: string): Promise<any> {
     const response = await fetch(`${this.baseURL}${url}`, {
-      method: 'DELETE',
+      method: "DELETE",
       headers: this.getHeaders(),
     });
 
@@ -81,4 +81,7 @@ class ApiClient {
   }
 }
 
-export const apiClient = new ApiClient(process.env.VITE_API_URL || 'http://localhost:3000');
+// export const apiClient = new ApiClient(process.env.VITE_API_URL || 'https://dental-crm-backend-production.up.railway.app');
+export const apiClient = new ApiClient(
+  process.env.VITE_API_URL || "http://localhost:3000"
+);

@@ -33,6 +33,7 @@ export const API_ENDPOINTS = {
     GET_ALL_USERS: "/api/users/all",
     USER_STATUS_UPDATE: (userId: string) => `/api/users/${userId}/status`,
     DELETE_USER: (userId: string) => `/api/users/${userId}`,
+    GET_DASHBOARD_STATS: "api/doctors/admin/stats/dashboard",
   },
   PATIENT: {
     CREATE: `/api/patients/register`,

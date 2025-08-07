@@ -1,11 +1,12 @@
 // @ts-nocheck
-import React, { useState, useEffect } from "react";
-import styled from "styled-components";
-import { useParams, useNavigate } from "react-router-dom";
-import { useCreateDoctor, useUpdateDoctor } from "@/hooks/useDoctor";
-import { useDoctorById } from "@/hooks/useAdmin";
-import { DoctorPayload } from "@/api/doctor/doctorTypes";
-import { FiArrowLeft, FiSave, FiX, FiEye, FiEyeOff } from "react-icons/fi";
+import React, { useState, useEffect } from 'react';
+import styled from 'styled-components';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useCreateDoctor, useUpdateDoctor } from '@/hooks/useDoctor';
+import { useDoctorById } from '@/hooks/useAdmin';
+import { DoctorPayload } from '@/api/doctor/doctorTypes';
+import { FiArrowLeft, FiSave, FiX, FiEye, FiEyeOff } from 'react-icons/fi';
+import { Toaster } from "react-hot-toast";
 
 const theme = {
   colors: {
@@ -558,6 +559,7 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ mode = "create" }) => {
   return (
     <FormContainer>
       {/* Form Header */}
+      <Toaster position="top-right" />
       <FormHeader>
         <HeaderLeft>
           <BackButton onClick={handleBack}>

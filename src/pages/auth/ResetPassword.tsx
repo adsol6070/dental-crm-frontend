@@ -96,7 +96,7 @@ const Form = () => {
             </svg>
           </ToothIcon>
           <BrandText>
-            <CompanyName>DentalCare Pro</CompanyName>
+            <CompanyName>Sujan Dental</CompanyName>
             <TagLine>Practice Management System</TagLine>
           </BrandText>
         </LogoContainer>

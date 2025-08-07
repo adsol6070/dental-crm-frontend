@@ -59,8 +59,8 @@ const VerifyEmail = () => {
             </svg>
           </ToothIcon>
           <BrandText>
-            <CompanyName>DentalCare Pro</CompanyName>
-            <TagLine>Practice Management System</TagLine>
+            <CompanyName>Sujan Dental</CompanyName>
+            <TagLine>Management System</TagLine>
           </BrandText>
         </LogoContainer>
       </BrandHeader>
@@ -112,7 +112,7 @@ const VerifyEmail = () => {
             </SuccessIcon>
             <SuccessTitle>Email Verified Successfully!</SuccessTitle>
             <SuccessMessage>
-              Great! Your email address has been verified. You can now access all features of your DentalCare Pro account.
+              Great! Your email address has been verified. You can now access all features of your Sujan Dental account.
             </SuccessMessage>
             
             <SecurityNote>

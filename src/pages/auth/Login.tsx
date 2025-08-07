@@ -181,7 +181,7 @@ const Form = () => {
             </svg>
           </ToothIcon>
           <BrandText>
-            <CompanyName>DentalCare Pro</CompanyName>
+            <CompanyName>Sujan Dental</CompanyName>
             <TagLine>Management System</TagLine>
           </BrandText>
         </LogoContainer>
@@ -414,10 +414,10 @@ const Form = () => {
           </VerificationLink>
         </AdditionalLinks>
 
-        <RegisterLink>
+        {/* <RegisterLink>
           Don't have an account?{" "}
           <Link to={ROUTES.AUTH.REGISTER}>Create one here</Link>
-        </RegisterLink>
+        </RegisterLink> */}
       </FormCard>
     </LoginContainer>
   );
@@ -840,22 +840,22 @@ const VerificationLink = styled(Link)`
   }
 `;
 
-const RegisterLink = styled.div`
-  text-align: center;
-  margin-top: 14px;
-  font-size: 12px;
-  color: #64748b;
-  font-weight: 500;
+// const RegisterLink = styled.div`
+//   text-align: center;
+//   margin-top: 14px;
+//   font-size: 12px;
+//   color: #64748b;
+//   font-weight: 500;
 
-  a {
-    color: #3b82f6;
-    text-decoration: none;
-    font-weight: 600;
+//   a {
+//     color: #3b82f6;
+//     text-decoration: none;
+//     font-weight: 600;
 
-    &:hover {
-      text-decoration: underline;
-    }
-  }
-`;
+//     &:hover {
+//       text-decoration: underline;
+//     }
+//   }
+// `;
 
 export default Form;

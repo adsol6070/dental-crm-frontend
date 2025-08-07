@@ -261,3 +261,38 @@ export interface UsersListApiResponse {
     pagination: Pagination;
   };
 }
+
+export interface DoctorPerformanceStat {
+  _id: string; // Specialization or DoctorId based on aggregation
+  count: number;
+  averageExperience: number;
+  averageRating: number;
+}
+
+export interface DoctorPerformance {
+  stats: DoctorPerformanceStat[];
+}
+
+export interface SpecializationStats {
+  totalPatients: number;
+  activePatients: number;
+  verifiedPatients: number;
+  genderDistribution: Record<Gender, number>;
+  ageDistribution: Record<string, number>; // like "Under 18": 4
+  registrationSources: Record<RegistrationSource | string, number>;
+}
+
+export interface AppointmentTrends {
+  totalPatients: number;
+  patientsWithAppointments: number;
+  engagementRate: string; // percentage string like "50.0"
+  averageAppointmentsPerPatient: number;
+  activePatients: number;
+  appointmentDistribution: Record<string, number>; // e.g., "1-3 appointments": 2
+}
+
+export interface AdminDashboardStatsResponse {
+  doctorPerformance: DoctorPerformance;
+  specializationStats: SpecializationStats;
+  appointmentTrends: AppointmentTrends;
+}
