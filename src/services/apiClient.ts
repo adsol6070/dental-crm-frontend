@@ -81,5 +81,5 @@ class ApiClient {
   }
 }
 
-export const apiClient = new ApiClient(process.env.VITE_API_URL || 'https://dental-crm-backend-production.up.railway.app');
-// export const apiClient = new ApiClient(process.env.VITE_API_URL || 'http://localhost:3000');
+// export const apiClient = new ApiClient(process.env.VITE_API_URL || 'https://dental-crm-backend-production.up.railway.app');
+export const apiClient = new ApiClient(process.env.VITE_API_URL || 'http://localhost:3000');

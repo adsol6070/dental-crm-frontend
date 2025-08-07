@@ -1,10 +1,13 @@
 // @ts-nocheck
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useCreatePatient } from "@/hooks/usePatient"
 import { usePublicDoctorList } from "@/hooks/useDoctor"
 import { useBookAppointment } from "@/hooks/useAppointment"
 import { Toaster } from "react-hot-toast";
+import { httpClient } from "@/api/httpClient";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 // Types
 interface PatientFormData {
@@ -38,7 +41,9 @@ interface PatientFormData {
 interface AppointmentFormData {
   doctor: string;
   appointmentDate: string;
-  appointmentTime: string;
+  appointmentStartTime: string;
+  appointmentEndTime: string;
+  duration: number;
   appointmentType: 'consultation' | 'follow-up' | 'emergency' | '';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   symptoms: string;
@@ -86,7 +91,9 @@ const PublicBookingPlatform = () => {
   const [appointmentData, setAppointmentData] = useState<AppointmentFormData>({
     doctor: '',
     appointmentDate: '',
-    appointmentTime: '',
+    appointmentStartTime: '',
+    appointmentEndTime: '',
+    duration: 30,
     appointmentType: '',
     priority: 'medium',
     symptoms: '',
@@ -98,42 +105,108 @@ const PublicBookingPlatform = () => {
 
   const [errors, setErrors] = useState<any>({});
   const [calculatedFee, setCalculatedFee] = useState(0);
-  const [availableTimes, setAvailableTimes] = useState<string[]>([]);
+  const [availabilityData, setAvailabilityData] = useState<{ date: string; available: boolean }[]>([]);
+  const [availableSlots, setAvailableSlots] = useState<any[]>([]);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+
+  // Available dates for DatePicker
+  const availableDates = availabilityData
+    .filter((day) => day.available)
+    .map((day) => new Date(day.date));
+
+  const isDateAvailable = (date: Date) => {
+    return availableDates.some(
+      (availableDate) => availableDate.toDateString() === date.toDateString()
+    );
+  };
 
   // Hooks
   const createPatientMutation = useCreatePatient();
   const { data: doctors, isLoading: doctorsLoading } = usePublicDoctorList();
   const bookAppointmentMutation = useBookAppointment();
-console.log("doctors", doctors)
+
+  console.log("doctors", doctors);
+
+  // Fetch doctor availability when doctor is selected
+  useEffect(() => {
+    const fetchDoctorAvailability = async () => {
+      if (!appointmentData.doctor) {
+        setAvailabilityData([]);
+        return;
+      }
+
+      setLoadingAvailability(true);
+      const startDate = new Date().toISOString().split("T")[0];
+      const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // +30 days
+        .toISOString()
+        .split("T")[0];
+
+      try {
+        const res = await httpClient.get(
+          `/api/appointments/availability/${appointmentData.doctor}`,
+          { params: { startDate, endDate } }
+        );
+
+        setAvailabilityData(res.data.data.availability || []);
+      } catch (error) {
+        console.error("Failed to fetch availability", error);
+        setAvailabilityData([]);
+      } finally {
+        setLoadingAvailability(false);
+      }
+    };
+
+    fetchDoctorAvailability();
+  }, [appointmentData.doctor]);
+
+  // Fetch available slots when date is selected
+  useEffect(() => {
+    const fetchSlots = async () => {
+      if (!appointmentData.doctor || !appointmentData.appointmentDate) {
+        setAvailableSlots([]);
+        return;
+      }
+
+      setLoadingSlots(true);
+      try {
+        const res = await httpClient.get(
+          `/api/appointments/slots/${appointmentData.doctor}/${appointmentData.appointmentDate}`
+        );
+
+        setAvailableSlots(res.data.data.slots || []);
+      } catch (error) {
+        console.error("Failed to fetch slots", error);
+        setAvailableSlots([]);
+      } finally {
+        setLoadingSlots(false);
+      }
+    };
+
+    fetchSlots();
+  }, [appointmentData.appointmentDate, appointmentData.doctor]);
+
   // Calculate fee when doctor or appointment type changes
   useEffect(() => {
     if (appointmentData.doctor && appointmentData.appointmentType && doctors) {
-      const selectedDoctor = doctors?.data.doctors.find(doc => doc._id === appointmentData.doctor);
+      const selectedDoctor = doctors?.data?.doctors?.find(doc => doc._id === appointmentData.doctor);
       if (selectedDoctor?.fees) {
         let fee = 0;
         switch (appointmentData.appointmentType) {
           case 'consultation':
-            fee = selectedDoctor.fees.consultationFee;
+            fee = selectedDoctor.fees.consultationFee || 0;
             break;
           case 'follow-up':
-            fee = selectedDoctor.fees.followUpFee;
+            fee = selectedDoctor.fees.followUpFee || 0;
             break;
           case 'emergency':
-            fee = selectedDoctor.fees.emergencyFee;
+            fee = selectedDoctor.fees.emergencyFee || 0;
             break;
         }
         setCalculatedFee(fee);
       }
     }
   }, [appointmentData.doctor, appointmentData.appointmentType, doctors]);
-
-  // Update available times when doctor is selected
-  useEffect(() => {
-    if (appointmentData.doctor && doctors) {
-      const selectedDoctor = doctors?.data.doctors.find(doc => doc._id === appointmentData.doctor);
-      setAvailableTimes(selectedDoctor?.availability || []);
-    }
-  }, [appointmentData.doctor, doctors]);
 
   const steps = [
     { id: 'personal', title: 'Personal Info', icon: '👤', description: 'Basic details' },
@@ -156,6 +229,63 @@ console.log("doctors", doctors)
     setAppointmentData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors((prev: any) => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const handleSlotChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedValue = e.target.value;
+    if (!selectedValue) {
+      setAppointmentData(prev => ({
+        ...prev,
+        appointmentStartTime: '',
+        appointmentEndTime: '',
+        duration: 30
+      }));
+      return;
+    }
+
+    try {
+      const { startTime, endTime } = JSON.parse(selectedValue);
+      const startDateTime = new Date(
+        `${appointmentData.appointmentDate}T${startTime}:00+05:30`
+      );
+      const endDateTime = new Date(
+        `${appointmentData.appointmentDate}T${endTime}:00+05:30`
+      );
+
+      const durationMinutes =
+        (endDateTime.getTime() - startDateTime.getTime()) / 60000;
+
+      setAppointmentData(prev => ({
+        ...prev,
+        appointmentStartTime: startDateTime.toISOString(),
+        appointmentEndTime: endDateTime.toISOString(),
+        duration: durationMinutes,
+      }));
+    } catch (error) {
+      console.error("Invalid slot format", error);
+    }
+  };
+
+  const handleDateChange = (name: string, date: Date | null) => {
+    const formattedDate = date ? date.toISOString().split("T")[0] : "";
+
+    setAppointmentData(prev => ({
+      ...prev,
+      [name]: formattedDate,
+      // Reset time selection when date changes
+      ...(name === 'appointmentDate' && {
+        appointmentStartTime: '',
+        appointmentEndTime: '',
+      })
+    }));
+
+    // Clear error if exists
+    if (errors[name as keyof AppointmentFormData]) {
+      setErrors((prev: any) => ({
+        ...prev,
+        [name]: "",
+      }));
     }
   };
 
@@ -201,7 +331,7 @@ console.log("doctors", doctors)
       case 'appointment':
         if (!appointmentData.doctor) newErrors.doctor = 'Please select a doctor';
         if (!appointmentData.appointmentDate) newErrors.appointmentDate = 'Please select a date';
-        if (!appointmentData.appointmentTime) newErrors.appointmentTime = 'Please select a time';
+        if (!appointmentData.appointmentStartTime) newErrors.appointmentTime = 'Please select a time';
         if (!appointmentData.appointmentType) newErrors.appointmentType = 'Please select appointment type';
         break;
 
@@ -273,7 +403,7 @@ console.log("doctors", doctors)
         };
 
         const result = await createPatientMutation.mutateAsync(payload);
-        console.log("result", result)
+        console.log("result", result);
         setCreatedPatient(result?.patient);
         setCurrentStep('post-registration');
       } catch (error) {
@@ -327,12 +457,12 @@ console.log("doctors", doctors)
     
     try {
       const appointmentPayload = {
-        patient: createdPatient._id,
+        patient: createdPatient.id,
         doctor: appointmentData.doctor,
         appointmentDate: appointmentData.appointmentDate,
-        appointmentStartTime: `${appointmentData.appointmentDate}T${appointmentData.appointmentTime}:00+05:30`,
-        appointmentEndTime: `${appointmentData.appointmentDate}T${appointmentData.appointmentTime}:00+05:30`, // You might want to calculate end time
-        duration: 30, // Default duration
+        appointmentStartTime: appointmentData.appointmentStartTime,
+        appointmentEndTime: appointmentData.appointmentEndTime,
+        duration: appointmentData.duration,
         appointmentType: appointmentData.appointmentType,
         status: 'scheduled',
         priority: appointmentData.priority,
@@ -340,9 +470,10 @@ console.log("doctors", doctors)
         symptoms: appointmentData.symptoms ? appointmentData.symptoms.split(',').map(s => s.trim()).filter(Boolean) : [],
         notes: appointmentData.notes,
         specialRequirements: appointmentData.specialRequirements,
+        remindersSent: 0,
         paymentStatus: 'pending',
         paymentAmount: calculatedFee,
-        paymentMethod: appointmentData.paymentMethod,
+        paymentMethod: appointmentData.paymentMethod || undefined,
         metadata: {
           ipAddress: '127.0.0.1',
           userAgent: navigator.userAgent,
@@ -350,7 +481,14 @@ console.log("doctors", doctors)
         },
       };
 
-      await bookAppointmentMutation.mutateAsync(appointmentPayload);
+      // Remove undefined values
+      const cleanPayload = Object.fromEntries(
+        Object.entries(appointmentPayload).filter(
+          ([_, value]) => value !== undefined && value !== ""
+        )
+      );
+
+      await bookAppointmentMutation.mutateAsync(cleanPayload);
       setCurrentStep('confirmation');
     } catch (error) {
       console.error('Error booking appointment:', error);
@@ -694,7 +832,7 @@ console.log("doctors", doctors)
         <PostRegIcon>🎉</PostRegIcon>
         <PostRegTitle>Registration Successful!</PostRegTitle>
         <PostRegMessage>
-          Welcome, {createdPatient?.personalInfo?.firstName}! Your patient account has been created successfully.
+          Welcome, {createdPatient?.fullName}! Your patient account has been created successfully.
         </PostRegMessage>
         <PatientIdCard>
           <PatientIdLabel>Your Patient ID:</PatientIdLabel>
@@ -746,7 +884,7 @@ console.log("doctors", doctors)
           <FormGroup className="full-width">
             <Label>Select Doctor *</Label>
             <DoctorGrid>
-              {doctors?.data.doctors.map((doctor) => (
+              {doctors?.data?.doctors?.map((doctor) => (
                 <DoctorCard
                   key={doctor._id}
                   selected={appointmentData.doctor === doctor._id}
@@ -761,8 +899,8 @@ console.log("doctors", doctors)
                     <DoctorExperience>{doctor.professionalInfo.experience} years experience</DoctorExperience>
                   </DoctorInfo>
                   <DoctorFees>
-                    <FeeItem>Consultation: ₹{doctor.fees.consultationFee}</FeeItem>
-                    <FeeItem>Follow-up: ₹{doctor.fees.followUpFee}</FeeItem>
+                    <FeeItem>Consultation: ₹{doctor.fees?.consultationFee || 0}</FeeItem>
+                    <FeeItem>Follow-up: ₹{doctor.fees?.followUpFee || 0}</FeeItem>
                   </DoctorFees>
                 </DoctorCard>
               ))}
@@ -787,30 +925,78 @@ console.log("doctors", doctors)
 
           <FormGroup>
             <Label>Appointment Date *</Label>
-            <Input
-              type="date"
-              value={appointmentData.appointmentDate}
-              onChange={(e) => handleAppointmentInputChange('appointmentDate', e.target.value)}
-              hasError={!!errors.appointmentDate}
-              min={new Date().toISOString().split('T')[0]}
-            />
+            <DatePickerWrapper>
+              <DatePicker
+                selected={
+                  appointmentData.appointmentDate
+                    ? new Date(appointmentData.appointmentDate)
+                    : null
+                }
+                onChange={(date) => handleDateChange("appointmentDate", date)}
+                filterDate={isDateAvailable}
+                minDate={new Date()}
+                dateFormat="yyyy-MM-dd"
+                placeholderText="Select appointment date"
+                disabled={!appointmentData.doctor || loadingAvailability}
+                customInput={
+                  <CustomDateInput 
+                    hasError={!!errors.appointmentDate}
+                    disabled={!appointmentData.doctor || loadingAvailability}
+                  />
+                }
+              />
+              {loadingAvailability && (
+                <DatePickerLoading>
+                  <MiniSpinner />
+                  Loading availability...
+                </DatePickerLoading>
+              )}
+            </DatePickerWrapper>
             {errors.appointmentDate && <ErrorText>{errors.appointmentDate}</ErrorText>}
+            {!appointmentData.doctor && (
+              <HelperText>Please select a doctor first to view available dates</HelperText>
+            )}
           </FormGroup>
 
           <FormGroup>
-            <Label>Preferred Time *</Label>
+            <Label>Appointment Time *</Label>
             <Select
-              value={appointmentData.appointmentTime}
-              onChange={(e) => handleAppointmentInputChange('appointmentTime', e.target.value)}
+              value={
+                appointmentData.appointmentStartTime && appointmentData.appointmentEndTime
+                  ? JSON.stringify({
+                      startTime: new Date(appointmentData.appointmentStartTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+                      endTime: new Date(appointmentData.appointmentEndTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                    })
+                  : ""
+              }
+              onChange={handleSlotChange}
               hasError={!!errors.appointmentTime}
-              disabled={!appointmentData.doctor}
+              disabled={!appointmentData.appointmentDate || loadingSlots}
             >
-              <option value="">Select time</option>
-              {availableTimes.map((time) => (
-                <option key={time} value={time}>{time}</option>
-              ))}
+              <option value="">
+                {loadingSlots ? "Loading time slots..." : "Select a time"}
+              </option>
+              {availableSlots
+                .filter((slot) => slot?.available)
+                .map((slot, index) => (
+                  <option
+                    key={`${slot.dateTime}-${index}`}
+                    value={JSON.stringify({
+                      startTime: slot.startTime,
+                      endTime: slot.endTime,
+                    })}
+                  >
+                    {slot.startTime} - {slot.endTime}
+                  </option>
+                ))}
             </Select>
             {errors.appointmentTime && <ErrorText>{errors.appointmentTime}</ErrorText>}
+            {!appointmentData.appointmentDate && (
+              <HelperText>Please select a date first to view available time slots</HelperText>
+            )}
+            {appointmentData.appointmentDate && availableSlots.length === 0 && !loadingSlots && (
+              <HelperText style={{ color: '#ef4444' }}>No available slots for this date</HelperText>
+            )}
           </FormGroup>
 
           <FormGroup>
@@ -831,9 +1017,10 @@ console.log("doctors", doctors)
             <TextArea
               value={appointmentData.symptoms}
               onChange={(e) => handleAppointmentInputChange('symptoms', e.target.value)}
-              placeholder="Describe your symptoms"
+              placeholder="Describe your symptoms (separate multiple symptoms with commas)"
               rows={3}
             />
+            <HelperText>Separate multiple symptoms with commas</HelperText>
           </FormGroup>
 
           <FormGroup className="full-width">
@@ -864,7 +1051,7 @@ console.log("doctors", doctors)
               <FeeAmount>₹{calculatedFee.toLocaleString()}</FeeAmount>
               <FeeDescription>
                 {appointmentData.appointmentType.replace(/\b\w/g, l => l.toUpperCase())} with{' '}
-                Dr. {doctors?.data.doctors.find(d => d._id === appointmentData.doctor)?.personalInfo?.firstName} {doctors?.data.doctors.find(d => d._id === appointmentData.doctor)?.personalInfo?.lastName}
+                Dr. {doctors?.data?.doctors?.find(d => d._id === appointmentData.doctor)?.personalInfo?.firstName} {doctors?.data?.doctors?.find(d => d._id === appointmentData.doctor)?.personalInfo?.lastName}
               </FeeDescription>
             </FeeCard>
           )}
@@ -916,7 +1103,7 @@ console.log("doctors", doctors)
           <SummaryContent>
             <SummaryRow>
               <SummaryLabel>Patient:</SummaryLabel>
-              <SummaryValue>{createdPatient?.personalInfo?.firstName} {createdPatient?.personalInfo?.lastName}</SummaryValue>
+              <SummaryValue>{createdPatient?.fullName}</SummaryValue>
             </SummaryRow>
             <SummaryRow>
               <SummaryLabel>Patient ID:</SummaryLabel>
@@ -925,19 +1112,19 @@ console.log("doctors", doctors)
             <SummaryRow>
               <SummaryLabel>Doctor:</SummaryLabel>
               <SummaryValue>
-                Dr. {doctors?.find(d => d._id === appointmentData.doctor)?.personalInfo?.firstName} {doctors?.find(d => d._id === appointmentData.doctor)?.personalInfo?.lastName}
+                Dr. {doctors?.data?.doctors?.find(d => d._id === appointmentData.doctor)?.personalInfo?.firstName} {doctors?.data?.doctors?.find(d => d._id === appointmentData.doctor)?.personalInfo?.lastName}
               </SummaryValue>
             </SummaryRow>
             <SummaryRow>
               <SummaryLabel>Specialization:</SummaryLabel>
               <SummaryValue>
-                {doctors?.find(d => d._id === appointmentData.doctor)?.professionalInfo?.specialization}
+                {doctors?.data?.doctors?.find(d => d._id === appointmentData.doctor)?.professionalInfo?.specialization}
               </SummaryValue>
             </SummaryRow>
             <SummaryRow>
               <SummaryLabel>Date & Time:</SummaryLabel>
               <SummaryValue>
-                {appointmentData.appointmentDate} at {appointmentData.appointmentTime}
+                {appointmentData.appointmentDate} at {appointmentData.appointmentStartTime ? new Date(appointmentData.appointmentStartTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : 'Not selected'}
               </SummaryValue>
             </SummaryRow>
             <SummaryRow>
@@ -945,6 +1132,10 @@ console.log("doctors", doctors)
               <SummaryValue>
                 {appointmentData.appointmentType.replace(/\b\w/g, l => l.toUpperCase())}
               </SummaryValue>
+            </SummaryRow>
+            <SummaryRow>
+              <SummaryLabel>Duration:</SummaryLabel>
+              <SummaryValue>{appointmentData.duration} minutes</SummaryValue>
             </SummaryRow>
             <SummaryDivider />
             <SummaryRow>
@@ -977,7 +1168,7 @@ console.log("doctors", doctors)
         </DetailRow>
         <DetailRow>
           <DetailLabel>Patient:</DetailLabel>
-          <DetailValue>{createdPatient?.personalInfo?.firstName} {createdPatient?.personalInfo?.lastName}</DetailValue>
+          <DetailValue>{createdPatient?.fullName}</DetailValue>
         </DetailRow>
         <DetailRow>
           <DetailLabel>Email:</DetailLabel>
@@ -995,11 +1186,17 @@ console.log("doctors", doctors)
             </DetailRow>
             <DetailRow>
               <DetailLabel>Doctor:</DetailLabel>
-              <DetailValue>Dr. {doctors?.find(d => d._id === appointmentData.doctor)?.personalInfo?.firstName} {doctors?.find(d => d._id === appointmentData.doctor)?.personalInfo?.lastName}</DetailValue>
+              <DetailValue>Dr. {doctors?.data?.doctors?.find(d => d._id === appointmentData.doctor)?.personalInfo?.firstName} {doctors?.data?.doctors?.find(d => d._id === appointmentData.doctor)?.personalInfo?.lastName}</DetailValue>
             </DetailRow>
             <DetailRow>
               <DetailLabel>Date & Time:</DetailLabel>
-              <DetailValue>{appointmentData.appointmentDate} at {appointmentData.appointmentTime}</DetailValue>
+              <DetailValue>
+                {appointmentData.appointmentDate} at {appointmentData.appointmentStartTime ? new Date(appointmentData.appointmentStartTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : 'Not selected'}
+              </DetailValue>
+            </DetailRow>
+            <DetailRow>
+              <DetailLabel>Duration:</DetailLabel>
+              <DetailValue>{appointmentData.duration} minutes</DetailValue>
             </DetailRow>
             <DetailRow>
               <DetailLabel>Fee Paid:</DetailLabel>
@@ -1036,9 +1233,9 @@ console.log("doctors", doctors)
       <PlatformHeader>
         <HeaderLogo>
           <LogoIcon>🏥</LogoIcon>
-          <LogoText>MediCare Platform</LogoText>
+          <LogoText>Sujan Singh dental</LogoText>
         </HeaderLogo>
-        <HeaderSubtitle>Professional Healthcare Booking</HeaderSubtitle>
+        {/* <HeaderSubtitle>Professional Healthcare Booking</HeaderSubtitle> */}
       </PlatformHeader>
 
       {/* Progress Indicator */}
@@ -1116,6 +1313,20 @@ console.log("doctors", doctors)
     </PlatformContainer>
   );
 };
+
+// Custom DatePicker Input Component
+const CustomDateInput = React.forwardRef<HTMLInputElement, any>(({ value, onClick, hasError, disabled }, ref) => (
+  <Input
+    ref={ref}
+    value={value}
+    onClick={onClick}
+    readOnly
+    placeholder="Select appointment date"
+    hasError={hasError}
+    disabled={disabled}
+    style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}
+  />
+));
 
 // Styled Components
 const PlatformContainer = styled.div`
@@ -1420,10 +1631,48 @@ const LoadingSpinner = styled.div`
   }
 `;
 
+const MiniSpinner = styled.div`
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e2e8f0;
+  border-top: 2px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
+
 const LoadingText = styled.div`
   font-size: 16px;
   color: #6b7280;
   font-weight: 500;
+`;
+
+const DatePickerWrapper = styled.div`
+  position: relative;
+  
+  .react-datepicker-wrapper {
+    width: 100%;
+  }
+  
+  .react-datepicker__input-container {
+    width: 100%;
+  }
+`;
+
+const DatePickerLoading = styled.div`
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #6b7280;
 `;
 
 const FormGrid = styled.div`
@@ -1470,6 +1719,12 @@ const Input = styled.input<{ hasError?: boolean }>`
   &::placeholder {
     color: #9ca3af;
   }
+  
+  &:disabled {
+    background: #f9fafb;
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
 `;
 
 const Select = styled.select<{ hasError?: boolean }>`
@@ -1485,6 +1740,12 @@ const Select = styled.select<{ hasError?: boolean }>`
     outline: none;
     border-color: #667eea;
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  }
+  
+  &:disabled {
+    background: #f9fafb;
+    cursor: not-allowed;
+    opacity: 0.6;
   }
 `;
 
