@@ -21,6 +21,8 @@ import {
   UserStatusPayload,
   ApiResponse,
   AdminDashboardStatsResponse,
+  Medicine,
+  MedicinePayload,
 } from "./adminTypes";
 import { Doctor, DoctorsApiResponse } from "../doctor/doctorTypes";
 
@@ -106,7 +108,6 @@ export const adminApi = {
         headers: getAuthHeader(),
       }
     );
-    console.log("Response:", response);
     return response.data.data.doctors;
   },
 
@@ -237,14 +238,61 @@ export const adminApi = {
     return response.data.data;
   },
 
-    getDashboardStats: async (): Promise<ApiResponse<AdminDashboardStatsResponse>> => {
-    const response = await httpClient.get<ApiResponse<AdminDashboardStatsResponse>>(
-      API_ENDPOINTS.ADMIN.GET_DASHBOARD_STATS,
+  getDashboardStats: async (): Promise<
+    ApiResponse<AdminDashboardStatsResponse>
+  > => {
+    const response = await httpClient.get<
+      ApiResponse<AdminDashboardStatsResponse>
+    >(API_ENDPOINTS.ADMIN.GET_DASHBOARD_STATS, {
+      headers: getAuthHeader(),
+    });
+
+    return response.data;
+  },
+
+  getAllMedicines: async (): Promise<ApiResponse<Medicine>> => {
+    const response = await httpClient.get<ApiResponse<Medicine>>(
+      API_ENDPOINTS.ADMIN.GET_ALL_MEDICINES,
       {
         headers: getAuthHeader(),
       }
     );
-
+    console.log("medici", response);
     return response.data;
+  },
+
+  createMedicine: async (
+    data: MedicinePayload
+  ): Promise<ApiResponse<{ medicines: Medicine[] }>> => {
+    const response = await httpClient.post<
+      ApiResponse<{ medicines: Medicine[] }>
+    >(API_ENDPOINTS.ADMIN.CREATE_MEDICINE, data, {
+      headers: getAuthHeader(),
+    });
+    return response.data;
+  },
+
+  updateMedicine: async (
+    id: string,
+    data: MedicinePayload
+  ): Promise<Medicine> => {
+    const response = await httpClient.put<ApiResponse<Medicine>>(
+      API_ENDPOINTS.ADMIN.UPDATE_MEDICINE(id),
+      data,
+      {
+        headers: getAuthHeader(),
+      }
+    );
+    return response.data.data;
+  },
+
+  deleteMedicine: async (id: string): Promise<{ message: string }> => {
+    const response = await httpClient.delete<ApiResponse<{ message: string }>>(
+      API_ENDPOINTS.ADMIN.DELETE_MEDICINE(id),
+      {
+        headers: getAuthHeader(),
+      }
+    );
+    return response.data.data;
   },
 };

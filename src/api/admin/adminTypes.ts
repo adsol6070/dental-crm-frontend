@@ -288,11 +288,49 @@ export interface AppointmentTrends {
   engagementRate: string; // percentage string like "50.0"
   averageAppointmentsPerPatient: number;
   activePatients: number;
-  appointmentDistribution: Record<string, number>; // e.g., "1-3 appointments": 2
+  appointmentDistribution: Record<string, number>;
 }
 
 export interface AdminDashboardStatsResponse {
   doctorPerformance: DoctorPerformance;
   specializationStats: SpecializationStats;
   appointmentTrends: AppointmentTrends;
+}
+
+export interface MedicinePayload {
+  medicineName: string;
+  genericName: string;
+  brandName: string;
+  category: string;
+  dentalUse: string;
+  dosageForm: string;
+  strength: string;
+  unit: string;
+  dosageInstructions: string;
+  manufacturer: string;
+  description: string;
+  prescriptionRequired: boolean;
+}
+
+export interface Medicine {
+  _id: string;
+  medicineName: string;
+  genericName: string;
+  brandName: string;
+  category: string;
+  dentalUse: string;
+  dosageForm: string;
+  strength: string;
+  unit: string;
+  manufacturer: string;
+  description: string;
+  dosageInstructions: string;
+  prescriptionRequired: boolean;
+  status: statusOptions;
+  isActive: boolean;
+  createdBy: CreatedBy;
+  lastUpdatedBy: CreatedBy;
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
 }

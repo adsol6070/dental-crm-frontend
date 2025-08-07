@@ -34,6 +34,10 @@ export const API_ENDPOINTS = {
     USER_STATUS_UPDATE: (userId: string) => `/api/users/${userId}/status`,
     DELETE_USER: (userId: string) => `/api/users/${userId}`,
     GET_DASHBOARD_STATS: "api/doctors/admin/stats/dashboard",
+    CREATE_MEDICINE: "api/medicines/",
+    GET_ALL_MEDICINES: "api/medicines/",
+    UPDATE_MEDICINE: (medicineId: string) =>  `api/medicines/${medicineId}`,
+    DELETE_MEDICINE: (medicineId: string) =>  `api/medicines/${medicineId}`,
   },
   PATIENT: {
     CREATE: `/api/patients/register`,

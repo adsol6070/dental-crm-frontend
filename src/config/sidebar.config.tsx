@@ -19,7 +19,7 @@ import {
   FaHeartbeat,
   FaServicestack,
 } from "react-icons/fa";
-import { MdMedicalServices } from "react-icons/md";
+import { MdMedicalServices, MdMedication } from "react-icons/md";
 import { ROUTES } from "@/config/route-paths.config";
 import { useAuth, UserType } from "@/context/AuthContext";
 
@@ -191,6 +191,11 @@ const adminMenuItems = [
     label: "User Management",
     icon: <FiUsers size="16" />,
     path: ROUTES.ADMIN.USER_MANAGEMENT,
+  },
+    {
+    label: "Medicine Management",
+    icon: <MdMedication size={16} />,
+    path: ROUTES.ADMIN.MEDICINE_MANAGEMENT,
   },
   {
     label: "Patient Management",

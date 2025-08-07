@@ -80,6 +80,7 @@ const ROUTE_PATHS = {
 
   // System management (Admin only)
   USER_MANAGEMENT: "/users",
+  MEDICINE_MANAGEMENT: "/medicines",
   SYSTEM_SETTINGS: "/system-settings",
   REPORTS: "/reports",
 
@@ -226,6 +227,7 @@ const ROUTES = {
   // Admin routes
   ADMIN: {
     DASHBOARD: getFullPath(PREFIXES.ADMIN, ROUTE_PATHS.ADMIN_DASHBOARD),
+    MEDICINE_MANAGEMENT: getFullPath(PREFIXES.ADMIN, ROUTE_PATHS.MEDICINE_MANAGEMENT),
 
     // Patient management
     CREATE_PATIENT: getFullPath(PREFIXES.ADMIN, ROUTE_PATHS.CREATE_PATIENT),

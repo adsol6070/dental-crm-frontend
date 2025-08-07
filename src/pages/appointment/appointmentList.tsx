@@ -105,9 +105,8 @@ const AppointmentListPage = () => {
   // Fetch appointments from backend
   const { data, isLoading, error, refetch } = useAllAppointments();
   const { mutate: cancelAppointment, isPending: isCancelling } = useCancelAppointment();
-
-  // Extract appointments array from the response
-  const appointments = data?.data?.appointments || [];
+// Extract appointments array from the response
+const appointments = data?.data.appointments || [];
 
   // Helper function to get patient name
   const getPatientName = (appointment: Appointment) => {

@@ -12,6 +12,8 @@ import {
   UserCreatePayload,
   ApiResponse,
   AdminDashboardStatsResponse,
+  Medicine,
+  MedicinePayload,
 } from "@/api/admin/adminTypes";
 import { Doctor } from "@/api/doctor/doctorTypes";
 import axios from "axios";
@@ -233,9 +235,38 @@ export const useDeleteUser = () =>
     "User deleted successfully!"
   );
 
-  export const useAdminDashboard = () =>
+export const useAdminDashboard = () =>
   useQuery<ApiResponse<AdminDashboardStatsResponse>, Error>({
     queryKey: ["adminDashboard"],
     queryFn: () => adminApi.getDashboardStats(),
     select: (response) => response,
   });
+
+export const useAllMedicines = () =>
+  useQuery<ApiResponse<Medicine>, Error>({
+    queryKey: ["medicines"],
+    queryFn: () => adminApi.getAllMedicines(),
+    select: (response) => response,
+  });
+
+export const useCreateMedicine = () =>
+  useCustomMutation(
+    (data: MedicinePayload) => adminApi.createMedicine(data),
+    ["medicine"],
+    "Medicine Created successfully!"
+  );
+
+export const useUpdateMedicine = () =>
+  useCustomMutation(
+    ({ id, medicineData }: { id: string; medicineData: MedicinePayload }) =>
+      adminApi.updateMedicine(id, medicineData),
+    ["adminMedicines"],
+    "Medicine updated successfully!"
+  );
+
+export const useDeleteMedicine = () =>
+  useCustomMutation(
+    (id: string) => adminApi.deleteMedicine(id),
+    ["adminMedicines"],
+    "Medicine deleted successfully!"
+  );

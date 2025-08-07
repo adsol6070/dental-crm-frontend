@@ -51,6 +51,7 @@ import {
   DoctorPatientServices,
   DoctorServiceReports,
   DoctorAllServices,
+  MedicineManagement,
 } from "@/pages";
 
 export const AUTH_ROUTES = [
@@ -176,6 +177,7 @@ export const ADMIN_ROUTES = [
 
   // System Management
   { path: ROUTE_PATHS.USER_MANAGEMENT, element: <UserManagement /> },
+  { path: ROUTE_PATHS.MEDICINE_MANAGEMENT, element: <MedicineManagement /> },
   // { path: ROUTE_PATHS.SYSTEM_SETTINGS, element: <SystemSettings /> },
   { path: ROUTE_PATHS.REPORTS, element: <Reports /> },
 

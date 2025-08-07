@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect } from 'react';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { useCreatePatient } from "@/hooks/usePatient"
 import { usePublicDoctorList } from "@/hooks/useDoctor"
 import { useBookAppointment } from "@/hooks/useAppointment"
@@ -53,12 +53,15 @@ interface AppointmentFormData {
   referralSource: string;
 }
 
-type FormStep = 'personal' | 'contact' | 'medical' | 'appointment' | 'payment' | 'confirmation' | 'post-registration';
+type FormStep = 'welcome' | 'personal' | 'contact' | 'medical' | 'appointment' | 'payment' | 'confirmation' | 'post-registration';
 
 const PublicBookingPlatform = () => {
-  const [currentStep, setCurrentStep] = useState<FormStep>('personal');
+  const [currentStep, setCurrentStep] = useState<FormStep>('welcome');
   const [createdPatient, setCreatedPatient] = useState(null);
   const [showBookingOption, setShowBookingOption] = useState(false);
+  const [isCreatingPatient, setIsCreatingPatient] = useState(false);
+  const [bookedAppointment, setBookedAppointment] = useState(null);
+  const [isNewPatient, setIsNewPatient] = useState(true);
   
   const [patientData, setPatientData] = useState<PatientFormData>({
     firstName: '',
@@ -209,6 +212,7 @@ const PublicBookingPlatform = () => {
   }, [appointmentData.doctor, appointmentData.appointmentType, doctors]);
 
   const steps = [
+    { id: 'welcome', title: 'Welcome', icon: '👋', description: 'Choose your path' },
     { id: 'personal', title: 'Personal Info', icon: '👤', description: 'Basic details' },
     { id: 'contact', title: 'Contact Info', icon: '📧', description: 'Contact & address' },
     { id: 'medical', title: 'Medical Info', icon: '🏥', description: 'Medical history' },
@@ -346,7 +350,8 @@ const PublicBookingPlatform = () => {
 
   const handleNext = async () => {
     if (currentStep === 'medical' && validateStep(currentStep)) {
-      // Create patient after medical step
+      // Create patient after medical step with loading state
+      setIsCreatingPatient(true);
       try {
         const payload = {
           personalInfo: {
@@ -405,10 +410,16 @@ const PublicBookingPlatform = () => {
         const result = await createPatientMutation.mutateAsync(payload);
         console.log("result", result);
         setCreatedPatient(result?.patient);
+        
+        // Store patient session for future bookings
+        sessionStorage.setItem('currentPatient', JSON.stringify(result?.patient));
+        
         setCurrentStep('post-registration');
       } catch (error) {
         console.error('Error creating patient:', error);
         setErrors({ general: 'Failed to create patient. Please try again.' });
+      } finally {
+        setIsCreatingPatient(false);
       }
       return;
     }
@@ -452,6 +463,45 @@ const PublicBookingPlatform = () => {
     setCurrentStep('confirmation');
   };
 
+  const handleLoginRedirect = () => {
+    // Redirect to login page
+    window.location.href = 'auth/login';
+  };
+
+  const handleNewPatientRegistration = () => {
+    setIsNewPatient(true);
+    setCurrentStep('personal');
+  };
+
+  const handleExistingPatientLogin = () => {
+    setIsNewPatient(false);
+    handleLoginRedirect();
+  };
+
+  const handleBookAnotherAppointment = () => {
+    // Reset appointment data but keep patient data
+    setAppointmentData({
+      doctor: '',
+      appointmentDate: '',
+      appointmentStartTime: '',
+      appointmentEndTime: '',
+      duration: 30,
+      appointmentType: '',
+      priority: 'medium',
+      symptoms: '',
+      notes: '',
+      specialRequirements: '',
+      paymentMethod: '',
+      referralSource: ''
+    });
+    setErrors({});
+    setCalculatedFee(0);
+    setAvailabilityData([]);
+    setAvailableSlots([]);
+    setShowBookingOption(true);
+    setCurrentStep('appointment');
+  };
+
   const handleSubmitAppointment = async () => {
     if (!validateStep('payment')) return;
     
@@ -488,7 +538,8 @@ const PublicBookingPlatform = () => {
         )
       );
 
-      await bookAppointmentMutation.mutateAsync(cleanPayload);
+      const appointmentResult = await bookAppointmentMutation.mutateAsync(cleanPayload);
+      setBookedAppointment(appointmentResult);
       setCurrentStep('confirmation');
     } catch (error) {
       console.error('Error booking appointment:', error);
@@ -498,6 +549,69 @@ const PublicBookingPlatform = () => {
 
   const currentStepIndex = steps.findIndex(step => step.id === currentStep);
   const progressPercentage = ((currentStepIndex + 1) / steps.length) * 100;
+
+  // Loading Screen for Patient Creation
+  const renderPatientCreationLoading = () => (
+    <LoadingOverlay>
+      <LoadingContent>
+        <ProfessionalLoader>
+          <LoaderRing />
+          <LoaderRing />
+          <LoaderRing />
+        </ProfessionalLoader>
+        <LoadingTitle>Creating Your Patient Account</LoadingTitle>
+        <LoadingMessage>
+          Please wait while we set up your profile and secure your medical information...
+        </LoadingMessage>
+        <LoadingSteps>
+          <LoadingStep completed>✓ Validating Information</LoadingStep>
+          <LoadingStep active>🔄 Creating Account</LoadingStep>
+          <LoadingStep>⏳ Setting Up Profile</LoadingStep>
+          <LoadingStep>🔒 Securing Data</LoadingStep>
+        </LoadingSteps>
+      </LoadingContent>
+    </LoadingOverlay>
+  );
+
+  const renderWelcome = () => (
+    <WelcomeContent>
+      <WelcomeHeader>
+        <WelcomeIcon>🏥</WelcomeIcon>
+        <WelcomeTitle>Welcome to Sujan Singh Dental</WelcomeTitle>
+        <WelcomeSubtitle>Book your appointment with ease</WelcomeSubtitle>
+      </WelcomeHeader>
+
+      <OptionsGrid>
+        <WelcomeOption onClick={handleNewPatientRegistration}>
+          <OptionIcon>👤</OptionIcon>
+          <OptionTitle>New Patient</OptionTitle>
+          <OptionDescription>
+            First time here? Create your patient account and book an appointment
+          </OptionDescription>
+          <OptionFeatures>
+            <Feature>✓ Quick registration process</Feature>
+            <Feature>✓ Secure medical records</Feature>
+            <Feature>✓ Easy appointment booking</Feature>
+          </OptionFeatures>
+          <OptionButton>Get Started</OptionButton>
+        </WelcomeOption>
+
+        <WelcomeOption onClick={handleExistingPatientLogin}>
+          <OptionIcon>🔐</OptionIcon>
+          <OptionTitle>Existing Patient</OptionTitle>
+          <OptionDescription>
+            Already have an account? Login to book appointments and manage your profile
+          </OptionDescription>
+          <OptionFeatures>
+            <Feature>✓ Access your medical history</Feature>
+            <Feature>✓ View past appointments</Feature>
+            <Feature>✓ Quick booking process</Feature>
+          </OptionFeatures>
+          <OptionButton variant="secondary">Login</OptionButton>
+        </WelcomeOption>
+      </OptionsGrid>
+    </WelcomeContent>
+  );
 
   const renderPersonalInfo = () => (
     <StepContent>
@@ -1208,70 +1322,84 @@ const PublicBookingPlatform = () => {
 
       <ConfirmationActions>
         <ActionButton onClick={() => window.print()}>📄 Download Receipt</ActionButton>
-        <ActionButton variant="secondary" onClick={() => window.location.reload()}>
-          {showBookingOption ? '📅 Book Another Appointment' : '👤 Register Another Patient'}
-        </ActionButton>
+        {showBookingOption ? (
+          <ActionButton variant="secondary" onClick={handleBookAnotherAppointment}>
+            📅 Book Another Appointment
+          </ActionButton>
+        ) : (
+          <ActionButton variant="secondary" onClick={() => window.location.reload()}>
+            👤 Register Another Patient
+          </ActionButton>
+        )}
       </ConfirmationActions>
     </ConfirmationContent>
   );
 
   const getVisibleSteps = () => {
-    if (!showBookingOption && currentStep !== 'post-registration') {
-      return steps.filter(step => !['appointment', 'payment'].includes(step.id));
+    if (currentStep === 'welcome') {
+      return [steps[0]]; // Only show welcome step
     }
-    return steps;
+    if (!showBookingOption && currentStep !== 'post-registration') {
+      return steps.filter(step => !['welcome', 'appointment', 'payment'].includes(step.id));
+    }
+    return steps.filter(step => step.id !== 'welcome');
   };
 
   const visibleSteps = getVisibleSteps();
   const visibleCurrentStepIndex = visibleSteps.findIndex(step => step.id === currentStep);
   const visibleProgressPercentage = ((visibleCurrentStepIndex + 1) / visibleSteps.length) * 100;
 
+  // Show loading overlay when creating patient
+  if (isCreatingPatient) {
+    return (
+      <PlatformContainer>
+        <Toaster position="top-right" />
+        {renderPatientCreationLoading()}
+      </PlatformContainer>
+    );
+  }
+
   return (
     <PlatformContainer>
       <Toaster position="top-right" />
-      {/* Header */}
-      <PlatformHeader>
-        <HeaderLogo>
-          <LogoIcon>🏥</LogoIcon>
-          <LogoText>Sujan Singh dental</LogoText>
-        </HeaderLogo>
-        {/* <HeaderSubtitle>Professional Healthcare Booking</HeaderSubtitle> */}
-      </PlatformHeader>
 
-      {/* Progress Indicator */}
-      <ProgressContainer>
-        <ProgressHeader>
-          <ProgressTitle>
-            {showBookingOption 
-              ? 'Complete Your Registration & Booking' 
-              : 'Complete Your Registration'
-            }
-          </ProgressTitle>
-          <ProgressText>Step {visibleCurrentStepIndex + 1} of {visibleSteps.length}</ProgressText>
-        </ProgressHeader>
-        
-        <ProgressBar>
-          <ProgressFill percentage={visibleProgressPercentage} />
-        </ProgressBar>
-        
-        <StepIndicators>
-          {visibleSteps.map((step, index) => (
-            <StepIndicator
-              key={step.id}
-              active={step.id === currentStep}
-              completed={index < visibleCurrentStepIndex}
-            >
-              <StepIndicatorIcon>{step.icon}</StepIndicatorIcon>
-              <StepIndicatorTitle>{step.title}</StepIndicatorTitle>
-              <StepIndicatorDescription>{step.description}</StepIndicatorDescription>
-            </StepIndicator>
-          ))}
-        </StepIndicators>
-      </ProgressContainer>
+      {/* Progress Indicator - Hidden on welcome step */}
+      {currentStep !== 'welcome' && (
+        <ProgressContainer>
+          <ProgressHeader>
+            <ProgressTitle>
+              {showBookingOption 
+                ? 'Complete Your Registration & Booking' 
+                : 'Complete Your Registration'
+              }
+            </ProgressTitle>
+            <ProgressText>Step {visibleCurrentStepIndex + 1} of {visibleSteps.length}</ProgressText>
+          </ProgressHeader>
+          
+          <ProgressBar>
+            <ProgressFill percentage={visibleProgressPercentage} />
+          </ProgressBar>
+          
+          <StepIndicators>
+            {visibleSteps.map((step, index) => (
+              <StepIndicator
+                key={step.id}
+                active={step.id === currentStep}
+                completed={index < visibleCurrentStepIndex}
+              >
+                <StepIndicatorIcon>{step.icon}</StepIndicatorIcon>
+                <StepIndicatorTitle>{step.title}</StepIndicatorTitle>
+                <StepIndicatorDescription>{step.description}</StepIndicatorDescription>
+              </StepIndicator>
+            ))}
+          </StepIndicators>
+        </ProgressContainer>
+      )}
 
       {/* Main Content */}
       <MainContainer>
         <FormCard>
+          {currentStep === 'welcome' && renderWelcome()}
           {currentStep === 'personal' && renderPersonalInfo()}
           {currentStep === 'contact' && renderContactInfo()}
           {currentStep === 'medical' && renderMedicalInfo()}
@@ -1281,8 +1409,8 @@ const PublicBookingPlatform = () => {
           {currentStep === 'confirmation' && renderConfirmation()}
         </FormCard>
 
-        {/* Form Actions */}
-        {!['confirmation', 'post-registration'].includes(currentStep) && (
+        {/* Form Actions - Hidden on welcome and confirmation steps */}
+        {!['confirmation', 'post-registration', 'welcome'].includes(currentStep) && (
           <FormActions>
             <ActionButton
               variant="secondary"
@@ -1302,9 +1430,9 @@ const PublicBookingPlatform = () => {
             ) : (
               <ActionButton 
                 onClick={handleNext}
-                disabled={createPatientMutation.isLoading}
+                disabled={createPatientMutation.isLoading || isCreatingPatient}
               >
-                {createPatientMutation.isLoading ? 'Creating Account...' : 'Next Step →'}
+                {(createPatientMutation.isLoading || isCreatingPatient) ? 'Creating Account...' : 'Next Step →'}
               </ActionButton>
             )}
           </FormActions>
@@ -1329,6 +1457,216 @@ const CustomDateInput = React.forwardRef<HTMLInputElement, any>(({ value, onClic
 ));
 
 // Styled Components
+
+// Loading Animation Keyframes
+const spin = keyframes`
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+`;
+
+const pulse = keyframes`
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+`;
+
+const fadeInUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+// Loading Overlay Components
+const LoadingOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+`;
+
+const LoadingContent = styled.div`
+  text-align: center;
+  color: white;
+  animation: ${fadeInUp} 0.6s ease-out;
+`;
+
+const ProfessionalLoader = styled.div`
+  position: relative;
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 24px auto;
+`;
+
+const LoaderRing = styled.div`
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: 3px solid transparent;
+  border-top: 3px solid rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  animation: ${spin} 1.2s linear infinite;
+
+  &:nth-child(1) {
+    animation-delay: 0s;
+  }
+
+  &:nth-child(2) {
+    width: 60px;
+    height: 60px;
+    top: 10px;
+    left: 10px;
+    border-top-color: rgba(255, 255, 255, 0.6);
+    animation-delay: 0.3s;
+    animation-direction: reverse;
+  }
+
+  &:nth-child(3) {
+    width: 40px;
+    height: 40px;
+    top: 20px;
+    left: 20px;
+    border-top-color: rgba(255, 255, 255, 0.4);
+    animation-delay: 0.6s;
+  }
+`;
+
+const LoadingTitle = styled.h2`
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: white;
+`;
+
+const LoadingMessage = styled.p`
+  font-size: 16px;
+  margin: 0 0 32px 0;
+  opacity: 0.9;
+  max-width: 400px;
+  line-height: 1.5;
+`;
+
+const LoadingSteps = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+`;
+
+const LoadingStep = styled.div<{ completed?: boolean; active?: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  opacity: ${props => props.completed ? 1 : props.active ? 0.8 : 0.5};
+  animation: ${props => props.active ? pulse : 'none'} 1.5s ease-in-out infinite;
+`;
+
+// Welcome Page Components
+const WelcomeContent = styled.div`
+  padding: 40px 32px;
+  text-align: center;
+  
+  @media (max-width: 768px) {
+    padding: 24px 16px;
+  }
+`;
+
+const WelcomeHeader = styled.div`
+  margin-bottom: 40px;
+  
+  @media (max-width: 768px) {
+    margin-bottom: 32px;
+  }
+`;
+
+const WelcomeIcon = styled.div`
+  font-size: 64px;
+  margin-bottom: 16px;
+  
+  @media (max-width: 768px) {
+    font-size: 48px;
+    margin-bottom: 12px;
+  }
+`;
+
+const WelcomeTitle = styled.h1`
+  font-size: 32px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 8px 0;
+  
+  @media (max-width: 768px) {
+    font-size: 28px;
+  }
+`;
+
+const WelcomeSubtitle = styled.p`
+  font-size: 18px;
+  color: #6b7280;
+  margin: 0;
+  
+  @media (max-width: 768px) {
+    font-size: 16px;
+  }
+`;
+
+const OptionsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+  max-width: 800px;
+  margin: 0 auto;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+`;
+
+const WelcomeOption = styled.div`
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 32px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    border-color: #667eea;
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(102, 126, 234, 0.15);
+  }
+  
+  @media (max-width: 768px) {
+    padding: 24px 20px;
+  }
+`;
+
+const OptionFeatures = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0 24px 0;
+  text-align: left;
+`;
+
+const Feature = styled.div`
+  font-size: 14px;
+  color: #059669;
+  font-weight: 500;
+`;
+
 const PlatformContainer = styled.div`
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -1623,12 +1961,7 @@ const LoadingSpinner = styled.div`
   border: 3px solid #e2e8f0;
   border-top: 3px solid #667eea;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
+  animation: ${spin} 1s linear infinite;
 `;
 
 const MiniSpinner = styled.div`
@@ -1637,12 +1970,7 @@ const MiniSpinner = styled.div`
   border: 2px solid #e2e8f0;
   border-top: 2px solid #667eea;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
+  animation: ${spin} 1s linear infinite;
 `;
 
 const LoadingText = styled.div`

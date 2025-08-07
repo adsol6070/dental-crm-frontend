@@ -18,7 +18,5 @@ export const AdminServiceCategories = lazy(
 export const AdminPatientServices = lazy(
   () => import("./AdminPatientServices")
 );
-export const AdminBulkReports = lazy(
-  () => import("./AdminBulkReports")
-);
-
+export const AdminBulkReports = lazy(() => import("./AdminBulkReports"));
+export const MedicineManagement = lazy(() => import("./medicineManagement"));
